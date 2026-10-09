@@ -1,263 +1,332 @@
 <title>Nestlog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Onest:wght@400;500;600&display=swap">
 <style>
-/* Layout: one-column phone app — header, live timers, "since last" row, quick-log grid, today; bottom tab bar. Colors per log type. */
+/* Nestlog design system
+   Layout: single 480px column. Header → "Right now" status card with a 24-hour ribbon → live timers → log actions
+   (4 primary tiles, 3 secondary pills) → today → recent. Bottom tab bar. Sheets slide up for every entry.
+   Color: lilac-grey neutrals with a plum ink; one hue per log family, always used as ink + 14% tint.
+   Type: Bricolage Grotesque for names and numbers, Onest for UI text. */
 :root{
-  --bg:#eef1f4; --surface:#ffffff; --sunk:#e3e8ed; --line:#d3dae2;
-  --fg:#1d2733; --muted:#5e6b7a; --accent:#2f5d8a; --accent-ink:#ffffff;
-  --feed:#c27c1c; --feed-bg:#fbefdc;
-  --sleep:#5650a8; --sleep-bg:#e9e7f8;
-  --diaper:#1f8178; --diaper-bg:#dcf1ee;
-  --pump:#b2486b; --pump-bg:#f8e3ea;
-  --growth:#4d7d2f; --growth-bg:#e5f0dc;
-  --danger:#b3261e;
-  --display:"Young Serif", Georgia, "Times New Roman", serif;
-  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --r:14px;
+  /* neutrals */
+  --bg:#f4f3f7; --surface:#ffffff; --raised:#ffffff; --sunk:#eceaf1; --line:#e2dfe8; --line-strong:#cfcad8;
+  --ink:#221d2c; --ink-2:#4a4456; --muted:#6f6979;
+  /* brand */
+  --brand:#3b2d64; --brand-ink:#ffffff; --brand-soft:#e7e2f5;
+  /* log families */
+  --c-feed:#c9761f; --c-sleep:#5b54c9; --c-diaper:#1d8c80; --c-pump:#c24672; --c-growth:#4f8a2c;
+  --danger:#b4232b; --ok:#1d8c80;
+  /* type */
+  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-ui:"Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-2xs:11px; --fs-xs:12px; --fs-sm:13px; --fs-md:15px; --fs-lg:17px; --fs-xl:22px; --fs-2xl:30px; --fs-3xl:44px;
+  /* space, radius, elevation, motion */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --r-sm:10px; --r-md:14px; --r-lg:22px; --r-pill:999px;
+  --shadow-1:0 1px 1px rgb(34 22 60 / .04), 0 2px 10px rgb(34 22 60 / .05);
+  --shadow-2:0 10px 40px rgb(20 12 40 / .18);
+  --scrim:rgb(18 12 30 / .42);
+  --ease:cubic-bezier(.2,.8,.2,1); --t-fast:120ms; --t-med:220ms;
+  --tint:14%;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#11161c; --surface:#1a2129; --sunk:#232c36; --line:#2e3946;
-  --fg:#e7edf3; --muted:#9aa8b7; --accent:#7fb0e0; --accent-ink:#0d1620;
-  --feed:#e8a94e; --feed-bg:#33281a; --sleep:#a9a3f2; --sleep-bg:#26243f;
-  --diaper:#5cc7bb; --diaper-bg:#16302d; --pump:#e88aa8; --pump-bg:#3a1f29;
-  --growth:#93c46f; --growth-bg:#1f2e17; --danger:#f2867e; color-scheme:dark}}
+  --bg:#110f16; --surface:#1a1721; --raised:#211d2a; --sunk:#25212f; --line:#2f2a3a; --line-strong:#3f384c;
+  --ink:#efecf4; --ink-2:#cdc7d8; --muted:#a29bad;
+  --brand:#c3b6f4; --brand-ink:#171222; --brand-soft:#2b2443;
+  --c-feed:#eba55a; --c-sleep:#9d97f5; --c-diaper:#4fc4b6; --c-pump:#ec88ab; --c-growth:#93c56c;
+  --danger:#f08a8f; --ok:#4fc4b6;
+  --shadow-1:0 0 0 1px rgb(255 255 255 / .02); --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
+  --tint:18%; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#11161c; --surface:#1a2129; --sunk:#232c36; --line:#2e3946;
-  --fg:#e7edf3; --muted:#9aa8b7; --accent:#7fb0e0; --accent-ink:#0d1620;
-  --feed:#e8a94e; --feed-bg:#33281a; --sleep:#a9a3f2; --sleep-bg:#26243f;
-  --diaper:#5cc7bb; --diaper-bg:#16302d; --pump:#e88aa8; --pump-bg:#3a1f29;
-  --growth:#93c46f; --growth-bg:#1f2e17; --danger:#f2867e; color-scheme:dark}
+  --bg:#110f16; --surface:#1a1721; --raised:#211d2a; --sunk:#25212f; --line:#2f2a3a; --line-strong:#3f384c;
+  --ink:#efecf4; --ink-2:#cdc7d8; --muted:#a29bad;
+  --brand:#c3b6f4; --brand-ink:#171222; --brand-soft:#2b2443;
+  --c-feed:#eba55a; --c-sleep:#9d97f5; --c-diaper:#4fc4b6; --c-pump:#ec88ab; --c-growth:#93c56c;
+  --danger:#f08a8f; --ok:#4fc4b6;
+  --shadow-1:0 0 0 1px rgb(255 255 255 / .02); --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
+  --tint:18%; color-scheme:dark}
 
+/* family helpers: set --c, get ink + tint */
+.k-feed{--c:var(--c-feed)} .k-sleep{--c:var(--c-sleep)} .k-diaper{--c:var(--c-diaper)} .k-pump{--c:var(--c-pump)} .k-growth{--c:var(--c-growth)}
+.tint{background:color-mix(in oklab, var(--c) var(--tint), var(--surface));color:var(--c)}
+
+/* base */
 html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
-.app{max-width:520px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom,0px))}
-button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:var(--fs-md);line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+.app{max-width:480px;margin:0 auto;padding:0 var(--s4) calc(104px + env(safe-area-inset-bottom,0px))}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
 .num{font-variant-numeric:tabular-nums}
+.disp{font-family:var(--f-display);font-weight:600;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+.eyebrow{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h2.sec{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:var(--s6) 0 var(--s3);font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg);letter-spacing:-.01em}
+h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weight:600;color:var(--brand)}
+.card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+@media (prefers-reduced-motion:no-preference){
+  .press{transition:transform var(--t-fast) var(--ease), background var(--t-fast)}
+  .press:active{transform:scale(.97)}
+}
 
-header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:20px 14px}
-header h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1;margin:0;text-wrap:balance}
-.age{color:var(--muted);font-size:14px;margin-top:2px}
-.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-.sync.live .dot{background:var(--diaper)}
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);margin-inline:calc(var(--s4) * -1);padding:var(--s4) var(--s4) var(--s3);display:flex;align-items:center;gap:var(--s3)}
+.avatar{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand);font-family:var(--f-display);font-weight:700;font-size:var(--fs-lg)}
+.who{flex:1;min-width:0}
+.who h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-xl);line-height:1.1;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
+.sync{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:500;color:var(--muted);padding:6px 10px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--shadow-1);white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.sync.live i{background:var(--ok)}
 
-.section-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:22px 0 10px}
+/* status card */
+.status{padding:var(--s5) var(--s5) var(--s4);display:grid;gap:var(--s4)}
+.status .head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s3)}
+.status .state{font-family:var(--f-display);font-weight:600;font-size:var(--fs-3xl);line-height:1;letter-spacing:-.03em}
+.status .state small{display:block;font-family:var(--f-ui);font-size:var(--fs-sm);font-weight:500;letter-spacing:0;color:var(--muted);margin-bottom:6px}
+.status .state.asleep{color:var(--c-sleep)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+.fact{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r-md);background:var(--sunk);min-width:0}
+.fact .dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.fact b{display:block;font-weight:600;font-size:var(--fs-sm)}
+.fact span{display:block;font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fact>div{min-width:0}
+.ribbon svg{display:block;width:100%;height:auto}
+.ribbon .labels{display:flex;justify-content:space-between;font-size:var(--fs-2xs);color:var(--muted);margin-top:4px}
+.legend{display:flex;gap:var(--s3);font-size:var(--fs-2xs);color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:2px;background:var(--c)}
 
 /* live timers */
-.live{display:grid;gap:10px}
-.timer{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r);text-align:left;width:100%}
-.timer.feed{background:var(--feed-bg)} .timer.sleep{background:var(--sleep-bg)}
-.timer .big{font-family:var(--display);font-size:28px;line-height:1}
-.timer .lab{font-size:13px;color:var(--muted)}
-.timer .grow{flex:1;min-width:0}
-.pulse{width:10px;height:10px;border-radius:50%;flex:none}
-.feed .pulse{background:var(--feed)} .sleep .pulse{background:var(--sleep)}
-@media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+.live{display:grid;gap:var(--s2);margin-top:var(--s3)}
+.live:empty{display:none}
+.timer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:var(--s3);padding:var(--s3) var(--s3) var(--s3) var(--s4);border-radius:var(--r-lg);background:color-mix(in oklab, var(--c) var(--tint), var(--surface));border:1px solid color-mix(in oklab, var(--c) 30%, transparent)}
+.timer .pulse{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.timer .t{font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);line-height:1.1}
+.timer .l{font-size:var(--fs-xs);color:var(--ink-2)}
+.timer .open{text-align:left;min-width:0}
+.timer .ctl{display:flex;gap:6px}
+.mini{min-width:44px;height:40px;padding:0 12px;border-radius:var(--r-sm);background:var(--surface);font-size:var(--fs-sm);font-weight:600;color:var(--ink)}
+.mini.on{background:var(--c);color:var(--surface)}
+.mini.solid{background:var(--ink);color:var(--surface)}
+@media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.3;transform:scale(.8)}}}
 
-/* since last */
-.since{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.since div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
-.since b{display:block;font-family:var(--display);font-weight:400;font-size:20px;line-height:1.15}
-.since span{font-size:12px;color:var(--muted)}
-.since small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* log actions */
+.primary4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
+.tile{display:grid;justify-items:center;gap:var(--s2);padding:var(--s4) var(--s1) var(--s3);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-1);font-size:var(--fs-sm);font-weight:600}
+.tile .ic{width:46px;height:46px;border-radius:50%;display:grid;place-items:center}
+.tile .ic svg{width:24px;height:24px}
+.tile small{font-size:var(--fs-2xs);font-weight:500;color:var(--muted);margin-top:-6px;white-space:nowrap}
+.pills{display:flex;gap:var(--s2);margin-top:var(--s2)}
+.pill{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--shadow-1);font-size:var(--fs-sm);font-weight:600}
+.pill svg{width:18px;height:18px;color:var(--c)}
 
-/* quick log */
-.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.q{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 10px;border-radius:12px;font-size:13px;font-weight:600;min-height:76px}
-.q svg{width:26px;height:26px}
-.t-feed{background:var(--feed-bg);color:var(--feed)} .t-sleep{background:var(--sleep-bg);color:var(--sleep)}
-.t-diaper{background:var(--diaper-bg);color:var(--diaper)} .t-pump{background:var(--pump-bg);color:var(--pump)}
-.t-growth{background:var(--growth-bg);color:var(--growth)}
-.q span{color:var(--fg)}
+/* today */
+.today{display:grid;grid-template-columns:repeat(4,1fr);padding:var(--s4) var(--s2)}
+.today div{text-align:center;padding:0 var(--s1);border-left:1px solid var(--line);min-width:0}
+.today div:first-child{border-left:0}
+.today b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);line-height:1.15}
+.today b small{font-size:var(--fs-xs);font-family:var(--f-ui);font-weight:500;color:var(--muted)}
+.today span{font-size:var(--fs-2xs);color:var(--muted)}
 
-/* today totals */
-.totals{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.totals div{background:var(--surface);padding:12px 14px}
-.totals b{font-family:var(--display);font-weight:400;font-size:22px}
-.totals span{display:block;font-size:12px;color:var(--muted)}
+/* entry list */
+.list{overflow:hidden}
+.entry{display:grid;grid-template-columns:52px 1fr;gap:var(--s3);align-items:center;width:100%;text-align:left;padding:var(--s3) var(--s4);position:relative}
+.entry+.entry{border-top:1px solid var(--line)}
+.entry time{font-size:var(--fs-sm);font-weight:500;color:var(--ink-2)}
+.entry .body{display:flex;gap:var(--s3);align-items:center;min-width:0}
+.entry .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
+.entry .ic svg{width:17px;height:17px}
+.entry .txt{min-width:0}
+.entry b{display:block;font-weight:600;font-size:var(--fs-md)}
+.entry .by{font-weight:500;color:var(--muted);font-size:var(--fs-sm)}
+.entry .txt>span{display:block;font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (hover:hover){.entry:hover{background:var(--sunk)}}
+.day{margin-top:var(--s5)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);margin-bottom:var(--s2);padding:0 var(--s1)}
+.dayhead b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg)}
+.dayhead span{font-size:var(--fs-xs);color:var(--muted)}
+.empty{padding:var(--s6) var(--s5);text-align:center;color:var(--muted);font-size:var(--fs-sm)}
+.empty b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg);color:var(--ink);margin-bottom:4px}
+.skel{height:60px;border-radius:var(--r-md);background:var(--surface);margin-bottom:var(--s2)}
+@media (prefers-reduced-motion:no-preference){.skel{animation:sk 1.2s ease-in-out infinite}@keyframes sk{50%{opacity:.45}}}
 
-/* timeline */
-.day{margin-top:18px}
-.day h3{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
-.rows{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;text-align:left;border-top:1px solid var(--line)}
-.row:first-child{border-top:0}
-.row .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
-.row .ic svg{width:18px;height:18px}
-.row .mid{flex:1;min-width:0}
-.row .mid b{font-weight:600;display:block}
-.row .mid span{font-size:13px;color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row time{font-size:13px;color:var(--muted);flex:none}
-.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px 18px;text-align:center;color:var(--muted)}
-.empty b{display:block;color:var(--fg);font-family:var(--display);font-weight:400;font-size:18px;margin-bottom:4px}
-.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-top:16px}
+/* segmented + chips */
+.seg{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--sunk);overflow-x:auto;scrollbar-width:none}
+.seg button{flex:1 0 auto;padding:8px 14px;border-radius:var(--r-pill);font-size:var(--fs-sm);font-weight:600;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--sunk);font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 
 /* trends */
-.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 8px;margin-bottom:12px}
-.chart h4{margin:0;font-size:14px;font-weight:600}
-.chart p{margin:2px 0 8px;font-size:12px;color:var(--muted)}
-.chart svg{width:100%;height:auto;display:block}
-.chart text{fill:var(--muted);font-family:var(--body);font-size:10px}
+.chart{padding:var(--s4) var(--s4) var(--s3);margin-bottom:var(--s3)}
+.chart header{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3)}
+.chart h3{margin:0;font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg)}
+.chart .big{font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);color:var(--c)}
+.chart p{margin:2px 0 var(--s3);font-size:var(--fs-xs);color:var(--muted)}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{fill:var(--muted);font-family:var(--f-ui);font-size:10px}
 
 /* forms */
-.field{display:grid;gap:6px}
-.field label,.flabel{font-size:13px;font-weight:600;color:var(--muted)}
-input,select,textarea{font:inherit;color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;box-sizing:border-box;min-width:0}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{padding:8px 14px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-size:14px;font-weight:500;white-space:nowrap}
-.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.btn{padding:13px 18px;border-radius:12px;font-weight:600;text-align:center}
-.btn.primary{background:var(--accent);color:var(--accent-ink)}
-.btn.ghost{background:var(--sunk)}
-.btn.danger{color:var(--danger);background:transparent}
-.btn.danger.confirm{background:var(--danger);color:var(--surface)}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-.actions .btn{flex:1}
-.stepper{display:flex;align-items:center;gap:8px}
-.stepper button{width:44px;height:44px;border-radius:12px;background:var(--sunk);font-size:20px;font-weight:600;flex:none}
-.stepper input{text-align:center;font-family:var(--display);font-size:22px}
-.unit{font-size:13px;color:var(--muted);white-space:nowrap}
-.hint{font-size:13px;color:var(--muted);margin:0}
+.field{display:grid;gap:6px;min-width:0}
+.label{font-size:var(--fs-sm);font-weight:600;color:var(--ink-2)}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--sunk);border:1px solid transparent;border-radius:var(--r-sm);padding:11px 12px;width:100%;box-sizing:border-box;min-width:0;transition:border-color var(--t-fast)}
+input:focus,select:focus{outline:none;border-color:var(--brand);background:var(--surface)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.amount{display:grid;grid-template-columns:48px 1fr 48px;gap:var(--s2);align-items:center}
+.amount button{height:48px;border-radius:var(--r-md);background:var(--sunk);font-size:22px;font-weight:500}
+.amount .val{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.amount input{background:none;border:0;text-align:center;font-family:var(--f-display);font-weight:600;font-size:var(--fs-3xl);padding:0;width:4.2ch}
+.amount input:focus{background:none}
+.amount .u{font-size:var(--fs-md);color:var(--muted);font-weight:500}
+.btn{height:50px;padding:0 var(--s5);border-radius:var(--r-md);font-weight:600;font-size:var(--fs-md);display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
+.btn.primary{background:var(--brand);color:var(--brand-ink)}
+.btn.soft{background:var(--sunk);color:var(--ink)}
+.btn.danger{color:var(--danger);height:44px}
+.btn.danger.armed{background:var(--danger);color:var(--surface)}
+.btn[disabled]{opacity:.55;cursor:default}
+.row-actions{display:flex;gap:var(--s2)}
+.row-actions .btn{flex:1}
+.hint{font-size:var(--fs-sm);color:var(--muted);margin:0}
+details summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--brand);list-style:none}
+details summary::-webkit-details-marker{display:none}
 
-/* nursing sides */
-.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.side{border-radius:16px;padding:18px 10px;background:var(--sunk);border:2px solid transparent;display:grid;gap:4px;justify-items:center}
-.side .s{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.side .big{font-family:var(--display);font-size:32px;line-height:1.1}
-.side .st{font-size:12px;color:var(--muted)}
-.side.on{border-color:var(--feed);background:var(--feed-bg)}
-.side.on .st{color:var(--feed);font-weight:600}
-.bigclock{font-family:var(--display);font-size:44px;text-align:center;line-height:1.1;color:var(--sleep)}
+/* nursing */
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.side{aspect-ratio:1;max-width:100%;border-radius:50%;display:grid;place-content:center;justify-items:center;gap:2px;background:var(--sunk);border:3px solid transparent;transition:background var(--t-med),border-color var(--t-med)}
+.side .s{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.side .t{font-family:var(--f-display);font-weight:600;font-size:var(--fs-2xl)}
+.side .st{font-size:var(--fs-xs);color:var(--muted)}
+.side.on{border-color:var(--c-feed);background:color-mix(in oklab, var(--c-feed) var(--tint), var(--surface))}
+.side.on .st{color:var(--c-feed);font-weight:600}
+.side.sug .st{color:var(--ink-2);font-weight:600}
+.bigclock{font-family:var(--f-display);font-weight:600;font-size:56px;text-align:center;line-height:1;color:var(--c-sleep);letter-spacing:-.03em}
 
 /* sheet */
-.scrim{position:fixed;inset:0;background:rgb(10 15 20 / .45);z-index:20}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:520px;margin:0 auto;background:var(--surface);border-radius:20px 20px 0 0;max-height:88%;overflow-y:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
-.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 10px}
-.sheet h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
-.sheet h2 .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center}
-.sheet h2 .ic svg{width:18px;height:18px}
-.sheet form{display:grid;gap:16px;margin-top:12px}
-@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s cubic-bezier(.2,.8,.2,1)}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:480px;margin:0 auto;background:var(--raised);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:var(--shadow-2);max-height:90%;overflow-y:auto;padding:var(--s2) var(--s5) calc(var(--s5) + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--line-strong);margin:4px auto var(--s4)}
+.sheet .title{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s5)}
+.sheet .title .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
+.sheet .title .ic svg{width:20px;height:20px}
+.sheet h2{margin:0;flex:1;font-family:var(--f-display);font-weight:700;font-size:var(--fs-xl);letter-spacing:-.02em}
+.sheet .x{width:36px;height:36px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
+.sheet .x svg{width:16px;height:16px}
+.sheet form{display:grid;gap:var(--s5)}
+@media (prefers-reduced-motion:no-preference){
+  .sheet{animation:up var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med)}
+  @keyframes up{from{transform:translateY(40px);opacity:.5}} @keyframes fade{from{opacity:0}}
+}
+
+/* when */
+.when{display:grid;gap:var(--s2)}
+.when .chips .chip{height:34px;padding:0 12px}
 
 /* tab bar */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav.tabs div{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
-nav.tabs button{padding:10px 0 12px;font-size:12px;font-weight:600;color:var(--muted);display:grid;justify-items:center;gap:3px}
-nav.tabs svg{width:22px;height:22px}
-nav.tabs button[aria-current="page"]{color:var(--accent)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:color-mix(in oklab, var(--surface) 92%, transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);padding:6px var(--s2)}
+.tabs button{height:54px;display:grid;justify-items:center;align-content:center;gap:3px;font-size:var(--fs-2xs);font-weight:600;color:var(--muted);border-radius:var(--r-md)}
+.tabs svg{width:22px;height:22px}
+.tabs button[aria-current="page"]{color:var(--brand)}
+.tabs button[aria-current="page"] svg{background:var(--brand-soft);border-radius:var(--r-pill);padding:3px 14px;box-sizing:content-box;margin:-3px 0}
 
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
-.note{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:14px;color:var(--muted)}
-.note b{color:var(--fg)}
-.settings{display:grid;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:var(--s3);max-width:calc(100% - 32px);box-sizing:border-box;padding:12px 18px;border-radius:var(--r-pill);background:var(--ink);color:var(--surface);font-size:var(--fs-sm);font-weight:500;box-shadow:var(--shadow-2)}
+.toast button{color:var(--surface);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 
-/* polish */
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin-inline:-16px;padding-inline:16px}
-.q{transition:transform .12s ease}
-.q:active,.row:active,.side:active,.timer:active{transform:scale(.97)}
-.row{transition:background .15s}
-.row:hover{background:var(--sunk)}
-.by{color:var(--muted)}
-.sheet h2{justify-content:flex-start}
-.sheet .x{margin-left:auto;width:36px;height:36px;border-radius:10px;background:var(--sunk);display:grid;place-items:center;font-size:20px;line-height:1;color:var(--muted)}
-.skel{height:56px;border-radius:12px;background:var(--surface);border:1px solid var(--line);margin-bottom:8px}
-@media (prefers-reduced-motion:no-preference){.skel{animation:sk 1.2s ease-in-out infinite}@keyframes sk{50%{opacity:.5}}}
-.toast{display:flex;align-items:center;gap:12px}
-.toast button{color:var(--bg);font-weight:700;text-decoration:underline;text-underline-offset:3px}
-
-/* import / export */
-.io{display:grid;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
-.io h4{margin:0;font-size:15px;font-weight:600}
-.io .hint{margin-top:-6px}
-.io .actions .btn{flex:1 1 140px}
-.drop{display:grid;place-items:center;gap:4px;text-align:center;padding:18px;border:1.5px dashed var(--line);border-radius:12px;color:var(--muted);cursor:pointer}
-.drop b{color:var(--fg);font-weight:600}
-.drop.over{border-color:var(--accent);background:var(--sunk)}
-.preview{display:grid;gap:10px;padding:14px;border-radius:12px;background:var(--sunk)}
+/* baby / settings */
+.group{overflow:hidden}
+.group .item{padding:var(--s4);display:grid;gap:var(--s3)}
+.group .item+.item{border-top:1px solid var(--line)}
+.group h3{margin:0;font-size:var(--fs-md);font-weight:600}
+.drop{display:grid;place-items:center;gap:2px;text-align:center;padding:var(--s5);border:1.5px dashed var(--line-strong);border-radius:var(--r-md);color:var(--muted);font-size:var(--fs-sm);cursor:pointer}
+.drop b{color:var(--ink);font-weight:600;font-size:var(--fs-md)}
+.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.preview{display:grid;gap:var(--s2);padding:var(--s4);border-radius:var(--r-md);background:var(--sunk);font-size:var(--fs-sm)}
 .preview ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
-.preview li{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
-.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
-.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
-.check{display:flex;align-items:center;gap:10px;font-size:14px}
-.check input{width:20px;height:20px;flex:none}
-textarea.dump{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;height:160px;resize:vertical}
-.err{color:var(--danger);font-size:14px;margin:0}
+.preview li{padding:4px 10px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-xs);font-weight:500}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .2s}
+.check{display:flex;align-items:center;gap:10px}
+.check input{width:20px;height:20px;flex:none;accent-color:var(--brand)}
+textarea.dump{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:var(--s3);width:100%;box-sizing:border-box;height:160px;resize:vertical}
+.err{color:var(--danger);font-size:var(--fs-sm);margin:0}
+.note{font-size:var(--fs-sm);color:var(--ink-2);margin:0}
 </style>
 
 <div class="app">
-  <header>
-    <div>
-      <h1 id="babyName">Your baby</h1>
-      <div class="age" id="babyAge">Add a name and birth date under Baby</div>
-    </div>
-    <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting…</span></div>
+  <header class="top">
+    <div class="avatar" id="avatar" aria-hidden="true">N</div>
+    <div class="who"><h1 id="babyName">Your baby</h1><p id="babyAge">Add name and birth date in Baby</p></div>
+    <div class="sync" id="sync"><i></i><span id="syncText">Connecting</span></div>
   </header>
 
   <main id="view-home">
+    <section class="card status" id="status" aria-live="polite"></section>
     <div class="live" id="live"></div>
-    <div class="section-label">Since last</div>
-    <div class="since" id="since"></div>
-    <div class="section-label">Log</div>
-    <div class="quick" id="quick"></div>
-    <div class="section-label">Today</div>
-    <div class="totals" id="totals"></div>
-    <div class="section-label">Recent</div>
+    <h2 class="sec">Log</h2>
+    <div class="primary4" id="primary4"></div>
+    <div class="pills" id="pills"></div>
+    <h2 class="sec">Today</h2>
+    <div class="card today" id="totals"></div>
+    <h2 class="sec">Recent <button type="button" data-tab="timeline">See all</button></h2>
     <div id="recent"></div>
   </main>
 
   <main id="view-timeline" hidden>
-    <div class="filters" id="filters"></div>
+    <h2 class="sec" style="margin-top:var(--s2)">Timeline</h2>
+    <div class="seg" id="filters" role="group" aria-label="Filter entries"></div>
     <div id="timeline"></div>
   </main>
 
   <main id="view-trends" hidden>
-    <div class="section-label">Last 7 days</div>
+    <h2 class="sec" style="margin-top:var(--s2)">Trends</h2>
+    <div class="seg" id="range" role="group" aria-label="Range" style="margin-bottom:var(--s3)"></div>
     <div id="trends"></div>
   </main>
 
   <main id="view-baby" hidden>
-    <div class="section-label">Baby</div>
-    <form class="settings" id="settingsForm">
-      <div class="field"><label for="setName">Name</label><input id="setName" autocomplete="off" placeholder="e.g. Aarav"></div>
-      <div class="field"><label for="setBirth">Birth date</label><input id="setBirth" type="date"></div>
-      <div class="two">
-        <div class="field"><label for="setVol">Volume</label><select id="setVol"><option value="ml">ml</option><option value="oz">oz</option></select></div>
-        <div class="field"><label for="setWt">Weight</label><select id="setWt"><option value="kg">kg</option><option value="lb">lb</option></select></div>
+    <h2 class="sec" style="margin-top:var(--s2)">Baby</h2>
+    <form class="card group" id="settingsForm">
+      <div class="item">
+        <div class="field"><label class="label" for="setName">Name</label><input id="setName" autocomplete="off" placeholder="e.g. Aarav"></div>
+        <div class="field"><label class="label" for="setBirth">Birth date</label><input id="setBirth" type="date"></div>
       </div>
-      <button class="btn primary" type="submit">Save baby details</button>
+      <div class="item">
+        <div class="grid2">
+          <div class="field"><label class="label" for="setVol">Volume</label><select id="setVol"><option value="ml">Millilitres (ml)</option><option value="oz">Ounces (oz)</option></select></div>
+          <div class="field"><label class="label" for="setWt">Weight</label><select id="setWt"><option value="kg">Kilograms</option><option value="lb">Pounds</option></select></div>
+        </div>
+        <button class="btn primary" type="submit">Save baby details</button>
+      </div>
     </form>
-    <div class="section-label">Sharing with your partner</div>
-    <div class="note" id="shareNote"></div>
 
-    <div class="section-label">Export</div>
-    <div class="io">
-      <h4 id="exportTitle">Download your data</h4>
-      <p class="hint">A backup file restores everything into Nestlog. The spreadsheet opens in Excel, Numbers or Google Sheets.</p>
-      <div class="actions">
-        <button class="btn primary" type="button" data-io="json">Download backup (.json)</button>
-        <button class="btn ghost" type="button" data-io="csv">Download spreadsheet (.csv)</button>
+    <h2 class="sec">Sharing</h2>
+    <div class="card group"><div class="item"><p class="note" id="shareNote"></p></div></div>
+
+    <h2 class="sec">Export</h2>
+    <div class="card group"><div class="item">
+      <p class="note">A backup restores everything into Nestlog. The spreadsheet opens in Excel, Numbers or Google Sheets.</p>
+      <div class="row-actions">
+        <button class="btn primary" type="button" data-io="json">Download backup</button>
+        <button class="btn soft" type="button" data-io="csv">Spreadsheet</button>
       </div>
-      <div id="exportFallback" hidden>
-        <p class="hint">Downloads aren’t available on this screen. Copy the text below and save it as a file instead.</p>
+      <div id="exportFallback" hidden style="display:grid;gap:var(--s2)">
+        <p class="hint">Downloads aren’t available on this screen. Copy the text and save it as a file.</p>
         <textarea class="dump" id="exportText" readonly aria-label="Exported data"></textarea>
-        <button class="btn ghost" type="button" data-io="copy">Copy to clipboard</button>
+        <button class="btn soft" type="button" data-io="copy">Copy to clipboard</button>
       </div>
-    </div>
+    </div></div>
 
-    <div class="section-label">Import</div>
-    <div class="io">
-      <h4>Bring in entries</h4>
-      <p class="hint">Choose a Nestlog backup (.json) or spreadsheet (.csv). Entries you already have are skipped, so importing the same file twice is safe.</p>
-      <label class="drop" id="drop" for="importFile">
-        <b>Choose a file</b><span>or drop it here</span>
-      </label>
+    <h2 class="sec">Import</h2>
+    <div class="card group"><div class="item">
+      <p class="note">Choose a Nestlog backup (.json) or spreadsheet (.csv). Entries you already have are skipped, so importing the same file twice is safe.</p>
+      <label class="drop" id="drop" for="importFile"><b>Choose a file</b><span>or drop it here</span></label>
       <input id="importFile" type="file" accept=".json,.csv,application/json,text/csv" hidden>
       <div id="importPanel"></div>
-    </div>
+    </div></div>
   </main>
 </div>
 
@@ -267,45 +336,47 @@ textarea.dump{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;h
 
 <script>
 (() => {
-/* ---------- icons ---------- */
+/* ---------- icons (24px, 1.75 stroke, round) ---------- */
+const sv = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const I = {
-  nurse:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4.4 0-8-3.4-8-7.6C4 8.6 8 4 12 3c4 1 8 5.6 8 10.4 0 4.2-3.6 7.6-8 7.6Z"/><circle cx="12" cy="13" r="2.2"/></svg>',
-  bottle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4M9.5 5h5l-.5-3h-4z"/><path d="M8 8c0-1.7 1.3-3 3-3h2c1.7 0 3 1.3 3 3v11a3 3 0 0 1-3 3h-2a3 3 0 0 1-3-3Z"/><path d="M8 12h3M8 16h3"/></svg>',
-  solids:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M14 4 9 11M18 5l-5 6"/></svg>',
-  sleep:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>',
-  diaper:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v3a9 9 0 0 1-18 0Z"/><path d="M8 6v3M16 6v3"/></svg>',
-  pump:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6a5 5 0 0 1 10 0H5Z"/><path d="M10 6v4"/><path d="M7 10h6v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z"/><path d="M15 6h3a2 2 0 0 1 2 2v2"/></svg>',
-  growth:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M7 20V9M12 20V5M17 20v-7"/></svg>',
-  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/></svg>',
-  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>',
-  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 9 13l4 3 7-9"/></svg>',
-  baby:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M9 14.5c.8.7 1.8 1 3 1s2.2-.3 3-1"/><path d="M9.5 10h.01M14.5 10h.01"/><path d="M12 4c-1 1.5-.5 3 1 3"/></svg>'
+  nurse: sv('<path d="M12 20.5c-4.2 0-7.5-3.1-7.5-7 0-4.4 3.6-8.6 7.5-9.5 3.9.9 7.5 5.1 7.5 9.5 0 3.9-3.3 7-7.5 7Z"/><circle cx="12" cy="13.5" r="2"/>'),
+  bottle: sv('<path d="M10 2.5h4"/><path d="M10.5 2.5 10 5.5h4l-.5-3"/><path d="M8.5 9a3.5 3.5 0 0 1 3.5-3.5A3.5 3.5 0 0 1 15.5 9v10a2.5 2.5 0 0 1-2.5 2.5h-2A2.5 2.5 0 0 1 8.5 19Z"/><path d="M8.5 12.5h3M8.5 16h3"/>'),
+  solids: sv('<path d="M3.5 11.5h17a8.5 8.5 0 0 1-17 0Z"/><path d="m13.5 4-4.5 7.5M18 5l-4.5 6.5"/>'),
+  sleep: sv('<path d="M19.5 14.5A7.5 7.5 0 1 1 9.5 4.5a6 6 0 0 0 10 10Z"/>'),
+  diaper: sv('<path d="M3.5 6.5h17v2.5a8.5 8.5 0 0 1-17 0Z"/><path d="M8 6.5v2.5M16 6.5v2.5"/>'),
+  pump: sv('<path d="M5.5 6.5a4.5 4.5 0 0 1 9 0Z"/><path d="M10 6.5v3.5"/><path d="M7.5 10h5v8.5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2Z"/><path d="M14.5 6.5h3a2 2 0 0 1 2 2v2"/>'),
+  growth: sv('<path d="M4 20h16"/><path d="M7 20v-8M12 20V6M17 20v-5"/>'),
+  home: sv('<path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4Z"/>'),
+  list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
+  chart: sv('<path d="M4 19h16"/><path d="m5 15 4-5 4 3 6-7"/>'),
+  baby: sv('<circle cx="12" cy="12.5" r="7.5"/><path d="M9.5 15c.7.6 1.5.9 2.5.9s1.8-.3 2.5-.9"/><path d="M9.5 11h.01M14.5 11h.01"/><path d="M12 5c-.8 1.2-.4 2.5 1 2.5"/>'),
+  x: sv('<path d="M6 6l12 12M18 6 6 18"/>')
 };
 const TYPES = {
-  nurse:{label:'Nursing',short:'Nurse',cls:'feed',icon:I.nurse,group:'feed'},
-  bottle:{label:'Bottle',short:'Bottle',cls:'feed',icon:I.bottle,group:'feed'},
-  solids:{label:'Solids',short:'Solids',cls:'feed',icon:I.solids,group:'feed'},
-  sleep:{label:'Sleep',short:'Sleep',cls:'sleep',icon:I.sleep,group:'sleep'},
-  diaper:{label:'Diaper',short:'Diaper',cls:'diaper',icon:I.diaper,group:'diaper'},
-  pump:{label:'Pumping',short:'Pump',cls:'pump',icon:I.pump,group:'pump'},
-  growth:{label:'Growth',short:'Growth',cls:'growth',icon:I.growth,group:'growth'}
+  nurse:{label:'Nursing',short:'Nurse',k:'feed',icon:I.nurse,group:'feed'},
+  bottle:{label:'Bottle',short:'Bottle',k:'feed',icon:I.bottle,group:'feed'},
+  solids:{label:'Solids',short:'Solids',k:'feed',icon:I.solids,group:'feed'},
+  sleep:{label:'Sleep',short:'Sleep',k:'sleep',icon:I.sleep,group:'sleep'},
+  diaper:{label:'Diaper',short:'Diaper',k:'diaper',icon:I.diaper,group:'diaper'},
+  pump:{label:'Pumping',short:'Pump',k:'pump',icon:I.pump,group:'pump'},
+  growth:{label:'Growth',short:'Growth',k:'growth',icon:I.growth,group:'growth'}
 };
+const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', canWrite:true, me:null, tab:'home', filter:'all', loaded:true, names:{} };
-let userApi = null, downloads = null;
-const buzz = () => { try { navigator.vibrate?.(12); } catch {} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+let db = null, userApi = null, downloads = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const buzz = () => { try { navigator.vibrate?.(12); } catch {} };
 
-/* ---------- store adapter: shared db, else this-device fallback ---------- */
+/* ---------- store: shared db, else this device ---------- */
 const local = {
   key:'nestlog-v1',
   load(){ try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
   save(d){ try { localStorage.setItem(this.key, JSON.stringify(d)); } catch {} }
 };
-let db = null;
 const store = {
   async putLog(id, data){
     if (db) return db.collection('logs').doc(id).set(data);
@@ -332,40 +403,37 @@ function applyLocal(){
   render();
 }
 async function write(fn){
-  if (!S.canWrite){ toast('You can view this baby’s log but not change it'); return false; }
+  if (!S.canWrite){ toast('You can view this log but not change it'); return false; }
   try { await fn(); buzz(); return true; }
   catch(e){
-    if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask the owner to share it with you as an editor.'); }
-    else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete some old entries to keep logging.'); }
+    if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask for Editor access.'); }
+    else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete old entries to keep logging.'); }
     else toast('That didn’t save. Check your connection and try again.');
     return false;
   }
 }
 
-/* ---------- time helpers ---------- */
+/* ---------- time ---------- */
 const MIN = 6e4, HR = 36e5, DAY = 864e5;
 const now = () => Date.now();
-function dur(ms, short){
-  ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60);
-  if (h) return `${h}h ${m%60}m`;
-  return short ? `${m}m` : `${m} min`;
-}
+function dur(ms){ ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60); return h ? `${h}h ${m%60}m` : `${m}m`; }
 function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0'); }
-function ago(t){ const d = now()-t; return d < MIN ? 'just now' : dur(d,true)+' ago'; }
+const ago = t => (now()-t) < MIN ? 'just now' : dur(now()-t)+' ago';
 const tfmt = t => new Date(t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
 function dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function startOfDay(t){ const d=new Date(t); d.setHours(0,0,0,0); return d.getTime(); }
 function dayLabel(t){
   const s = startOfDay(t), today = startOfDay(now());
   if (s === today) return 'Today'; if (s === today - DAY) return 'Yesterday';
-  return new Date(t).toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'});
+  return new Date(t).toLocaleDateString([], {weekday:'long', day:'numeric', month:'short'});
 }
-function toLocalInput(t){ const d=new Date(t); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+const pad = n => String(n).padStart(2,'0');
+function toLocalInput(t){ const d=new Date(t); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 function fromLocalInput(v){ const t = new Date(v).getTime(); return isNaN(t) ? now() : t; }
 function ageText(birth){
   if (!birth) return '';
   const b = new Date(birth+'T00:00'); const n = new Date();
-  let days = Math.floor((startOfDay(n) - b.getTime())/DAY);
+  const days = Math.floor((startOfDay(n) - b.getTime())/DAY);
   if (days < 0) return 'Due '+b.toLocaleDateString([], {day:'numeric',month:'short'});
   if (days < 14) return days === 0 ? 'Born today' : `${days} day${days>1?'s':''} old`;
   if (days < 84) { const w=Math.floor(days/7), d=days%7; return `${w} weeks${d?` ${d} days`:''} old`; }
@@ -373,47 +441,53 @@ function ageText(birth){
   if (n.getDate() < b.getDate()) months--;
   const anchor = new Date(b); anchor.setMonth(b.getMonth()+months);
   const rem = Math.floor((startOfDay(n)-anchor.getTime())/DAY);
-  if (months >= 24) return `${Math.floor(months/12)} yrs ${months%12} mo old`;
-  return `${months} mo ${rem} d old`;
+  if (months >= 24) return `${Math.floor(months/12)} years ${months%12} months old`;
+  return `${months} month${months>1?'s':''}${rem?` ${rem} days`:''} old`;
 }
 
 /* ---------- units ---------- */
 const ML_PER_OZ = 29.5735, KG_PER_LB = 0.453592;
-const volOut = ml => S.settings.vol === 'oz' ? +(ml/ML_PER_OZ).toFixed(1) : Math.round(ml);
-const volIn = v => S.settings.vol === 'oz' ? v*ML_PER_OZ : v;
+const oz = () => S.settings.vol === 'oz';
+const volOut = ml => oz() ? +(ml/ML_PER_OZ).toFixed(1) : Math.round(ml);
+const volIn = v => oz() ? v*ML_PER_OZ : v;
 const volU = () => S.settings.vol;
 const wtOut = kg => S.settings.wt === 'lb' ? +(kg/KG_PER_LB).toFixed(2) : +kg.toFixed(2);
 const wtIn = v => S.settings.wt === 'lb' ? v*KG_PER_LB : v;
 const wtU = () => S.settings.wt;
 
-/* ---------- summaries ---------- */
+/* ---------- derived ---------- */
 function describe(l){
   switch(l.type){
-    case 'nurse': { const L=l.left||0, R=l.right||0; return `L ${dur(L,true)} · R ${dur(R,true)}${l.last?` · ended ${l.last==='L'?'left':'right'}`:''}`; }
+    case 'nurse': return `Left ${dur(l.left||0)} · Right ${dur(l.right||0)}${l.last?` · ended ${l.last==='L'?'left':'right'}`:''}`;
     case 'bottle': return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':'formula'}`;
     case 'solids': return [l.food, l.reaction].filter(Boolean).join(' · ') || 'Solids';
-    case 'sleep': return l.end ? `${dur(l.end-l.t)} · ${tfmt(l.t)}–${tfmt(l.end)}` : 'In progress';
-    case 'diaper': return ({wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'})[l.kind] + (l.note?` · ${l.note}`:'');
-    case 'pump': return `${volOut((l.lml||0)+(l.rml||0))} ${volU()} total · L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}${l.min?` · ${l.min} min`:''}`;
-    case 'growth': return [l.kg?`${wtOut(l.kg)} ${wtU()}`:'', l.cm?`${l.cm} cm long`:'', l.head?`head ${l.head} cm`:''].filter(Boolean).join(' · ');
+    case 'sleep': return l.end ? `${dur(l.end-l.t)} · until ${tfmt(l.end)}` : 'In progress';
+    case 'diaper': return DIAPER[l.kind] + (l.note?` · ${l.note}`:'');
+    case 'pump': return `${volOut((l.lml||0)+(l.rml||0))} ${volU()} · L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}${l.min?` · ${l.min} min`:''}`;
+    case 'growth': return [l.kg?`${wtOut(l.kg)} ${wtU()}`:'', l.cm?`${l.cm} cm`:'', l.head?`head ${l.head} cm`:''].filter(Boolean).join(' · ');
   }
   return '';
 }
-function lastOf(pred){ return S.logs.find(pred); }
-function sleepOverlap(l, from, to){ const e = l.end || now(); return Math.max(0, Math.min(e,to) - Math.max(l.t,from)); }
+const lastOf = pred => S.logs.find(pred);
+function overlap(start, end, from, to){ return Math.max(0, Math.min(end,to) - Math.max(start,from)); }
 function dayStats(from){
   const to = from + DAY;
   const inDay = S.logs.filter(l => l.t >= from && l.t < to);
   const feeds = inDay.filter(l => l.type==='nurse' || l.type==='bottle');
   const bottleMl = inDay.filter(l=>l.type==='bottle').reduce((a,l)=>a+(l.ml||0),0);
   const nurseMs = inDay.filter(l=>l.type==='nurse').reduce((a,l)=>a+(l.left||0)+(l.right||0),0);
-  const sleepMs = S.logs.filter(l=>l.type==='sleep').reduce((a,l)=>a+sleepOverlap(l,from,to),0)
-    + (S.active.sleep ? sleepOverlap({t:S.active.sleep.start}, from, to) : 0);
+  const sleepMs = S.logs.filter(l=>l.type==='sleep').reduce((a,l)=>a+overlap(l.t, l.end||l.t, from, to),0)
+    + (S.active.sleep ? overlap(S.active.sleep.start, now(), from, to) : 0);
   const diapers = inDay.filter(l=>l.type==='diaper');
   const wet = diapers.filter(d=>d.kind==='wet'||d.kind==='both').length;
   const dirty = diapers.filter(d=>d.kind==='dirty'||d.kind==='both').length;
   const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+(l.lml||0)+(l.rml||0),0);
   return {feeds:feeds.length, bottleMl, nurseMs, sleepMs, wet, dirty, diapers:diapers.length, pumpMl};
+}
+function nurseTotals(){
+  const n = S.active.nurse; if (!n) return {L:0,R:0};
+  const run = n.side ? now()-n.since : 0;
+  return {L:(n.left||0)+(n.side==='L'?run:0), R:(n.right||0)+(n.side==='R'?run:0)};
 }
 
 /* ---------- render ---------- */
@@ -421,66 +495,97 @@ const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','
 function render(){
   const st = S.settings;
   $('babyName').textContent = st.name || 'Your baby';
-  $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add a name and birth date under Baby';
-  const sync = $('sync');
-  sync.classList.toggle('live', S.mode==='db');
-  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Shared · live' : 'View only') : 'This device only';
-
-  $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
+  $('avatar').textContent = (st.name || 'N').trim().charAt(0).toUpperCase();
+  $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add name and birth date in Baby';
+  $('sync').classList.toggle('live', S.mode==='db');
+  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only') : 'This device';
+  $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
-
   if (S.tab==='home') renderHome();
   if (S.tab==='timeline') renderTimeline();
   if (S.tab==='trends') renderTrends();
   if (S.tab==='baby') renderBaby();
 }
+
+function ribbon(){
+  const W = 340, to = now(), from = to - DAY, X = t => (t-from)/DAY*W;
+  let g = '';
+  for (let i=0;i<=4;i++){ const x = i*W/4; g += `<line x1="${x}" x2="${x}" y1="0" y2="46" stroke="var(--line)" stroke-width="1"/>`; }
+  g += `<rect x="0" y="4" width="${W}" height="16" rx="5" fill="var(--sunk)"/>`;
+  const sleeps = S.logs.filter(l=>l.type==='sleep' && (l.end||l.t) > from).map(l=>[l.t,l.end||l.t]);
+  if (S.active.sleep) sleeps.push([S.active.sleep.start, to]);
+  sleeps.forEach(([a,b]) => { const x1=X(Math.max(a,from)), x2=X(Math.min(b,to)); if (x2-x1>0.5) g += `<rect x="${x1.toFixed(1)}" y="4" width="${Math.max(2,x2-x1).toFixed(1)}" height="16" rx="4" fill="var(--c-sleep)"/>`; });
+  S.logs.filter(l=>l.t>from && (l.type==='nurse'||l.type==='bottle'||l.type==='solids')).forEach(l => { g += `<circle cx="${X(l.t).toFixed(1)}" cy="31" r="3.5" fill="var(--c-feed)"/>`; });
+  S.logs.filter(l=>l.t>from && l.type==='diaper').forEach(l => { const x=X(l.t); g += `<rect x="${(x-3).toFixed(1)}" y="38" width="6" height="6" rx="1.5" fill="var(--c-diaper)"/>`; });
+  g += `<line x1="${W-1}" x2="${W-1}" y1="0" y2="46" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>`;
+  const lab = t => new Date(t).toLocaleTimeString([], {hour:'numeric'}).replace(/\s?([AP])M/i, (m,p)=>p.toLowerCase());
+  return `<div class="ribbon"><svg viewBox="-2 0 ${W+4} 46" role="img" aria-label="Sleep, feeds and diapers over the last 24 hours">${g}</svg>
+    <div class="labels"><span>${lab(from)}</span><span>${lab(from+DAY/4)}</span><span>${lab(from+DAY/2)}</span><span>${lab(from+DAY*3/4)}</span><span>Now</span></div></div>`;
+}
+function renderStatus(){
+  const sl = S.active.sleep, lastSleep = lastOf(l=>l.type==='sleep' && l.end);
+  let label, value, cls = '';
+  if (sl){ label = `Asleep since ${tfmt(sl.start)}`; value = `<span data-clock="${sl.start}">${clock(now()-sl.start)}</span>`; cls = 'asleep'; }
+  else if (lastSleep){ label = `Awake since ${tfmt(lastSleep.end)}`; value = dur(now()-lastSleep.end); }
+  else if (S.logs.length){ label = 'Right now'; value = 'Awake'; }
+  else { label = 'Welcome'; value = 'Start here'; }
+  const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
+  const nurse = lastOf(l => l.type==='nurse' && l.last);
+  const diaper = lastOf(l => l.type==='diaper');
+  const feedSub = S.active.nurse ? 'Nursing now' : nurse ? `Next side: ${nurse.last==='L'?'right':'left'}` : feed ? describe(feed) : 'No feeds yet';
+  $('status').innerHTML = `
+    <div class="head"><div class="state ${cls} num"><small>${label}</small>${value}</div></div>
+    <div class="facts">
+      <div class="fact k-feed"><i class="dot"></i><div><b>${S.active.nurse?'Feeding':feed?'Fed '+ago(feed.t):'Feeds'}</b><span>${esc(feedSub)}</span></div></div>
+      <div class="fact k-diaper"><i class="dot"></i><div><b>${diaper?'Changed '+ago(diaper.t):'Diapers'}</b><span>${diaper?DIAPER[diaper.kind]:'None logged yet'}</span></div></div>
+    </div>
+    ${ribbon()}
+    <div class="legend"><span class="k-sleep"><i></i>Sleep</span><span class="k-feed"><i style="border-radius:50%"></i>Feed</span><span class="k-diaper"><i></i>Diaper</span><span style="margin-left:auto">Last 24 hours</span></div>`;
+}
 function renderLive(){
   const a = S.active; let h = '';
   if (a.nurse){
-    const n = a.nurse, run = n.side ? now()-n.since : 0;
-    const L = (n.left||0)+(n.side==='L'?run:0), R=(n.right||0)+(n.side==='R'?run:0);
-    h += `<button class="timer feed" data-open="nurse"><span class="pulse"></span><span class="grow"><span class="lab">${n.side?`Nursing · ${n.side==='L'?'left':'right'} side`:'Nursing · paused'}</span><br><span class="big num">${clock(L+R)}</span></span><span class="lab num">L ${clock(L)}<br>R ${clock(R)}</span></button>`;
+    const n = a.nurse, {L,R} = nurseTotals();
+    h += `<div class="timer k-feed"><i class="pulse"></i>
+      <button type="button" class="open" data-open="nurse"><span class="l">${n.side?`Nursing · ${n.side==='L'?'left':'right'}`:'Nursing · paused'}</span><br><span class="t num">${clock(L+R)}</span></button>
+      <span class="ctl"><button type="button" class="mini ${n.side==='L'?'on':''} press" data-side="L" aria-label="Left side">L</button><button type="button" class="mini ${n.side==='R'?'on':''} press" data-side="R" aria-label="Right side">R</button><button type="button" class="mini solid press" data-act="nurseSave">Done</button></span></div>`;
   }
   if (a.sleep){
-    h += `<button class="timer sleep" data-open="sleep"><span class="pulse"></span><span class="grow"><span class="lab">Asleep since ${tfmt(a.sleep.start)}</span><br><span class="big num">${clock(now()-a.sleep.start)}</span></span><span class="lab">Tap to<br>wake</span></button>`;
+    h += `<div class="timer k-sleep"><i class="pulse"></i>
+      <button type="button" class="open" data-open="sleep"><span class="l">Sleeping since ${tfmt(a.sleep.start)}</span><br><span class="t num" data-clock="${a.sleep.start}">${clock(now()-a.sleep.start)}</span></button>
+      <span class="ctl"><button type="button" class="mini solid press" data-act="wake">Woke up</button></span></div>`;
   }
   $('live').innerHTML = h;
 }
 function renderHome(){
-  renderLive();
-  const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
+  renderStatus(); renderLive();
+  const tile = (k, sub) => { const t = TYPES[k]; return `<button type="button" class="tile k-${t.k} press" data-open="${k}"><span class="ic tint">${t.icon}</span>${t.short}${sub?`<small>${sub}</small>`:''}</button>`; };
   const nurse = lastOf(l => l.type==='nurse' && l.last);
-  const diaper = lastOf(l => l.type==='diaper');
-  const sleep = lastOf(l => l.type==='sleep' && l.end);
-  const feedB = S.active.nurse ? 'Now' : feed ? dur(now()-feed.t,true) : '—';
-  const nextSide = nurse ? (nurse.last==='L' ? 'Next: right' : 'Next: left') : (feed ? TYPES[feed.type].label : 'No feeds yet');
-  const awake = S.active.sleep ? ['Asleep', dur(now()-S.active.sleep.start,true)] : sleep ? ['Awake', dur(now()-sleep.end,true)] : ['Sleep','—'];
-  $('since').innerHTML =
-    `<div><span>Fed</span><b class="num">${feedB}</b><small>${esc(nextSide)}</small></div>`+
-    `<div><span>Diaper</span><b class="num">${diaper?dur(now()-diaper.t,true):'—'}</b><small>${diaper?({wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'})[diaper.kind]:'None yet'}</small></div>`+
-    `<div><span>${awake[0]}</span><b class="num">${awake[1]}</b><small>${S.active.sleep?'Sleeping now':sleep?'since waking':'None yet'}</small></div>`;
-
-  $('quick').innerHTML = Object.entries(TYPES).map(([k,t]) => `<button class="q t-${t.cls}" data-open="${k}">${t.icon}<span>${t.short}</span></button>`).join('')
-    + `<button class="q" style="background:var(--sunk);color:var(--muted)" data-tab="timeline">${I.list}<span>History</span></button>`;
+  const lastBottle = lastOf(l => l.type==='bottle');
+  $('primary4').innerHTML =
+    tile('nurse', S.active.nurse ? 'Running' : nurse ? `Next ${nurse.last==='L'?'R':'L'}` : '') +
+    tile('bottle', lastBottle ? `${volOut(lastBottle.ml)} ${volU()}` : '') +
+    tile('sleep', S.active.sleep ? 'Wake up' : 'Start') +
+    tile('diaper', '');
+  $('pills').innerHTML = ['solids','pump','growth'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
 
   const d = dayStats(startOfDay(now()));
   $('totals').innerHTML =
-    `<div><b class="num">${d.feeds}</b><span>feeds${d.nurseMs?` · ${dur(d.nurseMs,true)} nursing`:''}</span></div>`+
-    `<div><b class="num">${volOut(d.bottleMl)}<small style="font-size:14px"> ${volU()}</small></b><span>by bottle</span></div>`+
-    `<div><b class="num">${dur(d.sleepMs,true)}</b><span>sleep since midnight</span></div>`+
-    `<div><b class="num">${d.wet} / ${d.dirty}</b><span>wet / dirty diapers</span></div>`;
+    `<div><b class="num">${d.feeds}</b><span>feeds</span></div>`+
+    `<div><b class="num">${volOut(d.bottleMl)}<small> ${volU()}</small></b><span>bottle</span></div>`+
+    `<div><b class="num">${dur(d.sleepMs)}</b><span>sleep</span></div>`+
+    `<div><b class="num">${d.wet}·${d.dirty}</b><span>wet·dirty</span></div>`;
 
-  const recent = S.logs.slice(0,5);
   if (!S.loaded){ $('recent').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>'; return; }
-  $('recent').innerHTML = recent.length ? `<div class="rows">${recent.map(rowHtml).join('')}</div>`
-    : `<div class="empty"><b>Nothing logged yet</b>Tap Nurse, Bottle, Sleep or Diaper above to add the first entry. Everything you and your partner log shows up here.</div>`;
+  const recent = S.logs.slice(0,5);
+  $('recent').innerHTML = recent.length ? `<div class="card list">${recent.map(entryHtml).join('')}</div>`
+    : `<div class="card empty"><b>Nothing logged yet</b>Tap Nurse, Bottle, Sleep or Diaper to add the first entry. Everything you both log appears here.</div>`;
 }
-function rowHtml(l){
+function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
   const who = l.by && l.by !== S.me && S.names[l.by] ? ` <span class="by">· ${esc(S.names[l.by].split(' ')[0])}</span>` : '';
-  return `<button class="row" data-edit="${esc(l.id)}"><span class="ic t-${t.cls}">${t.icon}</span><span class="mid"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span><time class="num">${tfmt(l.t)}</time></button>`;
+  return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span></span></button>`;
 }
-/* resolve who logged what, so each of you sees the other's name */
 let namesPending = false;
 async function resolveNames(){
   if (!userApi || namesPending) return;
@@ -495,155 +600,165 @@ async function resolveNames(){
 }
 function renderTimeline(){
   const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth']];
-  $('filters').innerHTML = F.map(([k,l]) => `<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
-  if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:18px"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
+  $('filters').innerHTML = F.map(([k,l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
+  if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:var(--s5)"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
   const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
-  if (!logs.length){ $('timeline').innerHTML = `<div class="empty" style="margin-top:18px"><b>No entries here yet</b>Entries appear here as soon as anyone logs them.</div>`; return; }
+  if (!logs.length){ $('timeline').innerHTML = `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
   const groups = []; let cur = null;
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
   $('timeline').innerHTML = groups.map(g => {
     const s = dayStats(startOfDay(g.t));
-    return `<section class="day"><h3><span>${dayLabel(g.t)}</span><span class="num">${s.feeds} feeds · ${dur(s.sleepMs,true)} sleep · ${s.diapers} diapers</span></h3><div class="rows">${g.items.map(rowHtml).join('')}</div></section>`;
+    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diapers</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
   }).join('');
 }
-function barChart(title, sub, vals, labels, color, fmt){
-  const W=320,H=130,pl=4,pr=4,pt=16,pb=20, n=vals.length;
-  const max = Math.max(1, ...vals); const bw = (W-pl-pr)/n;
-  let g = `<line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>`;
+
+/* ---------- trends ---------- */
+function barChart(k, title, headline, sub, vals, labels, fmt){
+  const W=320,H=128,pl=2,pr=2,pt=18,pb=18, n=vals.length;
+  const max = Math.max(1, ...vals), bw = (W-pl-pr)/n, gap = n > 10 ? .3 : .22;
+  const past = vals.slice(0,-1).filter((_,i)=>i>=0), avg = past.length ? past.reduce((a,b)=>a+b,0)/past.length : 0;
+  let g = `<line x1="0" x2="${W}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>`;
+  if (avg){ const y = H-pb-(H-pt-pb)*avg/max; g += `<line x1="0" x2="${W}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line-strong)" stroke-dasharray="3 4"/>`; }
   vals.forEach((v,i) => {
-    const h = (H-pt-pb) * v/max, x = pl + i*bw + bw*0.18, w = bw*0.64, y = H-pb-h;
-    g += `<rect x="${x}" y="${y}" width="${w}" height="${Math.max(h, v?2:0)}" rx="4" fill="${color}" opacity="${i===n-1?1:.55}"/>`;
-    if (v) g += `<text x="${x+w/2}" y="${y-4}" text-anchor="middle" style="fill:var(--fg)">${fmt(v)}</text>`;
-    g += `<text x="${x+w/2}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`;
+    const h = (H-pt-pb)*v/max, x = pl+i*bw+bw*gap/2, w = bw*(1-gap), y = H-pb-h, last = i===n-1;
+    if (v) g += `<path d="M${x} ${H-pb}V${y+Math.min(5,h)}a5 5 0 0 1 5-5h${w-10}a5 5 0 0 1 5 5V${H-pb}Z" fill="var(--c)" opacity="${last?1:.45}"/>`;
+    if (v && (n<=7 || last)) g += `<text x="${x+w/2}" y="${y-5}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${fmt(v)}</text>`;
+    if (n<=7 || i%2===(n-1)%2) g += `<text x="${x+w/2}" y="${H-4}" text-anchor="middle">${labels[i]}</text>`;
   });
-  return `<div class="chart"><h4>${title}</h4><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${g}</svg></div>`;
+  return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${headline}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} per day">${g}</svg></div>`;
 }
 function growthChart(){
   const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
-  if (pts.length < 1) return `<div class="chart"><h4>Weight</h4><p>Log a weight under Growth to start the curve.</p></div>`;
-  const W=320,H=150,pl=34,pr=10,pt=12,pb=22;
+  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+  const W=320,H=150,pl=32,pr=8,pt=12,pb=20;
   const xs = pts.map(p=>p.t), ys = pts.map(p=>wtOut(p.kg));
   let x0=Math.min(...xs), x1=Math.max(...xs); if (x1===x0){ x0-=DAY*7; x1+=DAY*7; }
-  let y0=Math.min(...ys), y1=Math.max(...ys); const pad=Math.max(.2,(y1-y0)*.15); y0=Math.max(0,y0-pad); y1+=pad;
+  let y0=Math.min(...ys), y1=Math.max(...ys); const padY=Math.max(.2,(y1-y0)*.18); y0=Math.max(0,y0-padY); y1+=padY;
   const X=t=>pl+(t-x0)/(x1-x0)*(W-pl-pr), Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pt-pb);
   let g='';
-  for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="${i?'2 3':''}"/><text x="${pl-4}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
-  const path = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(wtOut(p.kg)).toFixed(1)}`).join(' ');
-  g += `<path d="${path}" fill="none" stroke="var(--growth)" stroke-width="2.2" stroke-linejoin="round"/>`;
-  pts.forEach((p,i)=>{ g+=`<circle cx="${X(p.t)}" cy="${Y(wtOut(p.kg))}" r="${i===pts.length-1?4.5:3}" fill="var(--growth)"/>`; });
+  for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
+  const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(wtOut(p.kg)).toFixed(1)}`).join(' ');
+  if (pts.length>1) g += `<path d="${line} L${X(pts.at(-1).t).toFixed(1)} ${H-pb} L${X(pts[0].t).toFixed(1)} ${H-pb}Z" fill="var(--c)" opacity=".12"/>`;
+  g += `<path d="${line}" fill="none" stroke="var(--c)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(wtOut(p.kg))}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
   const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
-  g += `<text x="${pl}" y="${H-6}">${fd(x0)}</text><text x="${W-pr}" y="${H-6}" text-anchor="end">${fd(x1)}</text>`;
-  const last = pts[pts.length-1];
-  return `<div class="chart"><h4>Weight</h4><p>Latest ${wtOut(last.kg)} ${wtU()} on ${fd(last.t)} · ${pts.length} measurement${pts.length>1?'s':''}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">${g}</svg></div>`;
+  g += `<text x="${pl}" y="${H-4}">${fd(x0)}</text><text x="${W-pr}" y="${H-4}" text-anchor="end">${fd(x1)}</text>`;
+  const last = pts.at(-1), first = pts[0], gain = last.kg - first.kg;
+  const sub = pts.length > 1 ? `${gain>=0?'+':''}${wtOut(Math.abs(gain)) * (gain<0?-1:1)} ${wtU()} since ${fd(first.t)}` : `Measured ${fd(last.t)}`;
+  return `<div class="card chart k-growth"><header><h3>Weight</h3><span class="big num">${wtOut(last.kg)} ${wtU()}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">${g}</svg></div>`;
 }
 function renderTrends(){
-  const today = startOfDay(now()); const days = [...Array(7)].map((_,i)=>today-(6-i)*DAY);
-  const stats = days.map(dayStats); const labels = days.map(d=>new Date(d).toLocaleDateString([], {weekday:'narrow'}));
-  const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
-  const sleepH = stats.map(s=>+(s.sleepMs/HR).toFixed(1));
+  $('range').innerHTML = [[7,'7 days'],[14,'14 days'],[30,'30 days']].map(([v,l]) => `<button type="button" data-range="${v}" aria-pressed="${S.range===v}">${l}</button>`).join('');
+  const n = S.range, today = startOfDay(now()); const days = [...Array(n)].map((_,i)=>today-(n-1-i)*DAY);
+  const st = days.map(dayStats);
+  const labels = days.map(d => n<=7 ? new Date(d).toLocaleDateString([], {weekday:'narrow'}) : new Date(d).getDate());
+  const avg = a => { const p = a.slice(0,-1); return p.length ? p.reduce((x,y)=>x+y,0)/p.length : 0; };
+  const sleepH = st.map(s=>+(s.sleepMs/HR).toFixed(1)), feeds = st.map(s=>s.feeds), bottle = st.map(s=>volOut(s.bottleMl)), diapers = st.map(s=>s.diapers), pump = st.map(s=>volOut(s.pumpMl));
+  const note = `Dashed line is the average before today`;
   $('trends').innerHTML =
-    barChart('Sleep', `Hours per day · avg ${avg(sleepH.slice(0,6)).toFixed(1)} h over the past 6 days`, sleepH, labels, 'var(--sleep)', v=>v)+
-    barChart('Feeds', `Nursing and bottle feeds per day`, stats.map(s=>s.feeds), labels, 'var(--feed)', v=>v)+
-    barChart('Bottle volume', `${volU()} per day`, stats.map(s=>volOut(s.bottleMl)), labels, 'var(--feed)', v=>v)+
-    barChart('Diapers', `Changes per day`, stats.map(s=>s.diapers), labels, 'var(--diaper)', v=>v)+
-    (stats.some(s=>s.pumpMl) ? barChart('Pumped', `${volU()} per day`, stats.map(s=>volOut(s.pumpMl)), labels, 'var(--pump)', v=>v) : '')+
+    barChart('sleep','Sleep', `${avg(sleepH).toFixed(1)} h`, `Average hours per day · ${note.toLowerCase()}`, sleepH, labels, v=>v)+
+    barChart('feed','Feeds', `${avg(feeds).toFixed(1)}`, `Average nursing and bottle feeds per day`, feeds, labels, v=>v)+
+    (bottle.some(Boolean) ? barChart('feed','Bottle', `${Math.round(avg(bottle))} ${volU()}`, `Average bottle volume per day`, bottle, labels, v=>v) : '')+
+    barChart('diaper','Diapers', `${avg(diapers).toFixed(1)}`, `Average changes per day`, diapers, labels, v=>v)+
+    (pump.some(Boolean) ? barChart('pump','Pumped', `${Math.round(avg(pump))} ${volU()}`, `Average pumped per day`, pump, labels, v=>v) : '')+
     growthChart();
 }
 function renderBaby(){
   const st = S.settings;
-  if (document.activeElement?.closest?.('#settingsForm') == null){
+  if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
   }
   $('shareNote').innerHTML = S.mode==='db'
-    ? `<b>Logs sync live between everyone with access.</b> Open the Share menu on this page and invite your partner by email as an <b>Editor</b> so they can log too. People with view-only access can see the log but not add to it.`
-    : `<b>Sharing is off on this screen.</b> Entries are saved in this browser only. Open Nestlog from its claude.ai link while signed in to sync with your partner.`;
+    ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
+    : `Sharing is off on this screen, so entries stay in this browser. Open Nestlog from its claude.ai link while signed in to sync with your partner.`;
 }
 
-/* ---------- sheet ---------- */
+/* ---------- sheets ---------- */
 let sheetState = null, lastFocus = null;
 function closeSheet(){ $('sheetRoot').innerHTML=''; sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null; }
-function openSheet(type, existing){
-  const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, side:null, confirmDel:false};
-  const e = existing || {};
-  const time = e.t || now();
-  let body = '';
-  const timeField = (id='fTime', label='Time', v=time) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="datetime-local" value="${toLocalInput(v)}"></div>`;
-  const stepper = (id, label, val, unit, step) => `<div class="field"><label for="${id}">${label}</label><div class="stepper"><button type="button" data-step="${id}" data-d="-${step}" aria-label="Less">−</button><input id="${id}" type="number" inputmode="decimal" step="any" min="0" value="${val}"><span class="unit">${unit}</span><button type="button" data-step="${id}" data-d="${step}" aria-label="More">+</button></div></div>`;
-  const chips = (name, opts, cur) => `<div class="chips" role="group">${opts.map(([v,l])=>`<button type="button" class="chip" data-chip="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+const chips = (name, opts, cur) => `<div class="chips" role="group">${opts.map(([v,l])=>`<button type="button" class="chip press" data-chip="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+function when(id, label, v, quick=true){
+  const q = quick ? `<div class="chips">${[['0','Now'],['15','15m ago'],['30','30m ago'],['60','1h ago']].map(([m,l])=>`<button type="button" class="chip press" data-ago="${m}" data-for="${id}">${l}</button>`).join('')}</div>` : '';
+  return `<div class="field when"><label class="label" for="${id}">${label}</label>${q}<input id="${id}" type="datetime-local" value="${toLocalInput(v)}"></div>`;
+}
+function amount(id, label, val, step){
+  return `<div class="field"><span class="label" id="${id}-l">${label}</span><div class="amount"><button type="button" class="press" data-step="${id}" data-d="-${step}" aria-label="Less">−</button><span class="val"><input id="${id}" aria-labelledby="${id}-l" type="number" inputmode="decimal" step="any" min="0" value="${val}"><span class="u">${volU()}</span></span><button type="button" class="press" data-step="${id}" data-d="${step}" aria-label="More">+</button></div></div>`;
+}
+function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
+function openSheet(type, existing){
+  const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
+  const e = existing || {}, time = e.t || now();
+  let body = '';
   if (type==='nurse' && !existing){
-    body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint">Tap a side to start the timer. Tap the other side to switch.</p><div class="actions" id="nurseActions"></div>
-      <details><summary class="hint" style="cursor:pointer">Enter a past feed by hand</summary><div style="display:grid;gap:12px;margin-top:12px">${timeField()}<div class="two"><div class="field"><label for="fL">Left (min)</label><input id="fL" type="number" inputmode="numeric" min="0" value="0"></div><div class="field"><label for="fR">Right (min)</label><input id="fR" type="number" inputmode="numeric" min="0" value="0"></div></div><button class="btn ghost" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
+    body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint" style="text-align:center"></p><div class="row-actions" id="nurseActions"></div>
+      <details><summary>Log a past feed instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fTime','Started',now())}<div class="grid2">${numField('fL','Left (min)',0,'numeric')}${numField('fR','Right (min)',0,'numeric')}</div><button class="btn soft" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
   } else if (type==='nurse'){
-    body = `${timeField()}<div class="two"><div class="field"><label for="fL">Left (min)</label><input id="fL" type="number" inputmode="numeric" min="0" value="${Math.round((e.left||0)/MIN)}"></div><div class="field"><label for="fR">Right (min)</label><input id="fR" type="number" inputmode="numeric" min="0" value="${Math.round((e.right||0)/MIN)}"></div></div><div><div class="flabel" style="margin-bottom:6px">Finished on</div>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>`;
+    body = `${when('fTime','Started',time,false)}<div class="grid2">${numField('fL','Left (min)',Math.round((e.left||0)/MIN),'numeric')}${numField('fR','Right (min)',Math.round((e.right||0)/MIN),'numeric')}</div><div class="field"><span class="label">Finished on</span>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>`;
   } else if (type==='bottle'){
-    body = `${stepper('fAmt','Amount', e.ml?volOut(e.ml):(S.settings.vol==='oz'?3:90), volU(), S.settings.vol==='oz'?0.5:10)}<div><div class="flabel" style="margin-bottom:6px">Contents</div>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||'formula')}</div>${timeField()}`;
+    const presets = oz() ? [2,3,4,5,6] : [60,90,120,150,180];
+    const last = lastOf(l=>l.type==='bottle');
+    const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
+    body = `${amount('fAmt','Amount', val, oz()?0.5:10)}${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}
+      <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||last?.content||'formula')}</div>${when('fTime','When',time,!existing)}`;
   } else if (type==='solids'){
-    body = `<div class="field"><label for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi"></div><div><div class="flabel" style="margin-bottom:6px">How it went</div>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${timeField()}`;
+    body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}`;
   } else if (type==='sleep' && !existing){
     body = S.active.sleep
-      ? `<div class="bigclock num" id="sleepClock">${clock(now()-S.active.sleep.start)}</div><div class="field"><label for="fAdj">Fell asleep at</label><input id="fAdj" type="datetime-local" value="${toLocalInput(S.active.sleep.start)}"></div><div class="actions"><button class="btn primary" type="button" data-act="wake">Woke up — save sleep</button></div><button class="btn danger" type="button" data-act="cancelSleep">Discard this timer</button>`
-      : `<div class="actions"><button class="btn primary" type="button" data-act="sleepStart">Start sleep timer now</button></div><p class="hint">Or log a sleep that already happened:</p><div class="two">${timeField('fStart','Fell asleep', now()-HR)}${timeField('fEnd','Woke up', now())}</div><button class="btn ghost" type="button" data-act="sleepManual">Save past sleep</button>`;
+      ? `<div class="bigclock num" data-clock="${S.active.sleep.start}">${clock(now()-S.active.sleep.start)}</div>${when('fAdj','Fell asleep at',S.active.sleep.start,false)}<button class="btn primary" type="button" data-act="wake">Woke up · save sleep</button><button class="btn danger" type="button" data-act="cancelSleep">Discard timer</button>`
+      : `<button class="btn primary" type="button" data-act="sleepStart">Start sleep timer</button><details><summary>Log a past sleep instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fStart','Fell asleep',now()-HR,false)}${when('fEnd','Woke up',now(),false)}<button class="btn soft" type="button" data-act="sleepManual">Save past sleep</button></div></details>`;
   } else if (type==='sleep'){
-    body = `<div class="two">${timeField('fStart','Fell asleep', e.t)}${timeField('fEnd','Woke up', e.end||now())}</div>`;
+    body = `${when('fStart','Fell asleep',e.t,false)}${when('fEnd','Woke up',e.end||now(),false)}`;
   } else if (type==='diaper'){
-    body = `<div>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div><div class="field"><label for="fNote">Note</label><input id="fNote" value="${esc(e.note||'')}" placeholder="Optional · color, rash, blowout"></div>${timeField()}`;
+    body = `<div class="field"><span class="label">What was in it</span>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div><div class="field"><label class="label" for="fNote">Note</label><input id="fNote" value="${esc(e.note||'')}" placeholder="Optional · colour, rash, blowout" autocomplete="off"></div>${when('fTime','When',time,!existing)}`;
   } else if (type==='pump'){
-    const st = S.settings.vol==='oz'?0.5:10;
-    body = `<div class="two">${stepper('fPL','Left', e.lml?volOut(e.lml):0, volU(), st)}${stepper('fPR','Right', e.rml?volOut(e.rml):0, volU(), st)}</div><div class="field"><label for="fMin">Duration (min)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${e.min||15}"></div>${timeField()}`;
+    const st = oz()?0.5:10;
+    body = `${amount('fPL','Left', e.lml?volOut(e.lml):0, st)}${amount('fPR','Right', e.rml?volOut(e.rml):0, st)}${numField('fMin','Duration (min)', e.min||15, 'numeric')}${when('fTime','When',time,!existing)}`;
   } else if (type==='growth'){
-    body = `<div class="three"><div class="field"><label for="fKg">Weight (${wtU()})</label><input id="fKg" type="number" inputmode="decimal" step="any" min="0" value="${e.kg?wtOut(e.kg):''}"></div><div class="field"><label for="fCm">Length (cm)</label><input id="fCm" type="number" inputmode="decimal" step="any" min="0" value="${e.cm||''}"></div><div class="field"><label for="fHead">Head (cm)</label><input id="fHead" type="number" inputmode="decimal" step="any" min="0" value="${e.head||''}"></div></div>${timeField('fTime','Measured on')}`;
+    body = `<div class="grid3">${numField('fKg',`Weight (${wtU()})`, e.kg?wtOut(e.kg):'')}${numField('fCm','Length (cm)', e.cm||'')}${numField('fHead','Head (cm)', e.head||'')}</div>${when('fTime','Measured on',time,false)}`;
   }
-
-  const saveBtn = (type==='nurse' && !existing) || (type==='sleep' && !existing) ? '' :
-    `<div class="actions"><button class="btn primary" type="submit">${existing?'Save changes':'Log '+t.label.toLowerCase()}</button></div>`;
-  const delBtn = existing ? `<button class="btn danger" type="button" data-act="delete" id="delBtn">Delete entry</button>` : '';
-  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><h2 id="sheetTitle"><span class="ic t-${t.cls}">${t.icon}</span>${existing?'Edit '+t.label.toLowerCase():t.label}<button type="button" class="x" data-act="close" aria-label="Close">×</button></h2><form id="sheetForm" novalidate>${body}${saveBtn}${delBtn}</form></div>`;
+  const live = !existing && (type==='nurse' || type==='sleep');
+  const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
+  const del = existing ? `<button class="btn danger" type="button" data-act="delete">Delete entry</button>` : '';
+  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}${save}${del}</form></div>`;
   document.body.style.overflow='hidden';
   if (type==='nurse' && !existing) renderNurse();
-  const first = $('sheetRoot').querySelector('.sheet .side, .sheet .btn.primary, .sheet input, .sheet .chip'); first?.focus({preventScroll:true});
-}
-function nurseTotals(){
-  const n = S.active.nurse; if (!n) return {L:0,R:0};
-  const run = n.side ? now()-n.since : 0;
-  return {L:(n.left||0)+(n.side==='L'?run:0), R:(n.right||0)+(n.side==='R'?run:0)};
+  $('sheetRoot').querySelector('.side, .btn.primary, input, .chip')?.focus({preventScroll:true});
 }
 function renderNurse(){
   const box = $('sides'); if (!box) return;
   const n = S.active.nurse, {L,R} = nurseTotals();
-  const lastNurse = lastOf(l=>l.type==='nurse' && l.last);
-  const sug = !n && lastNurse ? (lastNurse.last==='L'?'R':'L') : null;
-  box.innerHTML = ['L','R'].map(s => `<button type="button" class="side ${n?.side===s?'on':''}" data-side="${s}"><span class="s">${s==='L'?'Left':'Right'}</span><span class="big num">${clock(s==='L'?L:R)}</span><span class="st">${n?.side===s?'Running · tap to pause':sug===s?'Suggested next':'Tap to start'}</span></button>`).join('');
-  $('nurseActions').innerHTML = n ? `<button class="btn primary" type="button" data-act="nurseSave">Done — save feed</button><button class="btn ghost" type="button" data-act="nurseDiscard">Discard</button>` : '';
-  $('nurseHint').textContent = n ? `Started ${tfmt(n.start)} · total ${clock(L+R)}` : 'Tap a side to start the timer. Tap the other side to switch.';
+  const lastN = lastOf(l=>l.type==='nurse' && l.last);
+  const sug = !n && lastN ? (lastN.last==='L'?'R':'L') : null;
+  box.innerHTML = ['L','R'].map(s => `<button type="button" class="side press ${n?.side===s?'on':''} ${sug===s?'sug':''}" data-side="${s}"><span class="s">${s==='L'?'Left':'Right'}</span><span class="t num">${clock(s==='L'?L:R)}</span><span class="st">${n?.side===s?'Tap to pause':sug===s?'Suggested next':'Tap to start'}</span></button>`).join('');
+  $('nurseActions').innerHTML = n ? `<button class="btn primary" type="button" data-act="nurseSave">Done · save feed</button><button class="btn soft" type="button" data-act="nurseDiscard">Discard</button>` : '';
+  $('nurseHint').textContent = n ? `Started ${tfmt(n.start)} · ${clock(L+R)} total` : 'Tap a side to start. Tap the other side to switch.';
 }
-function chipVal(name){ return $('sheetRoot').querySelector(`[data-chip="${name}"][aria-pressed="true"]`)?.dataset.v || ''; }
+const chipVal = name => $('sheetRoot').querySelector(`[data-chip="${name}"][aria-pressed="true"]`)?.dataset.v || '';
 const num = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? 0 : v; };
 
 async function saveSheet(){
   const {type, existing} = sheetState; const e = existing || {};
-  const base = {type, by: S.me || e.by || null, created: e.created || now()};
+  const base = {type, by: e.by || S.me || null, created: e.created || now()};
+  const T = id => fromLocalInput($(id).value);
   let data;
-  if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; data={...base,t:fromLocalInput($('fTime').value),left:L,right:R,last:chipVal('last')||'L'}; data.end=data.t+L+R; }
-  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:fromLocalInput($('fTime').value),ml:Math.round(volIn(v)),content:chipVal('content')||'formula'}; }
-  else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate');return;} data={...base,t:fromLocalInput($('fTime').value),food:f.slice(0,120),reaction:chipVal('reaction')}; }
-  else if (type==='sleep'){ const a=fromLocalInput($('fStart').value), b=fromLocalInput($('fEnd').value); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
-  else if (type==='diaper'){ data={...base,t:fromLocalInput($('fTime').value),kind:chipVal('kind')||'wet',note:$('fNote').value.trim().slice(0,120)}; }
-  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r){toast('Enter how much you pumped');return;} data={...base,t:fromLocalInput($('fTime').value),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; }
-  else if (type==='growth'){ const kg=num('fKg'); if(!kg && !num('fCm') && !num('fHead')){toast('Enter at least one measurement');return;} data={...base,t:fromLocalInput($('fTime').value),kg:kg?+wtIn(kg).toFixed(3):0,cm:num('fCm'),head:num('fHead')}; }
+  if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;} data={...base,t:T('fTime'),left:L,right:R,last:chipVal('last')||(R&&!L?'R':'L')}; data.end=data.t+L+R; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula'}; }
+  else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate'); $('fFood').focus(); return;} data={...base,t:T('fTime'),food:f.slice(0,120),reaction:chipVal('reaction')}; }
+  else if (type==='sleep'){ const a=T('fStart'), b=T('fEnd'); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
+  else if (type==='diaper'){ data={...base,t:T('fTime'),kind:chipVal('kind')||'wet',note:$('fNote').value.trim().slice(0,120)}; }
+  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r){toast('Enter how much you pumped');return;} data={...base,t:T('fTime'),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; }
+  else if (type==='growth'){ const kg=num('fKg'); if(!kg && !num('fCm') && !num('fHead')){toast('Enter at least one measurement');return;} data={...base,t:T('fTime'),kg:kg?+wtIn(kg).toFixed(3):0,cm:num('fCm'),head:num('fHead')}; }
   const id = existing?.id || uid();
-  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing?'Saved':'Logged '+TYPES[type].label.toLowerCase()); }
+  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing ? 'Changes saved' : `${TYPES[type].label} saved`); }
 }
 
 async function act(a, el){
   if (a==='close') return closeSheet();
   if (a==='delete'){
-    if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('confirm'); el.textContent='Tap again to delete'; return; }
+    if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('armed'); el.textContent='Tap again to delete'; return; }
     const {id, ...rest} = sheetState.existing;
-    if (await write(()=>store.delLog(id))){
-      closeSheet();
-      toast('Entry deleted', 'Undo', () => write(()=>store.putLog(id, rest)).then(ok => ok && toast('Entry restored')));
-    }
+    if (await write(()=>store.delLog(id))){ closeSheet(); toast('Entry deleted', 'Undo', () => write(()=>store.putLog(id, rest)).then(ok => ok && toast('Entry restored'))); }
     return;
   }
   if (a==='sleepStart'){ if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))){ closeSheet(); toast('Sleep timer started'); } return; }
@@ -651,22 +766,17 @@ async function act(a, el){
     const s = S.active.sleep; if (!s) return closeSheet();
     const start = $('fAdj') ? fromLocalInput($('fAdj').value) : s.start;
     if (start >= now()){ toast('Sleep start must be in the past'); return; }
-    const ok = await write(async()=>{ await store.putLog(uid(),{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); });
-    if (ok){ closeSheet(); toast('Sleep saved'); } return;
+    if (await write(async()=>{ await store.putLog(uid(),{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ closeSheet(); toast(`Sleep saved · ${dur(now()-start)}`); }
+    return;
   }
   if (a==='cancelSleep'){ if (await write(()=>store.setActive('sleep',null))){ closeSheet(); toast('Sleep timer discarded'); } return; }
   if (a==='sleepManual'){ sheetState.existing=null; return saveSheet(); }
-  if (a==='nurseManual'){
-    const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;}
-    const t=fromLocalInput($('fTime').value);
-    if (await write(()=>store.putLog(uid(),{type:'nurse',t,end:t+L+R,left:L,right:R,last:R&&!L?'R':(L&&!R?'L':'R'),by:S.me,created:now()}))){ closeSheet(); toast('Logged nursing'); }
-    return;
-  }
+  if (a==='nurseManual'){ sheetState.existing=null; return saveSheet(); }
   if (a==='nurseSave'){
     const n=S.active.nurse; if(!n) return; const {L,R}=nurseTotals();
     const last = n.side || n.lastSide || (R>L?'R':'L');
-    const ok = await write(async()=>{ await store.putLog(uid(),{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); });
-    if (ok){ closeSheet(); toast(`Saved · ${dur(L+R,true)} total`); } return;
+    if (await write(async()=>{ await store.putLog(uid(),{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); })){ closeSheet(); toast(`Feed saved · ${dur(L+R)}`); }
+    return;
   }
   if (a==='nurseDiscard'){ if (await write(()=>store.setActive('nurse',null))){ closeSheet(); toast('Feed discarded'); } }
 }
@@ -680,7 +790,7 @@ async function tapSide(s){
     next = n.side===s ? {...n,left,right,side:null,since:null} : {...n,left,right,side:s,since:t,lastSide:s};
   }
   await write(()=>store.setActive('nurse',next));
-  renderNurse();
+  renderNurse(); if (S.tab==='home') renderLive();
 }
 
 /* ---------- export ---------- */
@@ -715,29 +825,31 @@ function buildCsv(logs){
   return [CSV_COLS.join(','), ...rows.map(r => CSV_COLS.map(c => csvCell(r[c])).join(','))].join('\r\n');
 }
 function buildJson(logs){
-  return JSON.stringify({app:'nestlog', version:1, exported:new Date().toISOString(), settings:S.settings,
-    logs:[...logs].sort((a,b)=>a.t-b.t)}, null, 1);
+  return JSON.stringify({app:'nestlog', version:1, exported:new Date().toISOString(), settings:S.settings, logs:[...logs].sort((a,b)=>a.t-b.t)}, null, 1);
 }
 function fileStem(){
   const n = (S.settings.name||'baby').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'baby';
   return `nestlog-${n}-${toLocalInput(now()).slice(0,10)}`;
 }
-async function doExport(kind){
+async function doExport(kind, btn){
   if (!S.logs.length){ toast('Nothing to export yet'); return; }
-  let logs; try { logs = await allLogs(); } catch { toast('Couldn’t read your full history. Check your connection and try again.'); return; }
-  const data = kind==='csv' ? buildCsv(logs) : buildJson(logs);
-  const filename = fileStem() + (kind==='csv' ? '.csv' : '.json');
-  if (downloads){
-    try { await downloads.save({filename, data}); toast(`Saved ${filename}`); return; }
-    catch(e){ if (e?.code==='declined') return; if (e?.code==='rate_limited'){ toast('A download is already waiting for your answer'); return; } }
-  }
-  $('exportFallback').hidden = false; $('exportText').value = data; $('exportText').dataset.name = filename;
-  $('exportText').scrollIntoView({block:'nearest', behavior:'smooth'});
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+  try {
+    let logs; try { logs = await allLogs(); } catch { toast('Couldn’t read your full history. Check your connection and try again.'); return; }
+    const data = kind==='csv' ? buildCsv(logs) : buildJson(logs);
+    const filename = fileStem() + (kind==='csv' ? '.csv' : '.json');
+    if (downloads){
+      try { await downloads.save({filename, data}); toast(`Saved ${filename}`); return; }
+      catch(e){ if (e?.code==='declined') return; if (e?.code==='rate_limited'){ toast('A download is already waiting for your answer'); return; } }
+    }
+    $('exportFallback').hidden = false; $('exportText').value = data; $('exportText').dataset.name = filename;
+    $('exportText').scrollIntoView({block:'nearest', behavior:'smooth'});
+  } finally { btn.disabled = false; btn.textContent = label; }
 }
 async function copyExport(){
   const ta = $('exportText');
   try { await navigator.clipboard.writeText(ta.value); toast('Copied. Paste it into a file named '+ta.dataset.name); }
-  catch { ta.focus(); ta.select(); toast('Text selected. Copy it with your keyboard or long-press.'); }
+  catch { ta.focus(); ta.select(); toast('Text selected. Copy it with your keyboard or a long-press.'); }
 }
 
 /* ---------- import ---------- */
@@ -764,14 +876,14 @@ const SAFE_ID = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
 function normalize(raw, fromCsv){
   const type = str(raw.type, 12).toLowerCase(); if (!TYPES[type]) return null;
   const t = parseTime(fromCsv ? raw.start : raw.t); if (!isFinite(t)) return null;
-  const endRaw = parseTime(fromCsv ? raw.end : raw.end);
+  const endRaw = parseTime(raw.end);
   const o = {type, t, created: nn(raw.created) || now(), by: (!fromCsv && typeof raw.by==='string' && raw.by.length<80) ? raw.by : null};
   if (type==='nurse'){ o.left = fromCsv ? nn(raw.left_min)*MIN : nn(raw.left); o.right = fromCsv ? nn(raw.right_min)*MIN : nn(raw.right);
     const ls = str(fromCsv?raw.last_side:raw.last,1).toUpperCase(); o.last = ls==='R'?'R':'L'; o.end = isFinite(endRaw) ? endRaw : t+o.left+o.right; }
   if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); o.content = str(raw.content,12)==='breastmilk'?'breastmilk':'formula'; if (!o.ml) return null; }
   if (type==='solids'){ o.food = str(raw.food); o.reaction = str(raw.reaction,30); if (!o.food) return null; }
   if (type==='sleep'){ if (!isFinite(endRaw) || endRaw <= t) return null; o.end = endRaw; }
-  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = ['wet','dirty','both','dry'].includes(k)?k:'wet'; o.note = str(raw.note); }
+  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = DIAPER[k]?k:'wet'; o.note = str(raw.note); }
   if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml) return null; }
   if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
   const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;
@@ -780,10 +892,10 @@ function normalize(raw, fromCsv){
 let pending = null;
 async function readImport(file){
   const panel = $('importPanel');
-  if (file.size > 20*1024*1024){ panel.innerHTML = `<p class="err">That file is over 20 MB, which is larger than any Nestlog export. Check you picked the right file.</p>`; return; }
+  if (file.size > 20*1024*1024){ panel.innerHTML = `<p class="err">That file is over 20 MB, larger than any Nestlog export. Check you picked the right file.</p>`; return; }
   let text; try { text = await file.text(); } catch { panel.innerHTML = `<p class="err">Couldn’t read that file. Try choosing it again.</p>`; return; }
   const isJson = /\.json$/i.test(file.name) || text.trim().startsWith('{');
-  let raws = [], settings = null, fromCsv = !isJson;
+  let raws = [], settings = null; const fromCsv = !isJson;
   try {
     if (isJson){ const j = JSON.parse(text); raws = Array.isArray(j.logs) ? j.logs : []; settings = j.settings && typeof j.settings==='object' ? j.settings : null; }
     else raws = parseCsv(text);
@@ -796,7 +908,8 @@ async function readImport(file){
   if (settings){ settings = {name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg'}; }
   pending = {fresh, settings};
   const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
-  const span = fresh.length ? `${new Date(Math.min(...fresh.map(f=>f.data.t))).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'})} – ${new Date(Math.max(...fresh.map(f=>f.data.t))).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'})}` : '';
+  const fdt = t => new Date(t).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
+  const span = fresh.length ? `${fdt(Math.min(...fresh.map(f=>f.data.t)))} – ${fdt(Math.max(...fresh.map(f=>f.data.t)))}` : '';
   panel.innerHTML = `<div class="preview">
     <b>${esc(file.name)}</b>
     ${fresh.length ? `<span>${fresh.length} new ${fresh.length===1?'entry':'entries'} · ${span}</span><ul>${Object.entries(counts).map(([k,v])=>`<li>${v} ${TYPES[k].label.toLowerCase()}</li>`).join('')}</ul>` : `<span>No new entries in this file.</span>`}
@@ -804,12 +917,12 @@ async function readImport(file){
     ${bad ? `<span class="hint">${bad} row${bad>1?'s':''} couldn’t be read and will be skipped.</span>` : ''}
     ${settings && (settings.name||settings.birth) ? `<label class="check"><input type="checkbox" id="impSettings" ${!S.settings.name?'checked':''}> Also use baby details from the backup (${esc(settings.name||'no name')}${settings.birth?', born '+esc(settings.birth):''})</label>` : ''}
     <div class="bar" id="impBar" hidden><i></i></div>
-    <div class="actions">${fresh.length ? `<button class="btn primary" type="button" data-io="import" id="impGo">Import ${fresh.length} ${fresh.length===1?'entry':'entries'}</button>` : ''}<button class="btn ghost" type="button" data-io="cancel">${fresh.length?'Cancel':'Close'}</button></div>
+    <div class="row-actions">${fresh.length ? `<button class="btn primary" type="button" data-io="import" id="impGo">Import ${fresh.length} ${fresh.length===1?'entry':'entries'}</button>` : ''}<button class="btn soft" type="button" data-io="cancel">${fresh.length?'Cancel':'Close'}</button></div>
   </div>`;
 }
 async function runImport(){
   if (!pending) return;
-  if (!S.canWrite){ toast('You can view this baby’s log but not change it'); return; }
+  if (!S.canWrite){ toast('You can view this log but not change it'); return; }
   const {fresh} = pending; const useSettings = $('impSettings')?.checked && pending.settings;
   const go = $('impGo'); go.disabled = true; go.textContent = 'Importing…';
   const bar = $('impBar'); bar.hidden = false; const fill = bar.firstElementChild;
@@ -856,11 +969,11 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-chip],[data-step],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
-    if (d.io==='json' || d.io==='csv') doExport(d.io);
+    if (d.io==='json' || d.io==='csv') doExport(d.io, el);
     if (d.io==='copy') copyExport();
     if (d.io==='import') runImport();
     if (d.io==='cancel'){ pending=null; $('importPanel').innerHTML=''; }
@@ -870,10 +983,37 @@ document.addEventListener('click', e => {
   if (d.tab){ S.tab=d.tab; render(); window.scrollTo(0,0); return; }
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
   if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
-  if (d.chip){ const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true'; grp.forEach(b=>b.setAttribute('aria-pressed','false')); if(!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true'); return; }
-  if (d.step){ const inp=$(d.step); inp.value=Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(d.d)).toFixed(2)); return; }
+  if (d.range){ S.range=+d.range; renderTrends(); return; }
+  if (d.chip){
+    const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true';
+    grp.forEach(b=>b.setAttribute('aria-pressed','false'));
+    if (!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true');
+    if (d.chip==='preset') $('fAmt').value = d.v;
+    return;
+  }
+  if (d.step){
+    const inp=$(d.step); inp.value=Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(d.d)).toFixed(2));
+    if (d.step==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===inp.value)));
+    return;
+  }
+  if (d.ago){
+    $(d.for).value = toLocalInput(now() - (+d.ago)*MIN);
+    el.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed', String(b===el)));
+    return;
+  }
   if (d.side){ tapSide(d.side); return; }
   if (d.act){ act(d.act, el); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===e.target.value)));
+  if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
+});
+document.addEventListener('change', e => {
+  if (e.target.id==='fAdj' && S.active.sleep){
+    const v = fromLocalInput(e.target.value);
+    if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
+  }
+  if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
 });
 document.addEventListener('submit', e => {
   e.preventDefault();
@@ -883,7 +1023,16 @@ document.addEventListener('submit', e => {
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
   }
 });
-document.addEventListener('keydown', e => { if (e.key==='Escape' && sheetState) closeSheet(); });
+document.addEventListener('keydown', e => {
+  if (!sheetState) return;
+  if (e.key==='Escape') closeSheet();
+  if (e.key==='Tab'){ /* keep focus inside the sheet */
+    const f = [...$('sheetRoot').querySelectorAll('.sheet button, .sheet input, .sheet summary, .sheet select')].filter(x=>!x.disabled && x.offsetParent);
+    if (!f.length) return; const first=f[0], last=f.at(-1);
+    if (e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }
+});
 
 let toastT;
 function toast(msg, actionLabel, onAction){
@@ -891,21 +1040,14 @@ function toast(msg, actionLabel, onAction){
   if (actionLabel){ const b=document.createElement('button'); b.type='button'; b.textContent=actionLabel; b.onclick=()=>{ t.hidden=true; onAction(); }; t.append(b); }
   t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, actionLabel?6000:2600);
 }
-document.addEventListener('change', e => {
-  if (e.target.id==='fAdj' && S.active.sleep){
-    const v = fromLocalInput(e.target.value);
-    if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
-  }
-  if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
-});
 
-/* live clocks: repaint timers every second, the rest every 30s */
-let tick=0;
+/* clocks: running timers every second, everything else every 30s */
+let tick = 0;
 setInterval(() => {
   tick++;
-  if (S.tab==='home'){ if (S.active.nurse||S.active.sleep) renderLive(); if (tick%30===0) renderHome(); }
+  document.querySelectorAll('[data-clock]').forEach(el => el.textContent = clock(now() - +el.dataset.clock));
+  if (S.tab==='home'){ if (S.active.nurse) renderLive(); if (tick%30===0) renderHome(); }
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
-  const sc=$('sleepClock'); if (sc && S.active.sleep) sc.textContent=clock(now()-S.active.sleep.start);
 }, 1000);
 
 /* ---------- boot ---------- */
