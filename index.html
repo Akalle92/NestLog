@@ -1,0 +1,935 @@
+<title>Nestlog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-column phone app — header, live timers, "since last" row, quick-log grid, today; bottom tab bar. Colors per log type. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --sunk:#e3e8ed; --line:#d3dae2;
+  --fg:#1d2733; --muted:#5e6b7a; --accent:#2f5d8a; --accent-ink:#ffffff;
+  --feed:#c27c1c; --feed-bg:#fbefdc;
+  --sleep:#5650a8; --sleep-bg:#e9e7f8;
+  --diaper:#1f8178; --diaper-bg:#dcf1ee;
+  --pump:#b2486b; --pump-bg:#f8e3ea;
+  --growth:#4d7d2f; --growth-bg:#e5f0dc;
+  --danger:#b3261e;
+  --display:"Young Serif", Georgia, "Times New Roman", serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#1a2129; --sunk:#232c36; --line:#2e3946;
+  --fg:#e7edf3; --muted:#9aa8b7; --accent:#7fb0e0; --accent-ink:#0d1620;
+  --feed:#e8a94e; --feed-bg:#33281a; --sleep:#a9a3f2; --sleep-bg:#26243f;
+  --diaper:#5cc7bb; --diaper-bg:#16302d; --pump:#e88aa8; --pump-bg:#3a1f29;
+  --growth:#93c46f; --growth-bg:#1f2e17; --danger:#f2867e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#1a2129; --sunk:#232c36; --line:#2e3946;
+  --fg:#e7edf3; --muted:#9aa8b7; --accent:#7fb0e0; --accent-ink:#0d1620;
+  --feed:#e8a94e; --feed-bg:#33281a; --sleep:#a9a3f2; --sleep-bg:#26243f;
+  --diaper:#5cc7bb; --diaper-bg:#16302d; --pump:#e88aa8; --pump-bg:#3a1f29;
+  --growth:#93c46f; --growth-bg:#1f2e17; --danger:#f2867e; color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+.app{max-width:520px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom,0px))}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:20px 14px}
+header h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1;margin:0;text-wrap:balance}
+.age{color:var(--muted);font-size:14px;margin-top:2px}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync.live .dot{background:var(--diaper)}
+
+.section-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:22px 0 10px}
+
+/* live timers */
+.live{display:grid;gap:10px}
+.timer{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r);text-align:left;width:100%}
+.timer.feed{background:var(--feed-bg)} .timer.sleep{background:var(--sleep-bg)}
+.timer .big{font-family:var(--display);font-size:28px;line-height:1}
+.timer .lab{font-size:13px;color:var(--muted)}
+.timer .grow{flex:1;min-width:0}
+.pulse{width:10px;height:10px;border-radius:50%;flex:none}
+.feed .pulse{background:var(--feed)} .sleep .pulse{background:var(--sleep)}
+@media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+
+/* since last */
+.since{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.since div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.since b{display:block;font-family:var(--display);font-weight:400;font-size:20px;line-height:1.15}
+.since span{font-size:12px;color:var(--muted)}
+.since small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* quick log */
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.q{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 10px;border-radius:12px;font-size:13px;font-weight:600;min-height:76px}
+.q svg{width:26px;height:26px}
+.t-feed{background:var(--feed-bg);color:var(--feed)} .t-sleep{background:var(--sleep-bg);color:var(--sleep)}
+.t-diaper{background:var(--diaper-bg);color:var(--diaper)} .t-pump{background:var(--pump-bg);color:var(--pump)}
+.t-growth{background:var(--growth-bg);color:var(--growth)}
+.q span{color:var(--fg)}
+
+/* today totals */
+.totals{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.totals div{background:var(--surface);padding:12px 14px}
+.totals b{font-family:var(--display);font-weight:400;font-size:22px}
+.totals span{display:block;font-size:12px;color:var(--muted)}
+
+/* timeline */
+.day{margin-top:18px}
+.day h3{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;text-align:left;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
+.row .ic svg{width:18px;height:18px}
+.row .mid{flex:1;min-width:0}
+.row .mid b{font-weight:600;display:block}
+.row .mid span{font-size:13px;color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row time{font-size:13px;color:var(--muted);flex:none}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px 18px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--fg);font-family:var(--display);font-weight:400;font-size:18px;margin-bottom:4px}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-top:16px}
+
+/* trends */
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 8px;margin-bottom:12px}
+.chart h4{margin:0;font-size:14px;font-weight:600}
+.chart p{margin:2px 0 8px;font-size:12px;color:var(--muted)}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--body);font-size:10px}
+
+/* forms */
+.field{display:grid;gap:6px}
+.field label,.flabel{font-size:13px;font-weight:600;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;box-sizing:border-box;min-width:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:8px 14px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-size:14px;font-weight:500;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn{padding:13px 18px;border-radius:12px;font-weight:600;text-align:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--sunk)}
+.btn.danger{color:var(--danger);background:transparent}
+.btn.danger.confirm{background:var(--danger);color:var(--surface)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .btn{flex:1}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:44px;height:44px;border-radius:12px;background:var(--sunk);font-size:20px;font-weight:600;flex:none}
+.stepper input{text-align:center;font-family:var(--display);font-size:22px}
+.unit{font-size:13px;color:var(--muted);white-space:nowrap}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* nursing sides */
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.side{border-radius:16px;padding:18px 10px;background:var(--sunk);border:2px solid transparent;display:grid;gap:4px;justify-items:center}
+.side .s{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.side .big{font-family:var(--display);font-size:32px;line-height:1.1}
+.side .st{font-size:12px;color:var(--muted)}
+.side.on{border-color:var(--feed);background:var(--feed-bg)}
+.side.on .st{color:var(--feed);font-weight:600}
+.bigclock{font-family:var(--display);font-size:44px;text-align:center;line-height:1.1;color:var(--sleep)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgb(10 15 20 / .45);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:520px;margin:0 auto;background:var(--surface);border-radius:20px 20px 0 0;max-height:88%;overflow-y:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 10px}
+.sheet h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.sheet h2 .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center}
+.sheet h2 .ic svg{width:18px;height:18px}
+.sheet form{display:grid;gap:16px;margin-top:12px}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s cubic-bezier(.2,.8,.2,1)}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+
+/* tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs div{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav.tabs button{padding:10px 0 12px;font-size:12px;font-weight:600;color:var(--muted);display:grid;justify-items:center;gap:3px}
+nav.tabs svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:14px;color:var(--muted)}
+.note b{color:var(--fg)}
+.settings{display:grid;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+
+/* polish */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin-inline:-16px;padding-inline:16px}
+.q{transition:transform .12s ease}
+.q:active,.row:active,.side:active,.timer:active{transform:scale(.97)}
+.row{transition:background .15s}
+.row:hover{background:var(--sunk)}
+.by{color:var(--muted)}
+.sheet h2{justify-content:flex-start}
+.sheet .x{margin-left:auto;width:36px;height:36px;border-radius:10px;background:var(--sunk);display:grid;place-items:center;font-size:20px;line-height:1;color:var(--muted)}
+.skel{height:56px;border-radius:12px;background:var(--surface);border:1px solid var(--line);margin-bottom:8px}
+@media (prefers-reduced-motion:no-preference){.skel{animation:sk 1.2s ease-in-out infinite}@keyframes sk{50%{opacity:.5}}}
+.toast{display:flex;align-items:center;gap:12px}
+.toast button{color:var(--bg);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+
+/* import / export */
+.io{display:grid;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.io h4{margin:0;font-size:15px;font-weight:600}
+.io .hint{margin-top:-6px}
+.io .actions .btn{flex:1 1 140px}
+.drop{display:grid;place-items:center;gap:4px;text-align:center;padding:18px;border:1.5px dashed var(--line);border-radius:12px;color:var(--muted);cursor:pointer}
+.drop b{color:var(--fg);font-weight:600}
+.drop.over{border-color:var(--accent);background:var(--sunk)}
+.preview{display:grid;gap:10px;padding:14px;border-radius:12px;background:var(--sunk)}
+.preview ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.preview li{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.check{display:flex;align-items:center;gap:10px;font-size:14px}
+.check input{width:20px;height:20px;flex:none}
+textarea.dump{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;height:160px;resize:vertical}
+.err{color:var(--danger);font-size:14px;margin:0}
+</style>
+
+<div class="app">
+  <header>
+    <div>
+      <h1 id="babyName">Your baby</h1>
+      <div class="age" id="babyAge">Add a name and birth date under Baby</div>
+    </div>
+    <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting…</span></div>
+  </header>
+
+  <main id="view-home">
+    <div class="live" id="live"></div>
+    <div class="section-label">Since last</div>
+    <div class="since" id="since"></div>
+    <div class="section-label">Log</div>
+    <div class="quick" id="quick"></div>
+    <div class="section-label">Today</div>
+    <div class="totals" id="totals"></div>
+    <div class="section-label">Recent</div>
+    <div id="recent"></div>
+  </main>
+
+  <main id="view-timeline" hidden>
+    <div class="filters" id="filters"></div>
+    <div id="timeline"></div>
+  </main>
+
+  <main id="view-trends" hidden>
+    <div class="section-label">Last 7 days</div>
+    <div id="trends"></div>
+  </main>
+
+  <main id="view-baby" hidden>
+    <div class="section-label">Baby</div>
+    <form class="settings" id="settingsForm">
+      <div class="field"><label for="setName">Name</label><input id="setName" autocomplete="off" placeholder="e.g. Aarav"></div>
+      <div class="field"><label for="setBirth">Birth date</label><input id="setBirth" type="date"></div>
+      <div class="two">
+        <div class="field"><label for="setVol">Volume</label><select id="setVol"><option value="ml">ml</option><option value="oz">oz</option></select></div>
+        <div class="field"><label for="setWt">Weight</label><select id="setWt"><option value="kg">kg</option><option value="lb">lb</option></select></div>
+      </div>
+      <button class="btn primary" type="submit">Save baby details</button>
+    </form>
+    <div class="section-label">Sharing with your partner</div>
+    <div class="note" id="shareNote"></div>
+
+    <div class="section-label">Export</div>
+    <div class="io">
+      <h4 id="exportTitle">Download your data</h4>
+      <p class="hint">A backup file restores everything into Nestlog. The spreadsheet opens in Excel, Numbers or Google Sheets.</p>
+      <div class="actions">
+        <button class="btn primary" type="button" data-io="json">Download backup (.json)</button>
+        <button class="btn ghost" type="button" data-io="csv">Download spreadsheet (.csv)</button>
+      </div>
+      <div id="exportFallback" hidden>
+        <p class="hint">Downloads aren’t available on this screen. Copy the text below and save it as a file instead.</p>
+        <textarea class="dump" id="exportText" readonly aria-label="Exported data"></textarea>
+        <button class="btn ghost" type="button" data-io="copy">Copy to clipboard</button>
+      </div>
+    </div>
+
+    <div class="section-label">Import</div>
+    <div class="io">
+      <h4>Bring in entries</h4>
+      <p class="hint">Choose a Nestlog backup (.json) or spreadsheet (.csv). Entries you already have are skipped, so importing the same file twice is safe.</p>
+      <label class="drop" id="drop" for="importFile">
+        <b>Choose a file</b><span>or drop it here</span>
+      </label>
+      <input id="importFile" type="file" accept=".json,.csv,application/json,text/csv" hidden>
+      <div id="importPanel"></div>
+    </div>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="Sections"><div id="tabs"></div></nav>
+<div id="sheetRoot"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+/* ---------- icons ---------- */
+const I = {
+  nurse:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4.4 0-8-3.4-8-7.6C4 8.6 8 4 12 3c4 1 8 5.6 8 10.4 0 4.2-3.6 7.6-8 7.6Z"/><circle cx="12" cy="13" r="2.2"/></svg>',
+  bottle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4M9.5 5h5l-.5-3h-4z"/><path d="M8 8c0-1.7 1.3-3 3-3h2c1.7 0 3 1.3 3 3v11a3 3 0 0 1-3 3h-2a3 3 0 0 1-3-3Z"/><path d="M8 12h3M8 16h3"/></svg>',
+  solids:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M14 4 9 11M18 5l-5 6"/></svg>',
+  sleep:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>',
+  diaper:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v3a9 9 0 0 1-18 0Z"/><path d="M8 6v3M16 6v3"/></svg>',
+  pump:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6a5 5 0 0 1 10 0H5Z"/><path d="M10 6v4"/><path d="M7 10h6v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z"/><path d="M15 6h3a2 2 0 0 1 2 2v2"/></svg>',
+  growth:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M7 20V9M12 20V5M17 20v-7"/></svg>',
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 9 13l4 3 7-9"/></svg>',
+  baby:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M9 14.5c.8.7 1.8 1 3 1s2.2-.3 3-1"/><path d="M9.5 10h.01M14.5 10h.01"/><path d="M12 4c-1 1.5-.5 3 1 3"/></svg>'
+};
+const TYPES = {
+  nurse:{label:'Nursing',short:'Nurse',cls:'feed',icon:I.nurse,group:'feed'},
+  bottle:{label:'Bottle',short:'Bottle',cls:'feed',icon:I.bottle,group:'feed'},
+  solids:{label:'Solids',short:'Solids',cls:'feed',icon:I.solids,group:'feed'},
+  sleep:{label:'Sleep',short:'Sleep',cls:'sleep',icon:I.sleep,group:'sleep'},
+  diaper:{label:'Diaper',short:'Diaper',cls:'diaper',icon:I.diaper,group:'diaper'},
+  pump:{label:'Pumping',short:'Pump',cls:'pump',icon:I.pump,group:'pump'},
+  growth:{label:'Growth',short:'Growth',cls:'growth',icon:I.growth,group:'growth'}
+};
+
+/* ---------- state ---------- */
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', canWrite:true, me:null, tab:'home', filter:'all', loaded:true, names:{} };
+let userApi = null, downloads = null;
+const buzz = () => { try { navigator.vibrate?.(12); } catch {} };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+/* ---------- store adapter: shared db, else this-device fallback ---------- */
+const local = {
+  key:'nestlog-v1',
+  load(){ try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
+  save(d){ try { localStorage.setItem(this.key, JSON.stringify(d)); } catch {} }
+};
+let db = null;
+const store = {
+  async putLog(id, data){
+    if (db) return db.collection('logs').doc(id).set(data);
+    const d = local.load(); d.logs = d.logs || {}; d.logs[id] = data; local.save(d); applyLocal();
+  },
+  async delLog(id){
+    if (db) return db.collection('logs').doc(id).delete();
+    const d = local.load(); if (d.logs) delete d.logs[id]; local.save(d); applyLocal();
+  },
+  async setActive(kind, data){
+    if (db) return data ? db.doc('active/'+kind).set(data) : db.doc('active/'+kind).delete();
+    const d = local.load(); d.active = d.active || {}; if (data) d.active[kind] = data; else delete d.active[kind]; local.save(d); applyLocal();
+  },
+  async setSettings(data){
+    if (db) return db.doc('settings/baby').set(data);
+    const d = local.load(); d.settings = data; local.save(d); applyLocal();
+  }
+};
+function applyLocal(){
+  const d = local.load();
+  S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
+  S.active = d.active || {};
+  S.settings = {...S.settings, ...(d.settings||{})};
+  render();
+}
+async function write(fn){
+  if (!S.canWrite){ toast('You can view this baby’s log but not change it'); return false; }
+  try { await fn(); buzz(); return true; }
+  catch(e){
+    if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask the owner to share it with you as an editor.'); }
+    else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete some old entries to keep logging.'); }
+    else toast('That didn’t save. Check your connection and try again.');
+    return false;
+  }
+}
+
+/* ---------- time helpers ---------- */
+const MIN = 6e4, HR = 36e5, DAY = 864e5;
+const now = () => Date.now();
+function dur(ms, short){
+  ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60);
+  if (h) return `${h}h ${m%60}m`;
+  return short ? `${m}m` : `${m} min`;
+}
+function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0'); }
+function ago(t){ const d = now()-t; return d < MIN ? 'just now' : dur(d,true)+' ago'; }
+const tfmt = t => new Date(t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+function dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function startOfDay(t){ const d=new Date(t); d.setHours(0,0,0,0); return d.getTime(); }
+function dayLabel(t){
+  const s = startOfDay(t), today = startOfDay(now());
+  if (s === today) return 'Today'; if (s === today - DAY) return 'Yesterday';
+  return new Date(t).toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'});
+}
+function toLocalInput(t){ const d=new Date(t); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function fromLocalInput(v){ const t = new Date(v).getTime(); return isNaN(t) ? now() : t; }
+function ageText(birth){
+  if (!birth) return '';
+  const b = new Date(birth+'T00:00'); const n = new Date();
+  let days = Math.floor((startOfDay(n) - b.getTime())/DAY);
+  if (days < 0) return 'Due '+b.toLocaleDateString([], {day:'numeric',month:'short'});
+  if (days < 14) return days === 0 ? 'Born today' : `${days} day${days>1?'s':''} old`;
+  if (days < 84) { const w=Math.floor(days/7), d=days%7; return `${w} weeks${d?` ${d} days`:''} old`; }
+  let months = (n.getFullYear()-b.getFullYear())*12 + n.getMonth()-b.getMonth();
+  if (n.getDate() < b.getDate()) months--;
+  const anchor = new Date(b); anchor.setMonth(b.getMonth()+months);
+  const rem = Math.floor((startOfDay(n)-anchor.getTime())/DAY);
+  if (months >= 24) return `${Math.floor(months/12)} yrs ${months%12} mo old`;
+  return `${months} mo ${rem} d old`;
+}
+
+/* ---------- units ---------- */
+const ML_PER_OZ = 29.5735, KG_PER_LB = 0.453592;
+const volOut = ml => S.settings.vol === 'oz' ? +(ml/ML_PER_OZ).toFixed(1) : Math.round(ml);
+const volIn = v => S.settings.vol === 'oz' ? v*ML_PER_OZ : v;
+const volU = () => S.settings.vol;
+const wtOut = kg => S.settings.wt === 'lb' ? +(kg/KG_PER_LB).toFixed(2) : +kg.toFixed(2);
+const wtIn = v => S.settings.wt === 'lb' ? v*KG_PER_LB : v;
+const wtU = () => S.settings.wt;
+
+/* ---------- summaries ---------- */
+function describe(l){
+  switch(l.type){
+    case 'nurse': { const L=l.left||0, R=l.right||0; return `L ${dur(L,true)} · R ${dur(R,true)}${l.last?` · ended ${l.last==='L'?'left':'right'}`:''}`; }
+    case 'bottle': return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':'formula'}`;
+    case 'solids': return [l.food, l.reaction].filter(Boolean).join(' · ') || 'Solids';
+    case 'sleep': return l.end ? `${dur(l.end-l.t)} · ${tfmt(l.t)}–${tfmt(l.end)}` : 'In progress';
+    case 'diaper': return ({wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'})[l.kind] + (l.note?` · ${l.note}`:'');
+    case 'pump': return `${volOut((l.lml||0)+(l.rml||0))} ${volU()} total · L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}${l.min?` · ${l.min} min`:''}`;
+    case 'growth': return [l.kg?`${wtOut(l.kg)} ${wtU()}`:'', l.cm?`${l.cm} cm long`:'', l.head?`head ${l.head} cm`:''].filter(Boolean).join(' · ');
+  }
+  return '';
+}
+function lastOf(pred){ return S.logs.find(pred); }
+function sleepOverlap(l, from, to){ const e = l.end || now(); return Math.max(0, Math.min(e,to) - Math.max(l.t,from)); }
+function dayStats(from){
+  const to = from + DAY;
+  const inDay = S.logs.filter(l => l.t >= from && l.t < to);
+  const feeds = inDay.filter(l => l.type==='nurse' || l.type==='bottle');
+  const bottleMl = inDay.filter(l=>l.type==='bottle').reduce((a,l)=>a+(l.ml||0),0);
+  const nurseMs = inDay.filter(l=>l.type==='nurse').reduce((a,l)=>a+(l.left||0)+(l.right||0),0);
+  const sleepMs = S.logs.filter(l=>l.type==='sleep').reduce((a,l)=>a+sleepOverlap(l,from,to),0)
+    + (S.active.sleep ? sleepOverlap({t:S.active.sleep.start}, from, to) : 0);
+  const diapers = inDay.filter(l=>l.type==='diaper');
+  const wet = diapers.filter(d=>d.kind==='wet'||d.kind==='both').length;
+  const dirty = diapers.filter(d=>d.kind==='dirty'||d.kind==='both').length;
+  const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+(l.lml||0)+(l.rml||0),0);
+  return {feeds:feeds.length, bottleMl, nurseMs, sleepMs, wet, dirty, diapers:diapers.length, pumpMl};
+}
+
+/* ---------- render ---------- */
+const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
+function render(){
+  const st = S.settings;
+  $('babyName').textContent = st.name || 'Your baby';
+  $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add a name and birth date under Baby';
+  const sync = $('sync');
+  sync.classList.toggle('live', S.mode==='db');
+  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Shared · live' : 'View only') : 'This device only';
+
+  $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
+  for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
+
+  if (S.tab==='home') renderHome();
+  if (S.tab==='timeline') renderTimeline();
+  if (S.tab==='trends') renderTrends();
+  if (S.tab==='baby') renderBaby();
+}
+function renderLive(){
+  const a = S.active; let h = '';
+  if (a.nurse){
+    const n = a.nurse, run = n.side ? now()-n.since : 0;
+    const L = (n.left||0)+(n.side==='L'?run:0), R=(n.right||0)+(n.side==='R'?run:0);
+    h += `<button class="timer feed" data-open="nurse"><span class="pulse"></span><span class="grow"><span class="lab">${n.side?`Nursing · ${n.side==='L'?'left':'right'} side`:'Nursing · paused'}</span><br><span class="big num">${clock(L+R)}</span></span><span class="lab num">L ${clock(L)}<br>R ${clock(R)}</span></button>`;
+  }
+  if (a.sleep){
+    h += `<button class="timer sleep" data-open="sleep"><span class="pulse"></span><span class="grow"><span class="lab">Asleep since ${tfmt(a.sleep.start)}</span><br><span class="big num">${clock(now()-a.sleep.start)}</span></span><span class="lab">Tap to<br>wake</span></button>`;
+  }
+  $('live').innerHTML = h;
+}
+function renderHome(){
+  renderLive();
+  const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
+  const nurse = lastOf(l => l.type==='nurse' && l.last);
+  const diaper = lastOf(l => l.type==='diaper');
+  const sleep = lastOf(l => l.type==='sleep' && l.end);
+  const feedB = S.active.nurse ? 'Now' : feed ? dur(now()-feed.t,true) : '—';
+  const nextSide = nurse ? (nurse.last==='L' ? 'Next: right' : 'Next: left') : (feed ? TYPES[feed.type].label : 'No feeds yet');
+  const awake = S.active.sleep ? ['Asleep', dur(now()-S.active.sleep.start,true)] : sleep ? ['Awake', dur(now()-sleep.end,true)] : ['Sleep','—'];
+  $('since').innerHTML =
+    `<div><span>Fed</span><b class="num">${feedB}</b><small>${esc(nextSide)}</small></div>`+
+    `<div><span>Diaper</span><b class="num">${diaper?dur(now()-diaper.t,true):'—'}</b><small>${diaper?({wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'})[diaper.kind]:'None yet'}</small></div>`+
+    `<div><span>${awake[0]}</span><b class="num">${awake[1]}</b><small>${S.active.sleep?'Sleeping now':sleep?'since waking':'None yet'}</small></div>`;
+
+  $('quick').innerHTML = Object.entries(TYPES).map(([k,t]) => `<button class="q t-${t.cls}" data-open="${k}">${t.icon}<span>${t.short}</span></button>`).join('')
+    + `<button class="q" style="background:var(--sunk);color:var(--muted)" data-tab="timeline">${I.list}<span>History</span></button>`;
+
+  const d = dayStats(startOfDay(now()));
+  $('totals').innerHTML =
+    `<div><b class="num">${d.feeds}</b><span>feeds${d.nurseMs?` · ${dur(d.nurseMs,true)} nursing`:''}</span></div>`+
+    `<div><b class="num">${volOut(d.bottleMl)}<small style="font-size:14px"> ${volU()}</small></b><span>by bottle</span></div>`+
+    `<div><b class="num">${dur(d.sleepMs,true)}</b><span>sleep since midnight</span></div>`+
+    `<div><b class="num">${d.wet} / ${d.dirty}</b><span>wet / dirty diapers</span></div>`;
+
+  const recent = S.logs.slice(0,5);
+  if (!S.loaded){ $('recent').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>'; return; }
+  $('recent').innerHTML = recent.length ? `<div class="rows">${recent.map(rowHtml).join('')}</div>`
+    : `<div class="empty"><b>Nothing logged yet</b>Tap Nurse, Bottle, Sleep or Diaper above to add the first entry. Everything you and your partner log shows up here.</div>`;
+}
+function rowHtml(l){
+  const t = TYPES[l.type]; if (!t) return '';
+  const who = l.by && l.by !== S.me && S.names[l.by] ? ` <span class="by">· ${esc(S.names[l.by].split(' ')[0])}</span>` : '';
+  return `<button class="row" data-edit="${esc(l.id)}"><span class="ic t-${t.cls}">${t.icon}</span><span class="mid"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span><time class="num">${tfmt(l.t)}</time></button>`;
+}
+/* resolve who logged what, so each of you sees the other's name */
+let namesPending = false;
+async function resolveNames(){
+  if (!userApi || namesPending) return;
+  const ids = [...new Set(S.logs.map(l=>l.by).filter(id => id && id !== S.me))];
+  if (!ids.length) return;
+  namesPending = true;
+  try {
+    const ps = await userApi.profiles(ids); let changed = false;
+    for (const id of ids){ const n = ps[id]?.name || ''; if (n && S.names[id] !== n){ S.names[id] = n; changed = true; } }
+    if (changed) render();
+  } finally { namesPending = false; }
+}
+function renderTimeline(){
+  const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth']];
+  $('filters').innerHTML = F.map(([k,l]) => `<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
+  if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:18px"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
+  const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
+  if (!logs.length){ $('timeline').innerHTML = `<div class="empty" style="margin-top:18px"><b>No entries here yet</b>Entries appear here as soon as anyone logs them.</div>`; return; }
+  const groups = []; let cur = null;
+  for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
+  $('timeline').innerHTML = groups.map(g => {
+    const s = dayStats(startOfDay(g.t));
+    return `<section class="day"><h3><span>${dayLabel(g.t)}</span><span class="num">${s.feeds} feeds · ${dur(s.sleepMs,true)} sleep · ${s.diapers} diapers</span></h3><div class="rows">${g.items.map(rowHtml).join('')}</div></section>`;
+  }).join('');
+}
+function barChart(title, sub, vals, labels, color, fmt){
+  const W=320,H=130,pl=4,pr=4,pt=16,pb=20, n=vals.length;
+  const max = Math.max(1, ...vals); const bw = (W-pl-pr)/n;
+  let g = `<line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>`;
+  vals.forEach((v,i) => {
+    const h = (H-pt-pb) * v/max, x = pl + i*bw + bw*0.18, w = bw*0.64, y = H-pb-h;
+    g += `<rect x="${x}" y="${y}" width="${w}" height="${Math.max(h, v?2:0)}" rx="4" fill="${color}" opacity="${i===n-1?1:.55}"/>`;
+    if (v) g += `<text x="${x+w/2}" y="${y-4}" text-anchor="middle" style="fill:var(--fg)">${fmt(v)}</text>`;
+    g += `<text x="${x+w/2}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`;
+  });
+  return `<div class="chart"><h4>${title}</h4><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${g}</svg></div>`;
+}
+function growthChart(){
+  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
+  if (pts.length < 1) return `<div class="chart"><h4>Weight</h4><p>Log a weight under Growth to start the curve.</p></div>`;
+  const W=320,H=150,pl=34,pr=10,pt=12,pb=22;
+  const xs = pts.map(p=>p.t), ys = pts.map(p=>wtOut(p.kg));
+  let x0=Math.min(...xs), x1=Math.max(...xs); if (x1===x0){ x0-=DAY*7; x1+=DAY*7; }
+  let y0=Math.min(...ys), y1=Math.max(...ys); const pad=Math.max(.2,(y1-y0)*.15); y0=Math.max(0,y0-pad); y1+=pad;
+  const X=t=>pl+(t-x0)/(x1-x0)*(W-pl-pr), Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pt-pb);
+  let g='';
+  for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="${i?'2 3':''}"/><text x="${pl-4}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
+  const path = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(wtOut(p.kg)).toFixed(1)}`).join(' ');
+  g += `<path d="${path}" fill="none" stroke="var(--growth)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{ g+=`<circle cx="${X(p.t)}" cy="${Y(wtOut(p.kg))}" r="${i===pts.length-1?4.5:3}" fill="var(--growth)"/>`; });
+  const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
+  g += `<text x="${pl}" y="${H-6}">${fd(x0)}</text><text x="${W-pr}" y="${H-6}" text-anchor="end">${fd(x1)}</text>`;
+  const last = pts[pts.length-1];
+  return `<div class="chart"><h4>Weight</h4><p>Latest ${wtOut(last.kg)} ${wtU()} on ${fd(last.t)} · ${pts.length} measurement${pts.length>1?'s':''}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">${g}</svg></div>`;
+}
+function renderTrends(){
+  const today = startOfDay(now()); const days = [...Array(7)].map((_,i)=>today-(6-i)*DAY);
+  const stats = days.map(dayStats); const labels = days.map(d=>new Date(d).toLocaleDateString([], {weekday:'narrow'}));
+  const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
+  const sleepH = stats.map(s=>+(s.sleepMs/HR).toFixed(1));
+  $('trends').innerHTML =
+    barChart('Sleep', `Hours per day · avg ${avg(sleepH.slice(0,6)).toFixed(1)} h over the past 6 days`, sleepH, labels, 'var(--sleep)', v=>v)+
+    barChart('Feeds', `Nursing and bottle feeds per day`, stats.map(s=>s.feeds), labels, 'var(--feed)', v=>v)+
+    barChart('Bottle volume', `${volU()} per day`, stats.map(s=>volOut(s.bottleMl)), labels, 'var(--feed)', v=>v)+
+    barChart('Diapers', `Changes per day`, stats.map(s=>s.diapers), labels, 'var(--diaper)', v=>v)+
+    (stats.some(s=>s.pumpMl) ? barChart('Pumped', `${volU()} per day`, stats.map(s=>volOut(s.pumpMl)), labels, 'var(--pump)', v=>v) : '')+
+    growthChart();
+}
+function renderBaby(){
+  const st = S.settings;
+  if (document.activeElement?.closest?.('#settingsForm') == null){
+    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
+  }
+  $('shareNote').innerHTML = S.mode==='db'
+    ? `<b>Logs sync live between everyone with access.</b> Open the Share menu on this page and invite your partner by email as an <b>Editor</b> so they can log too. People with view-only access can see the log but not add to it.`
+    : `<b>Sharing is off on this screen.</b> Entries are saved in this browser only. Open Nestlog from its claude.ai link while signed in to sync with your partner.`;
+}
+
+/* ---------- sheet ---------- */
+let sheetState = null, lastFocus = null;
+function closeSheet(){ $('sheetRoot').innerHTML=''; sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null; }
+function openSheet(type, existing){
+  const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, side:null, confirmDel:false};
+  const e = existing || {};
+  const time = e.t || now();
+  let body = '';
+  const timeField = (id='fTime', label='Time', v=time) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="datetime-local" value="${toLocalInput(v)}"></div>`;
+  const stepper = (id, label, val, unit, step) => `<div class="field"><label for="${id}">${label}</label><div class="stepper"><button type="button" data-step="${id}" data-d="-${step}" aria-label="Less">−</button><input id="${id}" type="number" inputmode="decimal" step="any" min="0" value="${val}"><span class="unit">${unit}</span><button type="button" data-step="${id}" data-d="${step}" aria-label="More">+</button></div></div>`;
+  const chips = (name, opts, cur) => `<div class="chips" role="group">${opts.map(([v,l])=>`<button type="button" class="chip" data-chip="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+
+  if (type==='nurse' && !existing){
+    body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint">Tap a side to start the timer. Tap the other side to switch.</p><div class="actions" id="nurseActions"></div>
+      <details><summary class="hint" style="cursor:pointer">Enter a past feed by hand</summary><div style="display:grid;gap:12px;margin-top:12px">${timeField()}<div class="two"><div class="field"><label for="fL">Left (min)</label><input id="fL" type="number" inputmode="numeric" min="0" value="0"></div><div class="field"><label for="fR">Right (min)</label><input id="fR" type="number" inputmode="numeric" min="0" value="0"></div></div><button class="btn ghost" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
+  } else if (type==='nurse'){
+    body = `${timeField()}<div class="two"><div class="field"><label for="fL">Left (min)</label><input id="fL" type="number" inputmode="numeric" min="0" value="${Math.round((e.left||0)/MIN)}"></div><div class="field"><label for="fR">Right (min)</label><input id="fR" type="number" inputmode="numeric" min="0" value="${Math.round((e.right||0)/MIN)}"></div></div><div><div class="flabel" style="margin-bottom:6px">Finished on</div>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>`;
+  } else if (type==='bottle'){
+    body = `${stepper('fAmt','Amount', e.ml?volOut(e.ml):(S.settings.vol==='oz'?3:90), volU(), S.settings.vol==='oz'?0.5:10)}<div><div class="flabel" style="margin-bottom:6px">Contents</div>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||'formula')}</div>${timeField()}`;
+  } else if (type==='solids'){
+    body = `<div class="field"><label for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi"></div><div><div class="flabel" style="margin-bottom:6px">How it went</div>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${timeField()}`;
+  } else if (type==='sleep' && !existing){
+    body = S.active.sleep
+      ? `<div class="bigclock num" id="sleepClock">${clock(now()-S.active.sleep.start)}</div><div class="field"><label for="fAdj">Fell asleep at</label><input id="fAdj" type="datetime-local" value="${toLocalInput(S.active.sleep.start)}"></div><div class="actions"><button class="btn primary" type="button" data-act="wake">Woke up — save sleep</button></div><button class="btn danger" type="button" data-act="cancelSleep">Discard this timer</button>`
+      : `<div class="actions"><button class="btn primary" type="button" data-act="sleepStart">Start sleep timer now</button></div><p class="hint">Or log a sleep that already happened:</p><div class="two">${timeField('fStart','Fell asleep', now()-HR)}${timeField('fEnd','Woke up', now())}</div><button class="btn ghost" type="button" data-act="sleepManual">Save past sleep</button>`;
+  } else if (type==='sleep'){
+    body = `<div class="two">${timeField('fStart','Fell asleep', e.t)}${timeField('fEnd','Woke up', e.end||now())}</div>`;
+  } else if (type==='diaper'){
+    body = `<div>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div><div class="field"><label for="fNote">Note</label><input id="fNote" value="${esc(e.note||'')}" placeholder="Optional · color, rash, blowout"></div>${timeField()}`;
+  } else if (type==='pump'){
+    const st = S.settings.vol==='oz'?0.5:10;
+    body = `<div class="two">${stepper('fPL','Left', e.lml?volOut(e.lml):0, volU(), st)}${stepper('fPR','Right', e.rml?volOut(e.rml):0, volU(), st)}</div><div class="field"><label for="fMin">Duration (min)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${e.min||15}"></div>${timeField()}`;
+  } else if (type==='growth'){
+    body = `<div class="three"><div class="field"><label for="fKg">Weight (${wtU()})</label><input id="fKg" type="number" inputmode="decimal" step="any" min="0" value="${e.kg?wtOut(e.kg):''}"></div><div class="field"><label for="fCm">Length (cm)</label><input id="fCm" type="number" inputmode="decimal" step="any" min="0" value="${e.cm||''}"></div><div class="field"><label for="fHead">Head (cm)</label><input id="fHead" type="number" inputmode="decimal" step="any" min="0" value="${e.head||''}"></div></div>${timeField('fTime','Measured on')}`;
+  }
+
+  const saveBtn = (type==='nurse' && !existing) || (type==='sleep' && !existing) ? '' :
+    `<div class="actions"><button class="btn primary" type="submit">${existing?'Save changes':'Log '+t.label.toLowerCase()}</button></div>`;
+  const delBtn = existing ? `<button class="btn danger" type="button" data-act="delete" id="delBtn">Delete entry</button>` : '';
+  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><h2 id="sheetTitle"><span class="ic t-${t.cls}">${t.icon}</span>${existing?'Edit '+t.label.toLowerCase():t.label}<button type="button" class="x" data-act="close" aria-label="Close">×</button></h2><form id="sheetForm" novalidate>${body}${saveBtn}${delBtn}</form></div>`;
+  document.body.style.overflow='hidden';
+  if (type==='nurse' && !existing) renderNurse();
+  const first = $('sheetRoot').querySelector('.sheet .side, .sheet .btn.primary, .sheet input, .sheet .chip'); first?.focus({preventScroll:true});
+}
+function nurseTotals(){
+  const n = S.active.nurse; if (!n) return {L:0,R:0};
+  const run = n.side ? now()-n.since : 0;
+  return {L:(n.left||0)+(n.side==='L'?run:0), R:(n.right||0)+(n.side==='R'?run:0)};
+}
+function renderNurse(){
+  const box = $('sides'); if (!box) return;
+  const n = S.active.nurse, {L,R} = nurseTotals();
+  const lastNurse = lastOf(l=>l.type==='nurse' && l.last);
+  const sug = !n && lastNurse ? (lastNurse.last==='L'?'R':'L') : null;
+  box.innerHTML = ['L','R'].map(s => `<button type="button" class="side ${n?.side===s?'on':''}" data-side="${s}"><span class="s">${s==='L'?'Left':'Right'}</span><span class="big num">${clock(s==='L'?L:R)}</span><span class="st">${n?.side===s?'Running · tap to pause':sug===s?'Suggested next':'Tap to start'}</span></button>`).join('');
+  $('nurseActions').innerHTML = n ? `<button class="btn primary" type="button" data-act="nurseSave">Done — save feed</button><button class="btn ghost" type="button" data-act="nurseDiscard">Discard</button>` : '';
+  $('nurseHint').textContent = n ? `Started ${tfmt(n.start)} · total ${clock(L+R)}` : 'Tap a side to start the timer. Tap the other side to switch.';
+}
+function chipVal(name){ return $('sheetRoot').querySelector(`[data-chip="${name}"][aria-pressed="true"]`)?.dataset.v || ''; }
+const num = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? 0 : v; };
+
+async function saveSheet(){
+  const {type, existing} = sheetState; const e = existing || {};
+  const base = {type, by: S.me || e.by || null, created: e.created || now()};
+  let data;
+  if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; data={...base,t:fromLocalInput($('fTime').value),left:L,right:R,last:chipVal('last')||'L'}; data.end=data.t+L+R; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:fromLocalInput($('fTime').value),ml:Math.round(volIn(v)),content:chipVal('content')||'formula'}; }
+  else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate');return;} data={...base,t:fromLocalInput($('fTime').value),food:f.slice(0,120),reaction:chipVal('reaction')}; }
+  else if (type==='sleep'){ const a=fromLocalInput($('fStart').value), b=fromLocalInput($('fEnd').value); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
+  else if (type==='diaper'){ data={...base,t:fromLocalInput($('fTime').value),kind:chipVal('kind')||'wet',note:$('fNote').value.trim().slice(0,120)}; }
+  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r){toast('Enter how much you pumped');return;} data={...base,t:fromLocalInput($('fTime').value),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; }
+  else if (type==='growth'){ const kg=num('fKg'); if(!kg && !num('fCm') && !num('fHead')){toast('Enter at least one measurement');return;} data={...base,t:fromLocalInput($('fTime').value),kg:kg?+wtIn(kg).toFixed(3):0,cm:num('fCm'),head:num('fHead')}; }
+  const id = existing?.id || uid();
+  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing?'Saved':'Logged '+TYPES[type].label.toLowerCase()); }
+}
+
+async function act(a, el){
+  if (a==='close') return closeSheet();
+  if (a==='delete'){
+    if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('confirm'); el.textContent='Tap again to delete'; return; }
+    const {id, ...rest} = sheetState.existing;
+    if (await write(()=>store.delLog(id))){
+      closeSheet();
+      toast('Entry deleted', 'Undo', () => write(()=>store.putLog(id, rest)).then(ok => ok && toast('Entry restored')));
+    }
+    return;
+  }
+  if (a==='sleepStart'){ if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))){ closeSheet(); toast('Sleep timer started'); } return; }
+  if (a==='wake'){
+    const s = S.active.sleep; if (!s) return closeSheet();
+    const start = $('fAdj') ? fromLocalInput($('fAdj').value) : s.start;
+    if (start >= now()){ toast('Sleep start must be in the past'); return; }
+    const ok = await write(async()=>{ await store.putLog(uid(),{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); });
+    if (ok){ closeSheet(); toast('Sleep saved'); } return;
+  }
+  if (a==='cancelSleep'){ if (await write(()=>store.setActive('sleep',null))){ closeSheet(); toast('Sleep timer discarded'); } return; }
+  if (a==='sleepManual'){ sheetState.existing=null; return saveSheet(); }
+  if (a==='nurseManual'){
+    const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;}
+    const t=fromLocalInput($('fTime').value);
+    if (await write(()=>store.putLog(uid(),{type:'nurse',t,end:t+L+R,left:L,right:R,last:R&&!L?'R':(L&&!R?'L':'R'),by:S.me,created:now()}))){ closeSheet(); toast('Logged nursing'); }
+    return;
+  }
+  if (a==='nurseSave'){
+    const n=S.active.nurse; if(!n) return; const {L,R}=nurseTotals();
+    const last = n.side || n.lastSide || (R>L?'R':'L');
+    const ok = await write(async()=>{ await store.putLog(uid(),{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); });
+    if (ok){ closeSheet(); toast(`Saved · ${dur(L+R,true)} total`); } return;
+  }
+  if (a==='nurseDiscard'){ if (await write(()=>store.setActive('nurse',null))){ closeSheet(); toast('Feed discarded'); } }
+}
+async function tapSide(s){
+  const n = S.active.nurse, t = now();
+  let next;
+  if (!n) next = {start:t,left:0,right:0,side:s,since:t,lastSide:s,by:S.me};
+  else {
+    const run = n.side ? t-n.since : 0;
+    const left = (n.left||0)+(n.side==='L'?run:0), right=(n.right||0)+(n.side==='R'?run:0);
+    next = n.side===s ? {...n,left,right,side:null,since:null} : {...n,left,right,side:s,since:t,lastSide:s};
+  }
+  await write(()=>store.setActive('nurse',next));
+  renderNurse();
+}
+
+/* ---------- export ---------- */
+const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','food','reaction','diaper','note','pump_left_ml','pump_right_ml','pump_min','weight_kg','length_cm','head_cm','logged_by'];
+const fmtLocal = t => t ? toLocalInput(t).replace('T',' ') : '';
+const r1 = v => v ? +(+v).toFixed(1) : '';
+function toRow(l){
+  return {id:l.id, type:l.type, start:fmtLocal(l.t), end:fmtLocal(l.end),
+    left_min:r1((l.left||0)/MIN), right_min:r1((l.right||0)/MIN), last_side:l.last||'',
+    amount_ml:l.ml||'', content:l.content||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
+    pump_left_ml:l.lml||'', pump_right_ml:l.rml||'', pump_min:l.min||'',
+    weight_kg:l.kg?+(+l.kg).toFixed(3):'', length_cm:l.cm||'', head_cm:l.head||'',
+    logged_by: l.by ? (l.by===S.me ? 'me' : (S.names[l.by]||'partner')) : ''};
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+/* the live view holds the latest 1000; export and import read the whole history in pages */
+async function allLogs(){
+  if (!db) return S.logs;
+  const out = []; let before = null;
+  for (let i = 0; i < 40; i++){
+    let q = db.collection('logs');
+    if (before !== null) q = q.where('t','<',before);
+    const s = await q.orderBy('t','desc').limit(1000).get();
+    s.docs.forEach(d => out.push({id:d.id, ...d.data()}));
+    if (s.size < 1000) break;
+    before = s.docs[s.size-1].data().t;
+  }
+  return out;
+}
+function buildCsv(logs){
+  const rows = [...logs].sort((a,b)=>a.t-b.t).map(toRow);
+  return [CSV_COLS.join(','), ...rows.map(r => CSV_COLS.map(c => csvCell(r[c])).join(','))].join('\r\n');
+}
+function buildJson(logs){
+  return JSON.stringify({app:'nestlog', version:1, exported:new Date().toISOString(), settings:S.settings,
+    logs:[...logs].sort((a,b)=>a.t-b.t)}, null, 1);
+}
+function fileStem(){
+  const n = (S.settings.name||'baby').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'baby';
+  return `nestlog-${n}-${toLocalInput(now()).slice(0,10)}`;
+}
+async function doExport(kind){
+  if (!S.logs.length){ toast('Nothing to export yet'); return; }
+  let logs; try { logs = await allLogs(); } catch { toast('Couldn’t read your full history. Check your connection and try again.'); return; }
+  const data = kind==='csv' ? buildCsv(logs) : buildJson(logs);
+  const filename = fileStem() + (kind==='csv' ? '.csv' : '.json');
+  if (downloads){
+    try { await downloads.save({filename, data}); toast(`Saved ${filename}`); return; }
+    catch(e){ if (e?.code==='declined') return; if (e?.code==='rate_limited'){ toast('A download is already waiting for your answer'); return; } }
+  }
+  $('exportFallback').hidden = false; $('exportText').value = data; $('exportText').dataset.name = filename;
+  $('exportText').scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+async function copyExport(){
+  const ta = $('exportText');
+  try { await navigator.clipboard.writeText(ta.value); toast('Copied. Paste it into a file named '+ta.dataset.name); }
+  catch { ta.focus(); ta.select(); toast('Text selected. Copy it with your keyboard or long-press.'); }
+}
+
+/* ---------- import ---------- */
+function parseCsv(text){
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c==='"'){ if (text[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=c; continue; }
+    if (c==='"') q = true;
+    else if (c===','){ row.push(cell); cell=''; }
+    else if (c==='\n' || c==='\r'){ if (c==='\r' && text[i+1]==='\n') i++; row.push(cell); cell=''; if (row.some(x=>x!=='')) rows.push(row); row=[]; }
+    else cell += c;
+  }
+  row.push(cell); if (row.some(x=>x!=='')) rows.push(row);
+  if (!rows.length) return [];
+  const head = rows[0].map(h => h.trim().toLowerCase().replace(/^﻿/,''));
+  return rows.slice(1).map(r => Object.fromEntries(head.map((h,i)=>[h, (r[i]??'').trim()])));
+}
+const parseTime = v => { if (v==null || v==='') return NaN; if (typeof v==='number') return v; const s=String(v).trim(); return new Date(/^\d{4}-\d{2}-\d{2} \d/.test(s) ? s.replace(' ','T') : s).getTime(); };
+const nn = v => { const x = Number(v); return isFinite(x) && x > 0 ? x : 0; };
+const str = (v, n=120) => String(v ?? '').slice(0, n);
+const SAFE_ID = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
+/* every imported entry passes through here: known types and fields only */
+function normalize(raw, fromCsv){
+  const type = str(raw.type, 12).toLowerCase(); if (!TYPES[type]) return null;
+  const t = parseTime(fromCsv ? raw.start : raw.t); if (!isFinite(t)) return null;
+  const endRaw = parseTime(fromCsv ? raw.end : raw.end);
+  const o = {type, t, created: nn(raw.created) || now(), by: (!fromCsv && typeof raw.by==='string' && raw.by.length<80) ? raw.by : null};
+  if (type==='nurse'){ o.left = fromCsv ? nn(raw.left_min)*MIN : nn(raw.left); o.right = fromCsv ? nn(raw.right_min)*MIN : nn(raw.right);
+    const ls = str(fromCsv?raw.last_side:raw.last,1).toUpperCase(); o.last = ls==='R'?'R':'L'; o.end = isFinite(endRaw) ? endRaw : t+o.left+o.right; }
+  if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); o.content = str(raw.content,12)==='breastmilk'?'breastmilk':'formula'; if (!o.ml) return null; }
+  if (type==='solids'){ o.food = str(raw.food); o.reaction = str(raw.reaction,30); if (!o.food) return null; }
+  if (type==='sleep'){ if (!isFinite(endRaw) || endRaw <= t) return null; o.end = endRaw; }
+  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = ['wet','dirty','both','dry'].includes(k)?k:'wet'; o.note = str(raw.note); }
+  if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml) return null; }
+  if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
+  const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;
+  return {id, data:o};
+}
+let pending = null;
+async function readImport(file){
+  const panel = $('importPanel');
+  if (file.size > 20*1024*1024){ panel.innerHTML = `<p class="err">That file is over 20 MB, which is larger than any Nestlog export. Check you picked the right file.</p>`; return; }
+  let text; try { text = await file.text(); } catch { panel.innerHTML = `<p class="err">Couldn’t read that file. Try choosing it again.</p>`; return; }
+  const isJson = /\.json$/i.test(file.name) || text.trim().startsWith('{');
+  let raws = [], settings = null, fromCsv = !isJson;
+  try {
+    if (isJson){ const j = JSON.parse(text); raws = Array.isArray(j.logs) ? j.logs : []; settings = j.settings && typeof j.settings==='object' ? j.settings : null; }
+    else raws = parseCsv(text);
+  } catch { panel.innerHTML = `<p class="err">This file isn’t valid ${isJson?'JSON':'CSV'}. Use a file downloaded from Nestlog’s Export section.</p>`; return; }
+  panel.innerHTML = `<p class="hint">Checking ${esc(file.name)}…</p>`;
+  let existing; try { existing = await allLogs(); } catch { existing = S.logs; }
+  const have = new Set(existing.map(l=>l.id)); const seen = new Set();
+  const fresh = []; let dupes = 0, bad = 0;
+  for (const r of raws){ const n = normalize(r, fromCsv); if (!n){ bad++; continue; } if (have.has(n.id) || seen.has(n.id)){ dupes++; continue; } seen.add(n.id); fresh.push(n); }
+  if (settings){ settings = {name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg'}; }
+  pending = {fresh, settings};
+  const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
+  const span = fresh.length ? `${new Date(Math.min(...fresh.map(f=>f.data.t))).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'})} – ${new Date(Math.max(...fresh.map(f=>f.data.t))).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'})}` : '';
+  panel.innerHTML = `<div class="preview">
+    <b>${esc(file.name)}</b>
+    ${fresh.length ? `<span>${fresh.length} new ${fresh.length===1?'entry':'entries'} · ${span}</span><ul>${Object.entries(counts).map(([k,v])=>`<li>${v} ${TYPES[k].label.toLowerCase()}</li>`).join('')}</ul>` : `<span>No new entries in this file.</span>`}
+    ${dupes ? `<span class="hint">${dupes} already in Nestlog, will be skipped.</span>` : ''}
+    ${bad ? `<span class="hint">${bad} row${bad>1?'s':''} couldn’t be read and will be skipped.</span>` : ''}
+    ${settings && (settings.name||settings.birth) ? `<label class="check"><input type="checkbox" id="impSettings" ${!S.settings.name?'checked':''}> Also use baby details from the backup (${esc(settings.name||'no name')}${settings.birth?', born '+esc(settings.birth):''})</label>` : ''}
+    <div class="bar" id="impBar" hidden><i></i></div>
+    <div class="actions">${fresh.length ? `<button class="btn primary" type="button" data-io="import" id="impGo">Import ${fresh.length} ${fresh.length===1?'entry':'entries'}</button>` : ''}<button class="btn ghost" type="button" data-io="cancel">${fresh.length?'Cancel':'Close'}</button></div>
+  </div>`;
+}
+async function runImport(){
+  if (!pending) return;
+  if (!S.canWrite){ toast('You can view this baby’s log but not change it'); return; }
+  const {fresh} = pending; const useSettings = $('impSettings')?.checked && pending.settings;
+  const go = $('impGo'); go.disabled = true; go.textContent = 'Importing…';
+  const bar = $('impBar'); bar.hidden = false; const fill = bar.firstElementChild;
+  let done = 0, failed = 0, stop = null;
+  if (!db){
+    const d = local.load(); d.logs = d.logs || {}; fresh.forEach(f => d.logs[f.id] = f.data); if (useSettings) d.settings = pending.settings; local.save(d); done = fresh.length; applyLocal();
+  } else {
+    let i = 0;
+    const worker = async () => {
+      while (i < fresh.length && !stop){
+        const f = fresh[i++];
+        for (let attempt = 0; attempt < 3; attempt++){
+          try { await db.collection('logs').doc(f.id).set(f.data); done++; break; }
+          catch(e){
+            if (e?.code==='invalid_argument'){ stop='perm'; failed++; break; }
+            if (e?.code==='quota_exceeded'){ stop='quota'; failed++; break; }
+            if (attempt===2){ failed++; break; }
+            await new Promise(r=>setTimeout(r, e?.code==='resource_exhausted' ? 1500*(attempt+1) : 400+Math.random()*400));
+          }
+        }
+        fill.style.width = Math.round((done+failed)/fresh.length*100)+'%';
+        go.textContent = `Importing ${done} of ${fresh.length}…`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    if (useSettings && !stop){ try { await store.setSettings(pending.settings); } catch {} }
+  }
+  pending = null;
+  const left = fresh.length - done;
+  $('importPanel').innerHTML = stop==='perm' ? `<p class="err">Import stopped: this account can only view the log. Ask the owner for Editor access, then import again.</p>`
+    : stop==='quota' ? `<p class="err">Import stopped after ${done} entries because storage is full. Delete old entries and import the same file again; finished entries are skipped.</p>`
+    : left ? `<p class="err">Imported ${done} entries. ${left} didn’t save, likely a connection drop. Import the same file again to finish; finished entries are skipped.</p>`
+    : `<p class="hint">Imported ${done} ${done===1?'entry':'entries'}.</p>`;
+  if (!left) toast(`Imported ${done} ${done===1?'entry':'entries'}`);
+}
+(() => {
+  const drop = $('drop');
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) readImport(f); });
+  drop.tabIndex = 0;
+  drop.addEventListener('keydown', e => { if (e.key==='Enter' || e.key===' '){ e.preventDefault(); $('importFile').click(); } });
+})();
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-chip],[data-step],[data-act],[data-side],[data-io]');
+  if (!el) return;
+  const d = el.dataset;
+  if (d.io){
+    if (d.io==='json' || d.io==='csv') doExport(d.io);
+    if (d.io==='copy') copyExport();
+    if (d.io==='import') runImport();
+    if (d.io==='cancel'){ pending=null; $('importPanel').innerHTML=''; }
+    return;
+  }
+  if (d.open){ openSheet(d.open); return; }
+  if (d.tab){ S.tab=d.tab; render(); window.scrollTo(0,0); return; }
+  if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
+  if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
+  if (d.chip){ const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true'; grp.forEach(b=>b.setAttribute('aria-pressed','false')); if(!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true'); return; }
+  if (d.step){ const inp=$(d.step); inp.value=Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(d.d)).toFixed(2)); return; }
+  if (d.side){ tapSide(d.side); return; }
+  if (d.act){ act(d.act, el); }
+});
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.id==='sheetForm') saveSheet();
+  if (e.target.id==='settingsForm'){
+    const data = {name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value};
+    write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
+  }
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape' && sheetState) closeSheet(); });
+
+let toastT;
+function toast(msg, actionLabel, onAction){
+  const t=$('toast'); t.textContent=msg;
+  if (actionLabel){ const b=document.createElement('button'); b.type='button'; b.textContent=actionLabel; b.onclick=()=>{ t.hidden=true; onAction(); }; t.append(b); }
+  t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, actionLabel?6000:2600);
+}
+document.addEventListener('change', e => {
+  if (e.target.id==='fAdj' && S.active.sleep){
+    const v = fromLocalInput(e.target.value);
+    if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
+  }
+  if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
+});
+
+/* live clocks: repaint timers every second, the rest every 30s */
+let tick=0;
+setInterval(() => {
+  tick++;
+  if (S.tab==='home'){ if (S.active.nurse||S.active.sleep) renderLive(); if (tick%30===0) renderHome(); }
+  if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+  const sc=$('sleepClock'); if (sc && S.active.sleep) sc.textContent=clock(now()-S.active.sleep.start);
+}, 1000);
+
+/* ---------- boot ---------- */
+applyLocal();
+(async () => {
+  if (!window.claude?.use) { S.mode='local'; render(); return; }
+  try {
+    const [d, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);
+    downloads = dl;
+    if (!d){ S.mode='local'; render(); return; }
+    db = d; userApi = user; S.mode='db'; S.logs=[]; S.active={}; S.loaded=false;
+    if (user){ S.me = await user.id(); const c = await user.can('data.write'); if (c === false) S.canWrite = false; }
+    render();
+    const onErr = err => { if (err.code==='revoked'){ S.canWrite=false; render(); } };
+    db.collection('logs').orderBy('t','desc').limit(1000).onSnapshot(snap => {
+      S.logs = snap.docs.map(x => ({id:x.id, ...x.data()})); S.loaded = true; render(); resolveNames();
+      if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+    }, onErr);
+    db.collection('active').onSnapshot(snap => {
+      const a = {}; snap.docs.forEach(x => a[x.id] = x.data()); S.active = a; render();
+      if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+    }, onErr);
+    db.doc('settings/baby').onSnapshot(s => { if (s.exists) { S.settings = {...S.settings, ...s.data()}; render(); } }, onErr);
+  } catch { S.mode='local'; render(); }
+})();
+})();
+</script>
