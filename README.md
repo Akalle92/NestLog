@@ -2,7 +2,7 @@
 
 A baby tracker for the first months: nursing with a left/right timer, bottles, solids, sleep, diapers, pumping and growth. It shows what's happening right now, a 24-hour strip of the day, a timeline, and 7/14/30-day trends with a weight curve.
 
-**Live app:** https://akalle92.github.io/nestlog/
+**Live app:** https://akalle92.github.io/NestLog/
 
 ## Use it on your phone
 

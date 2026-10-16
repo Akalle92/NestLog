@@ -1,6 +1,6 @@
 # Nestlog — notes for Claude Code
 
-Baby tracker web app for one family (two caregivers). Single file, no framework, no build step. Hosted on GitHub Pages from `main` (repo root) at https://akalle92.github.io/nestlog/.
+Baby tracker web app for one family (two caregivers). Single file, no framework, no build step. Hosted on GitHub Pages from `main` (repo root) at https://akalle92.github.io/NestLog/.
 
 ## Ground rules
 
