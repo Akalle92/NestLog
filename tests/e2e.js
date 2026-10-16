@@ -225,6 +225,114 @@ function paletteAudit() {
     hs.close(); fs.rmSync(dataDir, { recursive: true, force: true });
   }
 
+  /* cloud mode: GitHub Pages + Supabase, faked here (auth, REST, realtime socket) so no network is needed */
+  {
+    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, sockets: new Set() };
+    const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
+    const reply = (route, status, body) => route.fulfill({ status, headers: { ...CORS, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
+    const push = (table, type, record, old) => { const msg = JSON.stringify({ topic: 'realtime:nestlog', event: 'postgres_changes', payload: { ids: [1], data: { schema: 'public', table, type, record, old_record: old || {} } }, ref: null });
+      fake.sockets.forEach(ws => { try { ws.send(msg); } catch {} }); };
+    const who = req => (req.headers().authorization || '').replace('Bearer tok-', '');
+    async function cloudRoutes(ctx) {
+      await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/auth/v1/**', async route => {
+        const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
+        const path = new globalThis.URL(req.url()).pathname.replace('/auth/v1/', ''), body = req.postDataJSON() || {};
+        if (path === 'otp') return fake.family.some(f => f.email === body.email) ? reply(route, 200, {}) : reply(route, 403, { msg: "This email isn't on the family list." });
+        if (path === 'verify') return body.token === '123456' ? reply(route, 200, { access_token: 'tok-' + body.email, refresh_token: 'r-' + body.email, expires_in: 3600, user: { email: body.email } }) : reply(route, 403, { msg: 'Token has expired or is invalid', error_code: 'otp_expired' });
+        if (path === 'token') { const e = String(body.refresh_token).slice(2); return reply(route, 200, { access_token: 'tok-' + e, refresh_token: 'r-' + e, expires_in: 3600, user: { email: e } }); }
+        return reply(route, 204);
+      });
+      await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/rest/v1/**', async route => {
+        const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
+        if (!fake.family.some(f => f.email === who(req))) return reply(route, 403, { message: 'row-level security' });
+        const u = new globalThis.URL(req.url()), table = u.pathname.split('/').pop(), m = req.method(), q = u.searchParams;
+        const eq = k => (q.get(k) || '').replace(/^eq\./, '');
+        if (table === 'family_members') return reply(route, 200, fake.family);
+        if (table === 'logs') {
+          if (m === 'GET') { const off = +q.get('offset') || 0, lim = +q.get('limit') || 1000;
+            return reply(route, 200, Object.entries(fake.logs).sort((x, y) => y[1].t - x[1].t).slice(off, off + lim).map(([id, data]) => ({ id, data }))); }
+          if (m === 'POST') { for (const r of [].concat(req.postDataJSON())) { const had = !!fake.logs[r.id]; fake.logs[r.id] = r.data; push('logs', had ? 'UPDATE' : 'INSERT', r); } return reply(route, 201); }
+          if (m === 'DELETE') { const id = decodeURIComponent(eq('id')); delete fake.logs[id]; push('logs', 'DELETE', null, { id }); return reply(route, 204); }
+        }
+        if (table === 'active') {
+          if (m === 'GET') return reply(route, 200, Object.entries(fake.active).map(([kind, data]) => ({ kind, data })));
+          if (m === 'POST') { const r = req.postDataJSON(); fake.active[r.kind] = r.data; push('active', 'INSERT', r); return reply(route, 201); }
+          if (m === 'DELETE') { const kind = eq('kind'); delete fake.active[kind]; push('active', 'DELETE', null, { kind }); return reply(route, 204); }
+        }
+        if (table === 'settings') {
+          if (m === 'GET') return reply(route, 200, fake.settings.data ? [{ data: fake.settings.data }] : []);
+          if (m === 'POST') { const r = req.postDataJSON(); fake.settings = r; push('settings', 'UPDATE', r); return reply(route, 201); }
+        }
+        return reply(route, 404, {});
+      });
+      await ctx.routeWebSocket(/realtime\/v1\/websocket/, ws => {
+        fake.sockets.add(ws);
+        ws.onMessage(raw => { const m = JSON.parse(String(raw));
+          if (m.event === 'phx_join') ws.send(JSON.stringify({ topic: m.topic, event: 'phx_reply', ref: m.ref, join_ref: m.join_ref, payload: { status: 'ok', response: { postgres_changes: [] } } })); });
+        ws.onClose(() => fake.sockets.delete(ws));
+      });
+    }
+    const phone = async (scheme, init) => {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: scheme, hasTouch: true, isMobile: true });
+      await cloudRoutes(ctx);
+      if (init) await ctx.addInitScript(init.fn, init.arg);
+      const p = await ctx.newPage(); p.errors = [];
+      p.on('pageerror', e => p.errors.push(e.message));
+      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of 40[134]/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
+      await p.goto(URL + '?cloud'); await p.waitForTimeout(500); return p;
+    };
+    const session = { fn: email => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-' + email, refresh: 'r-' + email, exp: Date.now() + 36e5, email })); } }, arg: 'b@x.com' };
+
+    const a = await phone('light');
+    check('cloud: sign-in screen shows first', await a.isVisible('#signinForm') && !(await a.isVisible('#tabbar')));
+    check('cloud: sign-in has no horizontal overflow', await noOverflow(a));
+    const tasteSignin = await a.evaluate(tasteAudit);
+    check('cloud: sign-in follows taste house rules', !tasteSignin.length, tasteSignin.join(' | '));
+    await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
+    await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
+    check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
+    await a.fill('#siEmail', 'a@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
+    check('cloud: code step shows', await a.isVisible('#siCode'));
+    await a.fill('#siCode', '000000'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
+    check('cloud: wrong code shows an error', /didn’t match/.test(await text(a, '#signinForm')));
+    await a.fill('#siCode', '123456'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(700);
+    check('cloud: signed in, header says Family sync', /Family sync/.test(await text(a, '#syncText')), await text(a, '#syncText'));
+
+    const b = await phone('dark', session);
+    check('cloud: second phone stays signed in', /Family sync/.test(await text(b, '#syncText')), await text(b, '#syncText'));
+    await a.click('[data-open="bottle"]'); await a.waitForTimeout(200);
+    await a.click('[data-chip="preset"][data-v="120"]');
+    await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
+    check('cloud: bottle from phone A shows on phone B live', /120 ml/.test(await text(b, '#recent')));
+    check('cloud: phone B shows who logged it', /Ankur/.test(await text(b, '#recent')));
+    check('cloud: entry stored with the right shape', Object.values(fake.logs).some(l => l.type === 'bottle' && l.ml === 120 && l.by === 'a@x.com'));
+    await b.screenshot({ path: `${SHOTS}/6-cloud-today-dark.png`, fullPage: true });
+    check('cloud: today has no horizontal overflow', await noOverflow(b));
+
+    await b.click('[data-open="sleep"]'); await b.waitForTimeout(200);
+    await b.click('[data-act="sleepStart"]'); await b.waitForTimeout(500);
+    check('cloud: sleep timer from phone B shows on phone A', /Asleep since/.test(await text(a, '#status')));
+
+    await a.click('#recent .entry >> nth=0'); await a.waitForTimeout(200);
+    await a.click('[data-act="delete"]'); await a.click('[data-act="delete"]'); await a.waitForTimeout(500);
+    check('cloud: delete reaches phone B', !/120 ml/.test(await text(b, '#recent')));
+
+    const c = await phone('light', { fn: () => { if (sessionStorage.getItem('seeded')) return; sessionStorage.setItem('seeded', '1');
+      localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-a@x.com', refresh: 'r-a@x.com', exp: Date.now() + 36e5, email: 'a@x.com' }));
+      const n = Date.now(); localStorage.setItem('nestlog-v1', JSON.stringify({ logs: { old1: { type: 'diaper', t: n - 9e6, kind: 'wet' }, old2: { type: 'bottle', t: n - 8e6, ml: 60, content: 'formula' }, old3: { type: 'diaper', t: n - 7e6, kind: 'dirty' } } })); } });
+    await c.click('.tabs [data-tab="baby"]'); await c.waitForTimeout(200);
+    check('cloud: offers to upload this phone’s old entries', /Upload 3 entries/.test(await text(c, '#shareActions')));
+    await c.screenshot({ path: `${SHOTS}/6-cloud-baby.png`, fullPage: true });
+    check('cloud: sharing buttons fit inside their card', await c.evaluate(() => [...document.querySelectorAll('#shareActions .btn')].every(x => x.getBoundingClientRect().right <= x.closest('.card').getBoundingClientRect().right + 0.5)));
+    await c.click('[data-act="uploadLocal"]'); await c.waitForTimeout(600);
+    check('cloud: old entries uploaded and shared', ['old1', 'old2', 'old3'].every(id => fake.logs[id]) && !(await c.locator('[data-act="uploadLocal"]').count()));
+
+    await a.click('.tabs [data-tab="baby"]'); await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
+    check('cloud: sign out returns to the sign-in screen', await a.isVisible('#signinForm'));
+    check('cloud: no script errors', ![a, b, c].some(p => p.errors.length), [a, b, c].flatMap(p => p.errors).join(' | '));
+    for (const p of [a, b, c]) await p.context().close();
+  }
+
   await browser.close(); server.close();
   for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.name}${r.detail ? ' — ' + r.detail : ''}`);
   const failed = results.filter(r => !r.pass).length;

@@ -216,6 +216,7 @@ input:focus,select:focus{outline:2px solid var(--ink);outline-offset:0;backgroun
 .btn[disabled]{opacity:.55;cursor:default}
 .row-actions{display:flex;gap:var(--s2)}
 .row-actions .btn{flex:1}
+.stack{display:grid;gap:var(--s2)}
 .hint{font-size:var(--fs-s);color:var(--muted);margin:0}
 details summary{cursor:pointer;font-size:var(--fs-s);font-weight:600;color:var(--brand);list-style:none}
 details summary::-webkit-details-marker{display:none}
@@ -280,16 +281,24 @@ details summary::-webkit-details-marker{display:none}
 .check input{width:20px;height:20px;flex:none;accent-color:var(--brand)}
 textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:var(--s3);width:100%;box-sizing:border-box;height:160px;resize:vertical}
 .err{color:var(--danger);font-size:var(--fs-s);margin:0}
+/* sign-in (cloud mode) */
+.signin{display:grid;gap:var(--s6);padding-top:calc(var(--s8) * 2)}
+.signin h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-2xl);line-height:.95;letter-spacing:-.04em}
+.signin .lead{margin:var(--s3) 0 0;font-size:var(--fs-l);color:var(--ink-2);max-width:30ch}
+.signin form{display:grid;gap:var(--s4);padding:var(--s5)}
+.signin .linkbtn{justify-self:start;min-height:44px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .note{font-size:var(--fs-s);color:var(--ink-2);margin:0}
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="top">
+  <header class="top" id="top">
     <div class="avatar" id="avatar" aria-hidden="true">N</div>
     <div class="who"><h1 id="babyName">Your baby</h1><p id="babyAge">Add name and birth date in Baby</p></div>
     <div class="sync" id="sync"><i></i><span id="syncText">Connecting</span></div>
   </header>
+
+  <main id="view-signin" hidden></main>
 
   <main id="view-home">
     <section class="card status" id="status" aria-live="polite"></section>
@@ -332,7 +341,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
     </form>
 
     <h2 class="sec">Sharing</h2>
-    <div class="card group"><div class="item"><p class="note" id="shareNote"></p></div></div>
+    <div class="card group"><div class="item"><p class="note" id="shareNote"></p><div class="stack" id="shareActions" hidden></div></div></div>
 
     <h2 class="sec">Export</h2>
     <div class="card group"><div class="item">
@@ -358,7 +367,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
   </main>
 </div>
 
-<nav class="tabs" aria-label="Sections"><div id="tabs"></div></nav>
+<nav class="tabs" id="tabbar" aria-label="Sections"><div id="tabs"></div></nav>
 <div id="sheetRoot"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -394,6 +403,9 @@ const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 /* ---------- state ---------- */
 const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
+/* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
+   row-level security and the family_members allowlist decide who can read or write. */
+const CLOUD = { url:'https://fcthxmkmkqthhkyeymjc.supabase.co', key:'sb_publishable_PPDpdHqK8KPcxDZSgM33Ig_bmuXDfY4' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -415,25 +427,39 @@ const store = {
   async putLog(id, data){
     if (db) return db.collection('logs').doc(id).set(data);
     if (S.mode==='home') return home('PUT', 'logs/'+encodeURIComponent(id), data);
+    if (S.mode==='cloud'){ await rest('POST', 'logs?on_conflict=id', {id, t:data.t, data}, 'resolution=merge-duplicates,return=minimal'); return applyChange({op:'log', id, data}); }
     const d = local.load(); d.logs = d.logs || {}; d.logs[id] = data; local.save(d); applyLocal();
   },
   async delLog(id){
     if (db) return db.collection('logs').doc(id).delete();
     if (S.mode==='home') return home('DELETE', 'logs/'+encodeURIComponent(id));
+    if (S.mode==='cloud'){ await rest('DELETE', 'logs?id=eq.'+encodeURIComponent(id)); return applyChange({op:'log', id, data:null}); }
     const d = local.load(); if (d.logs) delete d.logs[id]; local.save(d); applyLocal();
   },
   async setActive(kind, data){
     if (db) return data ? db.doc('active/'+kind).set(data) : db.doc('active/'+kind).delete();
     if (S.mode==='home') return home(data ? 'PUT' : 'DELETE', 'active/'+kind, data || undefined);
+    if (S.mode==='cloud'){
+      if (data) await rest('POST', 'active?on_conflict=kind', {kind, data}, 'resolution=merge-duplicates,return=minimal');
+      else await rest('DELETE', 'active?kind=eq.'+kind);
+      return applyChange({op:'active', kind, data});
+    }
     const d = local.load(); d.active = d.active || {}; if (data) d.active[kind] = data; else delete d.active[kind]; local.save(d); applyLocal();
   },
   async setSettings(data){
     if (db) return db.doc('settings/baby').set(data);
     if (S.mode==='home') return home('PUT', 'settings', data);
+    if (S.mode==='cloud'){ await rest('POST', 'settings?on_conflict=id', {id:'baby', data}, 'resolution=merge-duplicates,return=minimal'); return applyChange({op:'settings', data}); }
     const d = local.load(); d.settings = data; local.save(d); applyLocal();
   },
   /* many entries at once (import): one write instead of one per entry */
   async putMany(logs, settings){
+    if (S.mode==='cloud'){
+      const rows = Object.entries(logs).map(([id, data]) => ({id, t:data.t, data}));
+      for (let i = 0; i < rows.length; i += 500) await rest('POST', 'logs?on_conflict=id', rows.slice(i, i+500), 'resolution=merge-duplicates,return=minimal');
+      if (settings) await rest('POST', 'settings?on_conflict=id', {id:'baby', data:settings}, 'resolution=merge-duplicates,return=minimal');
+      return loadCloud();
+    }
     if (S.mode==='home'){ await fetch('api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({logs, settings})}).then(r => { if (!r.ok) throw new Error('home '+r.status); }); return loadHome(); }
     const d = local.load(); d.logs = {...(d.logs||{}), ...logs}; if (settings) d.settings = settings; local.save(d); applyLocal();
   }
@@ -450,16 +476,122 @@ async function loadHome(){
   if (!r.ok) throw new Error('home '+r.status);
   applyHome(await r.json());
 }
+/* cloud (Supabase): email-code sign-in, REST for reads and writes, a realtime socket for live changes.
+   No SDK: CLAUDE.md allows no runtime deps, and these are plain HTTP and WebSocket calls. */
+const jwtEmail = tok => { try { return (JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email || '').toLowerCase(); } catch { return ''; } };
+const auth = {
+  key:'nestlog-session', s:null, pending:null,
+  load(){ try { this.s = JSON.parse(localStorage.getItem(this.key)) || null; } catch { this.s = null; } return this.s; },
+  save(v){ this.s = v; try { v ? localStorage.setItem(this.key, JSON.stringify(v)) : localStorage.removeItem(this.key); } catch {} },
+  keep(j){
+    this.save({access:j.access_token, refresh:j.refresh_token, exp:now() + (j.expires_in||3600)*1000, email:(j.user?.email || jwtEmail(j.access_token) || this.s?.email || '').toLowerCase()});
+    live.token(j.access_token);
+  },
+  async call(path, body){
+    const r = await fetch(CLOUD.url+'/auth/v1/'+path, {method:'POST', headers:{apikey:CLOUD.key, 'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || 'auth '+r.status), {status:r.status, code:j.error_code || j.code});
+    return j;
+  },
+  sendCode(email){ return this.call('otp', {email, create_user:true}); },
+  async verify(email, token){ this.keep(await this.call('verify', {type:'email', email, token})); },
+  refresh(){
+    if (!this.s?.refresh) return Promise.reject(Object.assign(new Error('signed out'), {code:'signed_out'}));
+    return this.pending ||= this.call('token?grant_type=refresh_token', {refresh_token:this.s.refresh})
+      .then(j => this.keep(j))
+      .catch(e => { if (e.status >= 400 && e.status < 500) signedOut('Signed out. Sign in again to keep logging.'); throw e; })
+      .finally(() => { this.pending = null; });
+  },
+  async token(){ if (this.s && this.s.exp - now() < 5*MIN) await this.refresh(); return this.s?.access; },
+  async signOut(){
+    const tok = this.s?.access; this.save(null);
+    try { await fetch(CLOUD.url+'/auth/v1/logout', {method:'POST', headers:{apikey:CLOUD.key, Authorization:'Bearer '+tok}}); } catch {}
+  }
+};
+async function rest(method, path, body, prefer){
+  const go = async () => fetch(CLOUD.url+'/rest/v1/'+path, {method, headers:{apikey:CLOUD.key, Authorization:'Bearer '+(await auth.token()),
+    'Content-Type':'application/json', ...(prefer ? {Prefer:prefer} : {})}, body: body===undefined ? undefined : JSON.stringify(body)});
+  let r = await go();
+  if (r.status===401){ await auth.refresh(); r = await go(); }
+  if (!r.ok) throw Object.assign(new Error('cloud '+r.status), {code: r.status===401 || r.status===403 ? 'not_family' : 'cloud', status:r.status});
+  const text = await r.text(); return text ? JSON.parse(text) : null;
+}
+async function cloudAllLogs(){
+  const out = [];
+  for (let off = 0; off < 200000; off += 1000){
+    const page = await rest('GET', `logs?select=id,data&order=t.desc&limit=1000&offset=${off}`);
+    page.forEach(r => out.push({id:r.id, ...r.data}));
+    if (page.length < 1000) break;
+  }
+  return out;
+}
+async function loadCloud(){
+  const [logs, act, set, fam] = await Promise.all([cloudAllLogs(), rest('GET','active?select=kind,data'), rest('GET','settings?select=data&id=eq.baby'), rest('GET','family_members?select=email,name')]);
+  /* signed in, but no longer on the list: the policies return nothing */
+  if (!fam.some(f => f.email === auth.s?.email)){ signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); live.stop(); auth.signOut(); return; }
+  S.names = Object.fromEntries(fam.map(f => [f.email, f.name || f.email.split('@')[0]]));
+  applyHome({logs:Object.fromEntries(logs.map(({id,...l}) => [id, l])), active:Object.fromEntries(act.map(a => [a.kind, a.data])), settings:set[0]?.data || {}});
+}
+function cloudChange(d){
+  if (!d || !d.table) return;
+  const rec = d.type==='DELETE' ? null : d.record, old = d.old_record || {};
+  if (d.table==='logs') applyChange({op:'log', id: rec?.id || old.id, data: rec ? rec.data : null});
+  if (d.table==='active') applyChange({op:'active', kind: rec?.kind || old.kind, data: rec ? rec.data : null});
+  if (d.table==='settings' && rec) applyChange({op:'settings', data: rec.data});
+}
+const live = {
+  ws:null, ref:0, joinRef:null, hb:null, timer:null, retry:0,
+  start(){
+    this.stop();
+    const ws = this.ws = new WebSocket(CLOUD.url.replace(/^http/, 'ws')+'/realtime/v1/websocket?apikey='+encodeURIComponent(CLOUD.key)+'&vsn=1.0.0');
+    ws.onopen = async () => {
+      this.retry = 0; this.joinRef = String(++this.ref);
+      const tok = await auth.token().catch(() => null);
+      this.send({topic:'realtime:nestlog', event:'phx_join', ref:this.joinRef, join_ref:this.joinRef, payload:{access_token:tok, config:{
+        broadcast:{ack:false, self:false}, presence:{enabled:false}, private:false,
+        postgres_changes:['logs','active','settings'].map(table => ({event:'*', schema:'public', table}))}}});
+      this.hb = setInterval(() => this.send({topic:'phoenix', event:'heartbeat', payload:{}, ref:String(++this.ref)}), 25000);
+    };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event==='phx_reply' && m.ref===this.joinRef){
+        if (m.payload?.status==='ok'){ S.online = true; loadCloud().catch(cloudFail); } else { S.online = false; render(); }
+      }
+      else if (m.event==='postgres_changes') cloudChange(m.payload?.data);
+      else if (m.event==='phx_error' || m.event==='phx_close') ws.close();
+    };
+    ws.onclose = () => {
+      clearInterval(this.hb); if (this.ws !== ws) return;
+      S.online = false; render();
+      this.timer = setTimeout(() => this.start(), Math.min(30000, 1000 * 2 ** this.retry++));
+    };
+  },
+  send(m){ if (this.ws?.readyState===1) this.ws.send(JSON.stringify(m)); },
+  token(tok){ if (this.joinRef && tok) this.send({topic:'realtime:nestlog', event:'access_token', ref:String(++this.ref), join_ref:this.joinRef, payload:{access_token:tok}}); },
+  stop(){ clearTimeout(this.timer); clearInterval(this.hb); const w = this.ws; this.ws = null; this.joinRef = null; if (w) try { w.close(); } catch {} }
+};
+function cloudFail(e){ if (e?.code==='not_family') signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); else { S.online = false; render(); } }
+function startCloud(){
+  S.me = auth.s.email; S.loaded = false; S.online = false; render();
+  live.start();
+}
+function signedOut(msg){
+  live.stop(); auth.save(null);
+  S.logs = []; S.active = {}; S.names = {}; S.loaded = false; S.tab = 'home'; S.me = null;
+  SI = {step:'email', email:'', busy:false, err:msg || '', key:''};
+  closeSheet(); render();
+}
+
 /* one change from the home server; arrives twice for the phone that made it, which is harmless */
 function applyChange(ch){
-  if (!ch || S.mode!=='home') return;
+  if (!ch || (S.mode!=='home' && S.mode!=='cloud')) return;
   if (ch.op==='log'){
     S.logs = S.logs.filter(l => l.id !== ch.id);
     if (ch.data){ S.logs.push({id:ch.id, ...ch.data}); S.logs.sort((a,b)=>b.t-a.t); }
   }
   else if (ch.op==='active'){ S.active = {...S.active}; if (ch.data) S.active[ch.kind] = ch.data; else delete S.active[ch.kind]; }
   else if (ch.op==='settings') S.settings = {...S.settings, ...ch.data};
-  else if (ch.op==='reload'){ loadHome().catch(()=>{}); return; }
+  else if (ch.op==='reload'){ (S.mode==='cloud' ? loadCloud : loadHome)().catch(()=>{}); return; }
   render();
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
 }
@@ -476,6 +608,7 @@ async function write(fn){
   catch(e){
     if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask for Editor access.'); }
     else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete old entries to keep logging.'); }
+    else if (e && e.code === 'not_family'){ toast('This email isn’t on the family list, so that didn’t save.'); }
     else if (S.mode==='home'){ S.online = false; render(); toast('That didn’t save. Check the laptop running Nestlog is on, then try again.'); }
     else toast('That didn’t save. Check your connection and try again.');
     return false;
@@ -562,13 +695,18 @@ function nurseTotals(){
 /* ---------- render ---------- */
 const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
 function render(){
+  const signin = S.mode==='cloud' && !auth.s;
+  $('top').hidden = signin; $('tabbar').hidden = signin; $('view-signin').hidden = !signin;
+  if (signin){ for (const [k] of TABS) $('view-'+k).hidden = true; renderSignin(); return; }
+  SI.key = '';
   const st = S.settings;
   $('babyName').textContent = st.name || 'Your baby';
   $('avatar').textContent = (st.name || 'N').trim().charAt(0).toUpperCase();
   $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add name and birth date in Baby';
-  $('sync').classList.toggle('on', S.mode==='db' || (S.mode==='home' && S.online && S.loaded));
+  const shared = S.mode==='home' || S.mode==='cloud';
+  $('sync').classList.toggle('on', S.mode==='db' || (shared && S.online && S.loaded));
   $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only')
-    : S.mode==='home' ? (!S.online ? 'Offline' : S.loaded ? 'Home sync' : 'Connecting') : 'This device';
+    : shared ? (!S.online ? (S.loaded ? 'Offline' : 'Connecting') : S.loaded ? (S.mode==='home' ? 'Home sync' : 'Family sync') : 'Connecting') : 'This device';
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
   if (S.tab==='home') renderHome();
@@ -736,11 +874,56 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
   }
-  $('shareNote').innerHTML = S.mode==='home'
+  const acts = $('shareActions');
+  acts.hidden = S.mode!=='cloud';
+  if (S.mode==='cloud'){
+    const have = new Set(S.logs.map(l => l.id));
+    const mine = Object.keys(local.load().logs || {}).filter(id => !have.has(id)).length;
+    acts.innerHTML = (mine && S.loaded ? `<button class="btn primary" type="button" data-act="uploadLocal">Upload ${mine} ${mine===1?'entry':'entries'} from this phone</button>` : '')
+      + `<button class="btn soft" type="button" data-act="signOut">Sign out</button>`;
+  }
+  $('shareNote').innerHTML = S.mode==='cloud'
+    ? `Signed in as <b>${esc(S.me||'')}</b>. Everyone on the family list sees the same log, live, wherever they are. To add someone, put their email in the <b>family_members</b> table in Supabase.`
+    : S.mode==='home'
     ? `Entries are saved on the laptop running Nestlog and sync live to every phone on your home Wi-Fi. To add a phone, open this same address on it. The laptop keeps a dated backup each day.`
     : S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
     : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. Live sync between phones works in the claude.ai version of Nestlog.`;
+}
+
+/* sign-in screen (cloud mode): email, then the code from the email. Rebuilt only when its step changes. */
+let SI = {step:'email', email:'', busy:false, err:'', key:''};
+function renderSignin(force){
+  const key = [SI.step, SI.busy, SI.err].join('|');
+  if (!force && key === SI.key) return; SI.key = key;
+  const typed = $('siEmail')?.value;
+  const body = SI.step==='email'
+    ? `<div class="field"><label class="label" for="siEmail">Email</label><input id="siEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required value="${esc(typed ?? SI.email)}"></div>
+       <button class="btn primary" type="submit" ${SI.busy?'disabled':''}>${SI.busy?'Sending…':'Send code'}</button>`
+    : `<p class="note">We sent a code to <b>${esc(SI.email)}</b>. It can take a minute to arrive.</p>
+       <div class="field"><label class="label" for="siCode">Code from the email</label><input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></div>
+       <button class="btn primary" type="submit" ${SI.busy?'disabled':''}>${SI.busy?'Signing in…':'Sign in'}</button>
+       <button class="linkbtn" type="button" data-act="siBack">Use a different email</button>`;
+  $('view-signin').innerHTML = `<div class="signin"><div><h1>Nestlog</h1><p class="lead">One shared log for the family. Sign in with your email to start.</p></div>
+    <form class="card" id="signinForm" novalidate>${body}${SI.err?`<p class="err" role="alert">${esc(SI.err)}</p>`:''}</form></div>`;
+  if (SI.step==='code' && !SI.busy) $('siCode')?.focus();
+}
+async function signinSubmit(){
+  if (SI.busy) return;
+  if (SI.step==='email'){
+    const email = $('siEmail').value.trim().toLowerCase(); SI.email = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ SI.err = 'Enter your email address, like name@example.com.'; renderSignin(); return; }
+    SI.busy = true; SI.err = ''; renderSignin();
+    try { await auth.sendCode(email); SI.step = 'code'; }
+    catch(e){ SI.err = e.status===403 || e.status===422 ? 'That email isn’t on the family list. Ask the person who set up Nestlog to add it.'
+      : e.status===429 ? 'A code was sent a moment ago. Wait a minute, then try again.' : 'Couldn’t send the code. Check your connection and try again.'; }
+    SI.busy = false; renderSignin(); return;
+  }
+  const code = $('siCode').value.replace(/\D/g, '');
+  if (code.length < 6){ SI.err = 'Enter the code from the email. It has 6 or more digits.'; renderSignin(true); return; }
+  SI.busy = true; SI.err = ''; renderSignin();
+  try { await auth.verify(SI.email, code); SI = {step:'email', email:'', busy:false, err:'', key:''}; startCloud(); }
+  catch(e){ SI.busy = false; SI.err = e.status >= 400 && e.status < 500 ? 'That code didn’t match or has expired. Check the latest email, or use a different email to get a new code.' : 'Couldn’t sign in. Check your connection and try again.'; renderSignin(true); }
 }
 
 /* ---------- sheets ---------- */
@@ -824,6 +1007,17 @@ async function saveSheet(){
 }
 
 async function act(a, el){
+  if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
+  if (a==='signOut'){ live.stop(); await auth.signOut(); signedOut(''); return; }
+  if (a==='uploadLocal'){
+    const have = new Set(S.logs.map(l => l.id)), d = local.load();
+    const fresh = Object.fromEntries(Object.entries(d.logs || {}).filter(([id]) => !have.has(id)).map(([id, l]) => normalize({...l, id}, false)).filter(Boolean).map(n => [n.id, n.data]));
+    const n = Object.keys(fresh).length;
+    el.disabled = true; el.textContent = 'Uploading…';
+    if (await write(() => store.putMany(fresh, null))) toast(`Uploaded ${n} ${n===1?'entry':'entries'}`);
+    else { el.disabled = false; el.textContent = `Upload ${n} entries from this phone`; }
+    return;
+  }
   if (a==='close') return closeSheet();
   if (a==='delete'){
     if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('armed'); el.textContent='Tap again to delete'; return; }
@@ -878,6 +1072,7 @@ function toRow(l){
 const csvCell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 /* the live view holds the latest 1000; export and import read the whole history in pages */
 async function allLogs(){
+  if (S.mode==='cloud') return cloudAllLogs();
   if (!db) return S.logs;
   const out = []; let before = null;
   for (let i = 0; i < 40; i++){
@@ -1101,6 +1296,7 @@ document.addEventListener('change', e => {
 document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id==='sheetForm') saveSheet();
+  if (e.target.id==='signinForm') signinSubmit();
   if (e.target.id==='settingsForm'){
     const data = {name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value};
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
@@ -1132,6 +1328,7 @@ setInterval(() => {
   document.querySelectorAll('[data-clock]').forEach(el => el.textContent = clock(now() - +el.dataset.clock));
   if (S.tab==='home'){ if (S.active.nurse) renderLive(); if (tick%30===0) renderHome(); }
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+  if (S.mode==='cloud' && auth.s && tick%60===0) auth.token().catch(()=>{});
 }, 1000);
 
 /* ---------- boot ---------- */
@@ -1143,10 +1340,28 @@ function bootHome(){
   es.onmessage = e => { try { applyChange(JSON.parse(e.data)); } catch {} };
   es.onerror = () => { S.online = false; render(); };
 }
+/* GitHub Pages (or ?cloud): the family log in Supabase. localhost stays local so development and tests are unchanged. */
+function bootCloud(){
+  S.mode = 'cloud'; S.loaded = false; S.online = false;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('access_token')){ /* someone tapped the link in the email instead of typing the code */
+    auth.keep({access_token:h.get('access_token'), refresh_token:h.get('refresh_token'), expires_in:+h.get('expires_in') || 3600});
+    history.replaceState(null, '', location.pathname + location.search);
+  } else auth.load();
+  if (h.get('error_description')){ SI.err = 'That sign-in link has expired. Get a new code below.'; history.replaceState(null, '', location.pathname + location.search); }
+  if (auth.s) startCloud(); else render();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !auth.s) return;
+    if (!live.ws || live.ws.readyState > 1) live.start(); else loadCloud().catch(cloudFail);
+  });
+}
+const wantCloud = !window.claude && CLOUD.url && location.protocol !== 'file:'
+  && (new URLSearchParams(location.search).has('cloud') || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
 if (document.querySelector('meta[name="nestlog-server"][content="home"]')) bootHome();
+else if (wantCloud) bootCloud();
 else applyLocal();
 (async () => {
-  if (S.mode==='home') return;
+  if (S.mode==='home' || S.mode==='cloud') return;
   if (!window.claude?.use) { S.mode='local'; render(); return; }
   try {
     const [d, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);

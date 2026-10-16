@@ -4,6 +4,29 @@ A baby tracker for the first months: nursing with a left/right timer, bottles, s
 
 **Live app:** https://akalle92.github.io/NestLog/
 
+## Share with family anywhere (cloud)
+
+The GitHub Pages version keeps one shared log in a free [Supabase](https://supabase.com) database. Family members sign in with their email, and **only emails on your family list can sign in or see anything.**
+
+**For family members:**
+1. Open https://akalle92.github.io/NestLog/ and type your email.
+2. An email arrives with a code. Type the code. (On a laptop you can tap the link in the email instead.)
+3. Add it to your home screen. The phone stays signed in.
+
+Everyone sees the same log, live, and each entry shows who logged it. If you used Nestlog on this phone before, **Baby → Sharing → Upload entries from this phone** moves those entries into the shared log.
+
+**Adding or removing someone:** in the Supabase dashboard, open the NestLog project → **Table editor → family_members** and add or delete a row (email in lowercase, plus a first name). Removing a row cuts off access straight away.
+
+**One-time setup in the Supabase dashboard** (project NestLog):
+1. **Authentication → Emails → Magic Link** template: put the code in the email, for example
+   `<h2>Your Nestlog code</h2><p>Enter this code: <b>{{ .Token }}</b></p><p>Or tap <a href="{{ .ConfirmationURL }}">this link</a> on a computer.</p>`
+2. **Authentication → URL Configuration:** Site URL `https://akalle92.github.io/NestLog/`.
+3. **Authentication → Hooks → Before User Created:** choose Postgres, function `public.hook_family_only`. This stops anyone not on the list from even getting an account or a sign-in email.
+
+The database setup is in [`supabase/nestlog_init.sql`](supabase/nestlog_init.sql) (tables, access rules, live updates, the sign-up hook).
+
+**Limits on the free plan:** a project with no activity for a week pauses (daily logging keeps it awake; **Restore** in the dashboard wakes it). Supabase's built-in email sends only a few emails an hour, which is fine for signing in once per phone; for more, connect your own email sender under Authentication → SMTP.
+
 ## Run it at home on your laptop
 
 For personal use you can run Nestlog on your own laptop. Every phone on your home Wi-Fi opens it from there and shares **one live log**: a feed logged on one phone shows up on the other within a second. Nothing leaves your house.
@@ -42,9 +65,7 @@ It opens full-screen like an app, with its own icon.
 
 ## Where the data lives
 
-On the home server, everything is in one file on the laptop (see above).
-
-On the GitHub Pages site, entries are saved in the browser on each device (`localStorage`). Nothing is sent to a server. That means:
+On https://akalle92.github.io/NestLog/ the log lives in your Supabase project, readable only by people on your family list (see above). On the home server, everything is in one file on the laptop. Opened from `localhost` (`npm start`), entries stay in that browser: saved in the browser on that device (`localStorage`). That means:
 
 - Each phone keeps its own log. To combine two phones, use **Baby → Export → Download backup** on one and **Import** on the other. Entries already present are skipped, so importing again is safe.
 - Clearing the browser's site data erases the log. Download a backup now and then.

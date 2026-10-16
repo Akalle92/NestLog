@@ -18,14 +18,15 @@ Baby tracker web app for one family (two caregivers). Single file, no framework,
 | `manifest.webmanifest`, `icons/` | Home-screen install (PWA manifest, SVG + PNG icons) |
 | `.nojekyll` | Tells GitHub Pages to serve files as-is |
 | `server.js` | Home server (`npm run home`): serves the app on the LAN and stores one shared log in `data/` |
+| `supabase/nestlog_init.sql` | Cloud database: tables, row-level security, family allowlist, sign-up hook |
 | `tests/serve.js` | Dependency-free static server (`npm start`) |
 | `tests/e2e.js` | Playwright checks + screenshots (`npm test`) |
 
 ## Runtimes
 
-The same `index.html` runs in two places. The boot code at the bottom of the script picks one:
+The same `index.html` runs in four places. The boot code at the bottom of the script picks one:
 
-1. **Standalone (GitHub Pages, localhost).** `window.claude` is undefined, so `S.mode = 'local'`. All data lives in `localStorage['nestlog-v1']` as `{ settings, active, logs: { [id]: entry } }`. Export uses a normal blob download (`blobSave`).
+1. **Standalone (localhost, `npm start`, file://).** No `window.claude`, no home meta, not cloud, so `S.mode = 'local'`. All data lives in `localStorage['nestlog-v1']` as `{ settings, active, logs: { [id]: entry } }`. Export uses a normal blob download (`blobSave`).
 2. **claude.ai Artifact.** `claude.use('db' | 'user' | 'downloads')` resolve, so `S.mode = 'db'`. Collections:
    - `logs/{id}`: one doc per entry, live via `onSnapshot`, newest 1000 in view (`allLogs()` pages through everything for export/import)
    - `active/nurse`, `active/sleep`: running timers, shared so both phones see them
@@ -35,7 +36,9 @@ The same `index.html` runs in two places. The boot code at the bottom of the scr
 
 3. **Home server (`server.js` on a laptop).** It serves `index.html` with `<meta name="nestlog-server" content="home">` added, so `S.mode = 'home'`. Data is `data/nestlog.json` (same shape as the local copy), written atomically, with a daily copy in `data/backups/`. API: `GET api/state`, `PUT|DELETE api/logs/:id`, `PUT|DELETE api/active/:kind`, `PUT api/settings`, `POST api/import`, and `GET api/events` (Server-Sent Events) which pushes each change (`{op:'log'|'active'|'settings'|'reload'}`) to every phone; `applyChange()` applies it. The server re-validates every write (`cleanLog`, `cleanActive`, `cleanSettings`) and only serves the app files. It never falls back to local mode, so phones can't silently split the log; when the laptop is unreachable the header says Offline.
 
-All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`, `putMany` for import), which handles all three. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
+4. **Cloud (GitHub Pages).** When not on localhost/file:// and not inside claude.ai (or with `?cloud` in the URL, which the tests use), `S.mode = 'cloud'` and data lives in the Supabase project in `CLOUD` (url + publishable key, public by design). No SDK: `auth` (email code via `/auth/v1/otp` + `/verify`, refresh, session in `localStorage['nestlog-session']`), `rest()` (PostgREST, retries once after a refresh on 401), and `live` (realtime WebSocket, protocol 1.0.0, `postgres_changes` on `logs`/`active`/`settings`, heartbeat, backoff, refetch on reconnect and when the page becomes visible). Changes go through the same `applyChange()` as home mode. Tables: `logs(id, t, data jsonb)`, `active(kind, data)`, `settings(id='baby', data)`, `family_members(email, name)`. Row-level security allows only emails in `family_members` (`private.is_family()`), and the `public.hook_family_only` Before User Created hook stops strangers getting accounts. `S.me` is the user's email and `S.names` comes from `family_members`, so entries show who logged them. Schema: `supabase/nestlog_init.sql`; change it with a new migration (Supabase MCP) and update that file.
+
+All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`, `putMany` for import), which handles all four. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
 
 ## Script layout (top to bottom)
 
@@ -59,7 +62,7 @@ Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on
 
 Running timers: `active.nurse = { start, left, right, side: 'L'|'R'|null, since, lastSide, by }` and `active.sleep = { start, by }`.
 
-Import (`normalize`) and the home server's `cleanLog` both whitelist types and fields and rebuilds each entry, so imported files can't inject arbitrary data. Keep it that way when adding fields, add the column to `CSV_COLS` / `toRow`, and add the field to `FIELDS` in `server.js`.
+Import (`normalize`) and the home server's `cleanLog` both whitelist types and fields and rebuilds each entry, so imported files can't inject arbitrary data. Keep it that way when adding fields, add the column to `CSV_COLS` / `toRow`, and add the field to `FIELDS` in `server.js`. (Cloud stores the entry object as `data jsonb`, so new fields need no migration; a new **type** needs the `logs` check constraint updated.)
 
 ## Design system
 
@@ -85,7 +88,6 @@ Plain and short; it gets read at 3am. Buttons start with a verb ("Save bottle", 
 
 ## Ideas not built yet
 
-- Live sync on the GitHub Pages version (e.g. Supabase); the home server covers this for use on home Wi-Fi
 - Offline support with a service worker (watch out for stale caches while developing)
 - Feed / diaper reminders ("3h since the last feed")
 - Medicine, temperature and milestone logs
