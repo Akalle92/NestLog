@@ -241,6 +241,46 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* reminders: due state on Today, one notification per gap */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.addInitScript(() => {
+      window.__notes = [];
+      window.Notification = class { constructor(t, o) { window.__notes.push(t); } static get permission() { return localStorage.getItem('fake-perm') || 'default'; }
+        static async requestPermission() { localStorage.setItem('fake-perm', 'granted'); return 'granted'; } };
+    });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.evaluate(() => { const n = Date.now(), H = 36e5;
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Mira', birth: '', vol: 'ml', wt: 'kg' }, active: {},
+        logs: { b1: { type: 'bottle', t: n - 3.2 * H, ml: 90, content: 'formula' }, d1: { type: 'diaper', t: n - 1 * H, kind: 'wet' } } })); });
+    await p.reload(); await p.waitForTimeout(300);
+    check('reminders: nothing is due while reminders are off', !(await p.locator('.fact.due').count()));
+    await p.click('.tabs [data-tab="baby"]');
+    await p.selectOption('#setFeedGap', '180'); await p.waitForTimeout(200);
+    await p.selectOption('#setDiaperGap', '180'); await p.waitForTimeout(200);
+    check('reminders: offers to allow notifications', await p.isVisible('[data-act="allowNotify"]'));
+    await p.screenshot({ path: `${SHOTS}/9-reminders.png`, fullPage: true });
+    await p.click('[data-act="allowNotify"]'); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="home"]'); await p.waitForTimeout(200);
+    check('reminders: overdue feed shows as due on Today', /Feed due/.test(await text(p, '#status')) && (await p.locator('.fact.k-feed.due').count()) === 1);
+    check('reminders: diaper within its gap is not due', (await p.locator('.fact.k-diaper.due').count()) === 0);
+    await p.screenshot({ path: `${SHOTS}/9-feed-due.png` });
+    await p.waitForTimeout(1200);
+    let notes = await p.evaluate(() => window.__notes);
+    check('reminders: one notification for the overdue feed', notes.length === 1 && /Mira may be hungry/.test(notes[0]), JSON.stringify(notes));
+    await p.reload(); await p.waitForTimeout(1500);
+    notes = await p.evaluate(() => window.__notes);
+    check('reminders: not repeated for the same feed after reopening', notes.length === 0, JSON.stringify(notes));
+    await p.click('[data-open="bottle"]'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(300);
+    check('reminders: logging a feed clears the due state', !(await p.locator('.fact.k-feed.due').count()));
+    const taste = await p.evaluate(tasteAudit);
+    check('reminders: taste house rules', !taste.length, taste.join(' | '));
+    check('reminders: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* home server: two phones on the same Wi-Fi share one log through server.js */
   {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nestlog-'));

@@ -111,6 +111,8 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 .fact b{display:block;font-weight:600;font-size:var(--fs-s)}
 .fact span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fact>div{min-width:0}
+.fact.due{margin:calc(var(--s2) * -1);padding:var(--s2);border-radius:var(--r-md);background:color-mix(in oklab, var(--c) var(--tint), var(--surface))}
+.fact.due b{color:var(--c)}
 .ribbon svg{display:block;width:100%;height:auto}
 .ribbon .labels{display:flex;justify-content:space-between;font-size:var(--fs-s);color:var(--muted);margin-top:4px}
 .legend{display:flex;gap:var(--s3);font-size:var(--fs-s);color:var(--muted)}
@@ -341,6 +343,16 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
       </div>
     </form>
 
+    <h2 class="sec">Reminders</h2>
+    <div class="card group"><div class="item">
+      <div class="grid2">
+        <div class="field"><label class="label" for="setFeedGap">Feed due after</label><select id="setFeedGap" data-gap="feedGap"></select></div>
+        <div class="field"><label class="label" for="setDiaperGap">Diaper due after</label><select id="setDiaperGap" data-gap="diaperGap"></select></div>
+      </div>
+      <p class="note" id="remindNote"></p>
+      <div class="stack" id="remindActions"></div>
+    </div></div>
+
     <h2 class="sec">Sharing</h2>
     <div class="card group"><div class="item"><p class="note" id="shareNote"></p><div class="stack" id="shareActions" hidden></div></div></div>
 
@@ -416,7 +428,7 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg',temp:'C'}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -722,6 +734,51 @@ function nurseTotals(){
   return {L:(n.left||0)+(n.side==='L'?run:0), R:(n.right||0)+(n.side==='R'?run:0)};
 }
 
+/* ---------- reminders: a feed or diaper is "due" once its gap has passed since the last one ---------- */
+const GAPS = [[0,'Off'],[120,'2 hours'],[150,'2½ hours'],[180,'3 hours'],[210,'3½ hours'],[240,'4 hours'],[300,'5 hours']];
+const isFeed = l => l.type==='nurse' || l.type==='bottle';
+function dueState(){
+  const st = S.settings, feed = lastOf(isFeed), diaper = lastOf(l => l.type==='diaper');
+  const due = (gap, last) => !!(gap && last && now() - last.t >= gap*MIN);
+  return { feed: !S.active.nurse && due(+st.feedGap, feed) ? feed : null, diaper: due(+st.diaperGap, diaper) ? diaper : null };
+}
+const canNotify = () => 'Notification' in window;
+/* through the service worker when there is one (needed on Android), else a page notification */
+function notify(title, opts){
+  const plain = () => { try { new Notification(title, opts); } catch {} };
+  const sw = navigator.serviceWorker;
+  if (sw?.getRegistration) sw.getRegistration().then(r => r ? r.showNotification(title, opts) : plain()).catch(plain); else plain();
+}
+/* one notification per gap: remembered per phone by the id of the last entry it was about */
+function checkReminders(){
+  if (!canNotify() || Notification.permission !== 'granted' || !S.loaded) return;
+  let seen = {}; try { seen = JSON.parse(localStorage.getItem('nestlog-reminded')) || {}; } catch {}
+  const d = dueState(), name = S.settings.name || 'Baby'; let changed = false;
+  for (const [kind, last] of Object.entries(d)){
+    if (!last || seen[kind] === last.id) continue;
+    seen[kind] = last.id; changed = true;
+    const body = `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
+    const title = kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
+    const opts = {body, tag:'nestlog-'+kind, icon:'icons/icon-192.png', badge:'icons/icon-192.png'};
+    notify(title, opts);
+  }
+  if (changed) try { localStorage.setItem('nestlog-reminded', JSON.stringify(seen)); } catch {}
+}
+function renderReminders(){
+  const st = S.settings;
+  for (const [id, key] of [['setFeedGap','feedGap'],['setDiaperGap','diaperGap']]){
+    const sel = $(id); if (document.activeElement === sel) continue;
+    sel.innerHTML = GAPS.map(([v,l]) => `<option value="${v}" ${(+st[key]||0)===v?'selected':''}>${l}</option>`).join('');
+  }
+  const on = +st.feedGap || +st.diaperGap, perm = canNotify() ? Notification.permission : 'unsupported';
+  $('remindNote').textContent = !on ? 'Pick a gap and Today shows when a feed or diaper change is due. Shared with everyone who logs.'
+    : perm==='granted' ? 'Today shows when one is due, and this phone gets a notification while Nestlog is open or running in the background.'
+    : perm==='denied' ? 'Today shows when one is due. Notifications are blocked for this site; turn them on in the browser’s site settings.'
+    : perm==='unsupported' ? 'Today shows when one is due. This browser can’t show notifications; on iPhone, add Nestlog to the Home Screen first.'
+    : 'Today shows when one is due. Allow notifications to get a nudge on this phone too.';
+  $('remindActions').innerHTML = on && perm==='default' ? `<button class="btn soft" type="button" data-act="allowNotify">Allow notifications</button>` : '';
+}
+
 /* ---------- render ---------- */
 const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
 function render(){
@@ -769,12 +826,13 @@ function renderStatus(){
   const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
   const nurse = lastOf(l => l.type==='nurse' && l.last);
   const diaper = lastOf(l => l.type==='diaper');
+  const due = dueState();
   const feedSub = nurse && feed?.type==='nurse' ? `next ${nurse.last==='L'?'right':'left'}` : feed ? (feed.type==='bottle' ? `${volOut(feed.ml||0)} ${volU()}` : 'nursing') : '';
   $('status').innerHTML = `
     <div class="head"><div class="state ${cls} num"><small>${label}</small>${value}</div>${sl?'<button type="button" class="btn primary wake press" data-act="wake">Woke up</button>':''}</div>
     <div class="facts">
-      <div class="fact k-feed"><i class="dot"></i><div><b>${S.active.nurse?'Feeding now':feed?ago(feed.t):'No feeds'}</b><span>${S.active.nurse?'Nursing':feed?'Last feed':'Log the first one'}${S.active.nurse||!feed?'':' · '+esc(feedSub)}</span></div></div>
-      <div class="fact k-diaper"><i class="dot"></i><div><b>${diaper?ago(diaper.t):'No changes'}</b><span>${diaper?'Last diaper · '+DIAPER[diaper.kind].toLowerCase():'Log the first one'}</span></div></div>
+      <div class="fact k-feed ${due.feed?'due':''}"><i class="dot"></i><div><b>${S.active.nurse?'Feeding now':feed?ago(feed.t):'No feeds'}</b><span>${S.active.nurse?'Nursing':due.feed?'Feed due':feed?'Last feed':'Log the first one'}${S.active.nurse||!feed?'':' · '+esc(feedSub)}</span></div></div>
+      <div class="fact k-diaper ${due.diaper?'due':''}"><i class="dot"></i><div><b>${diaper?ago(diaper.t):'No changes'}</b><span>${diaper?(due.diaper?'Change due · ':'Last diaper · ')+DIAPER[diaper.kind].toLowerCase():'Log the first one'}</span></div></div>
     </div>
     ${ribbon()}
     <div class="legend"><span class="k-sleep"><i></i>Sleep</span><span class="k-feed"><i style="border-radius:50%"></i>Feed</span><span class="k-diaper"><i></i>Diaper</span><span style="margin-left:auto">Last 24 hours</span></div>`;
@@ -916,6 +974,7 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
+  renderReminders();
   const acts = $('shareActions');
   acts.hidden = S.mode!=='cloud';
   if (S.mode==='cloud'){
@@ -930,7 +989,7 @@ function renderBaby(){
     ? `Entries are saved on the laptop running Nestlog and sync live to every phone on your home Wi-Fi. To add a phone, open this same address on it. The laptop keeps a dated backup each day.`
     : S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
-    : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. Live sync between phones works in the claude.ai version of Nestlog.`;
+    : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. For one shared, live log, use Nestlog at akalle92.github.io/NestLog (family sign-in) or run the home server on a laptop.`;
 }
 
 /* sign-in screen (cloud mode): email, then the code from the email. Rebuilt only when its step changes. */
@@ -1079,6 +1138,7 @@ async function saveSheet(){
 }
 
 async function act(a, el){
+  if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} renderReminders(); checkReminders(); return; }
   if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
   if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
   if (a==='signOut'){ live.stop(); await auth.signOut(); signedOut(''); return; }
@@ -1419,6 +1479,8 @@ document.addEventListener('input', e => {
   if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset?.gap){ const key = e.target.dataset.gap, v = +e.target.value;
+    write(()=>store.setSettings({...S.settings, [key]:v})).then(ok => { if (ok){ toast(v ? `${key==='feedGap'?'Feed':'Diaper'} reminder after ${GAPS.find(g=>g[0]===v)[1]}` : 'Reminder off'); e.target.blur(); renderReminders(); } }); }
   if (e.target.id==='fAdj' && S.active.sleep){
     const v = fromLocalInput(e.target.value);
     if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
@@ -1461,6 +1523,7 @@ setInterval(() => {
   if (S.tab==='home'){ if (S.active.nurse) renderLive(); if (tick%30===0) renderHome(); }
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
   if (S.mode==='cloud' && auth.s && tick%60===0) auth.token().catch(()=>{});
+  if (tick%30===1) checkReminders();
 }, 1000);
 
 /* ---------- boot ---------- */
