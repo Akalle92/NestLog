@@ -281,6 +281,19 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* service worker: after one visit the app opens with no connection */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p = await ctx.newPage();
+    await p.goto(URL + '?sw');
+    await p.evaluate(() => navigator.serviceWorker.ready); await p.reload(); await p.waitForTimeout(400);
+    check('offline: service worker controls the page', await p.evaluate(() => !!navigator.serviceWorker.controller));
+    await ctx.setOffline(true);
+    await p.reload(); await p.waitForTimeout(500);
+    check('offline: app opens with no connection', (await p.locator('#tabs button').count()) === 4);
+    await ctx.setOffline(false); await ctx.close();
+  }
+
   /* home server: two phones on the same Wi-Fi share one log through server.js */
   {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nestlog-'));
@@ -353,6 +366,7 @@ function paletteAudit() {
       });
       await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/rest/v1/**', async route => {
         const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
+        if (fake.offline) return route.abort('internetdisconnected');
         if (!fake.family.some(f => f.email === who(req))) return reply(route, 403, { message: 'row-level security' });
         const u = new globalThis.URL(req.url()), table = u.pathname.split('/').pop(), m = req.method(), q = u.searchParams;
         const eq = k => (q.get(k) || '').replace(/^eq\./, '');
@@ -436,8 +450,23 @@ function paletteAudit() {
     await c.click('[data-act="uploadLocal"]'); await c.waitForTimeout(600);
     check('cloud: old entries uploaded and shared', ['old1', 'old2', 'old3'].every(id => fake.logs[id]) && !(await c.locator('[data-act="uploadLocal"]').count()));
 
+    /* offline: the entry shows at once, waits in the outbox, and syncs in order when the connection is back */
+    fake.offline = true;
+    await a.click('[data-open="bottle"]'); await a.waitForTimeout(200);
+    await a.click('[data-chip="preset"][data-v="150"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(400);
+    check('offline: entry shows right away on this phone', /150 ml/.test(await text(a, '#recent')));
+    check('offline: header says it is waiting', /Offline · 1 waiting/.test(await text(a, '#syncText')), await text(a, '#syncText'));
+    check('offline: not sent yet', !Object.values(fake.logs).some(l => l.ml === 150));
+    await a.reload(); await a.waitForTimeout(600);
+    check('offline: still shown after reopening the app', /150 ml/.test(await text(a, '#recent')));
+    fake.offline = false;
+    await a.evaluate(() => window.dispatchEvent(new Event('online'))); await a.waitForTimeout(800);
+    check('offline: syncs when back online', Object.values(fake.logs).some(l => l.ml === 150) && !/waiting/.test(await text(a, '#syncText')), await text(a, '#syncText'));
+    check('offline: other phone gets it after the sync', /150 ml/.test(await text(b, '#recent')));
+
     await a.click('.tabs [data-tab="baby"]'); await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
     check('cloud: sign out returns to the sign-in screen', await a.isVisible('#signinForm'));
+    check('cloud: sign out removes the copy kept for offline use', await a.evaluate(() => !localStorage.getItem('nestlog-cache') && !localStorage.getItem('nestlog-session')));
     check('cloud: no script errors', ![a, b, c].some(p => p.errors.length), [a, b, c].flatMap(p => p.errors).join(' | '));
     for (const p of [a, b, c]) await p.context().close();
   }

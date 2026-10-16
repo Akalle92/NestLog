@@ -450,33 +450,65 @@ async function home(method, path, body){
   if (!r.ok) throw Object.assign(new Error('home '+r.status), {code: r.status===413 ? 'too_large' : 'home'});
   const ch = await r.json(); S.online = true; applyChange(ch); return ch;
 }
+/* shared modes (home server, cloud): every write is one op, {op:'log'|'active'|'settings', ...}, the same shape
+   as a live change. Sent to the server, or kept in the outbox while there's no connection and replayed in order. */
+function sendOp(o){
+  if (S.mode==='home'){
+    if (o.op==='log') return o.data ? home('PUT', 'logs/'+encodeURIComponent(o.id), o.data) : home('DELETE', 'logs/'+encodeURIComponent(o.id));
+    if (o.op==='active') return home(o.data ? 'PUT' : 'DELETE', 'active/'+o.kind, o.data || undefined);
+    return home('PUT', 'settings', o.data);
+  }
+  const up = 'resolution=merge-duplicates,return=minimal';
+  if (o.op==='log') return o.data ? rest('POST', 'logs?on_conflict=id', {id:o.id, t:o.data.t, data:o.data}, up) : rest('DELETE', 'logs?id=eq.'+encodeURIComponent(o.id));
+  if (o.op==='active') return o.data ? rest('POST', 'active?on_conflict=kind', {kind:o.kind, data:o.data}, up) : rest('DELETE', 'active?kind=eq.'+o.kind);
+  return rest('POST', 'settings?on_conflict=id', {id:'baby', data:o.data}, up);
+}
+const offlineError = e => e instanceof TypeError || e?.code === 'offline';
+const outbox = {
+  key:'nestlog-outbox', busy:false,
+  load(){ try { return JSON.parse(localStorage.getItem(this.key)) || []; } catch { return []; } },
+  save(q){ try { q.length ? localStorage.setItem(this.key, JSON.stringify(q)) : localStorage.removeItem(this.key); } catch {} },
+  async flush(){
+    if (this.busy) return; this.busy = true;
+    let q = this.load();
+    try { while (q.length){ await sendOp(q[0]); q = this.load(); q.shift(); this.save(q); } S.online = true; }
+    catch(e){ if (offlineError(e)) S.online = false; else { this.save(this.load().slice(1)); toast('One change couldn’t sync and was dropped. Check the entry and log it again.'); } }
+    finally { this.busy = false; render(); }
+  }
+};
+/* last synced copy of the shared log, so the app opens offline. Cleared on sign out. */
+const cache = {
+  key:'nestlog-cache', t:null,
+  load(){ try { return JSON.parse(localStorage.getItem(this.key)); } catch { return null; } },
+  save(){ clearTimeout(this.t); this.t = setTimeout(() => { if (S.mode!=='home' && S.mode!=='cloud' || !S.loaded) return;
+    try { localStorage.setItem(this.key, JSON.stringify({mode:S.mode, me:S.me, logs:Object.fromEntries(S.logs.map(({id,...l}) => [id, l])), active:S.active, settings:S.settings, names:S.names})); } catch {} }, 800); },
+  clear(){ try { localStorage.removeItem(this.key); localStorage.removeItem(outbox.key); } catch {} },
+  restore(){ const c = this.load(); if (!c || c.mode !== S.mode || (S.mode==='cloud' && c.me !== S.me)) return; S.names = c.names || {}; applyHome(c); }
+};
+async function sendShared(o){
+  if (outbox.load().length){ outbox.save([...outbox.load(), o]); applyChange(o); outbox.flush(); return; }
+  try { await sendOp(o); S.online = true; applyChange(o); }
+  catch(e){ if (!offlineError(e)) throw e; outbox.save([...outbox.load(), o]); S.online = false; applyChange(o); }
+}
 const store = {
   async putLog(id, data){
     if (db) return db.collection('logs').doc(id).set(data);
-    if (S.mode==='home') return home('PUT', 'logs/'+encodeURIComponent(id), data);
-    if (S.mode==='cloud'){ await rest('POST', 'logs?on_conflict=id', {id, t:data.t, data}, 'resolution=merge-duplicates,return=minimal'); return applyChange({op:'log', id, data}); }
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'log', id, data});
     const d = local.load(); d.logs = d.logs || {}; d.logs[id] = data; local.save(d); applyLocal();
   },
   async delLog(id){
     if (db) return db.collection('logs').doc(id).delete();
-    if (S.mode==='home') return home('DELETE', 'logs/'+encodeURIComponent(id));
-    if (S.mode==='cloud'){ await rest('DELETE', 'logs?id=eq.'+encodeURIComponent(id)); return applyChange({op:'log', id, data:null}); }
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'log', id, data:null});
     const d = local.load(); if (d.logs) delete d.logs[id]; local.save(d); applyLocal();
   },
   async setActive(kind, data){
     if (db) return data ? db.doc('active/'+kind).set(data) : db.doc('active/'+kind).delete();
-    if (S.mode==='home') return home(data ? 'PUT' : 'DELETE', 'active/'+kind, data || undefined);
-    if (S.mode==='cloud'){
-      if (data) await rest('POST', 'active?on_conflict=kind', {kind, data}, 'resolution=merge-duplicates,return=minimal');
-      else await rest('DELETE', 'active?kind=eq.'+kind);
-      return applyChange({op:'active', kind, data});
-    }
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'active', kind, data: data || null});
     const d = local.load(); d.active = d.active || {}; if (data) d.active[kind] = data; else delete d.active[kind]; local.save(d); applyLocal();
   },
   async setSettings(data){
     if (db) return db.doc('settings/baby').set(data);
-    if (S.mode==='home') return home('PUT', 'settings', data);
-    if (S.mode==='cloud'){ await rest('POST', 'settings?on_conflict=id', {id:'baby', data}, 'resolution=merge-duplicates,return=minimal'); return applyChange({op:'settings', data}); }
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'settings', data});
     const d = local.load(); d.settings = data; local.save(d); applyLocal();
   },
   /* many entries at once (import): one write instead of one per entry */
@@ -495,7 +527,14 @@ function applyHome(d){
   S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
   S.active = d.active || {};
   S.settings = {...S.settings, ...(d.settings||{})};
-  S.loaded = true; render();
+  /* changes still waiting in the outbox stay visible over the server's copy */
+  for (const o of outbox.load()){
+    if (o.op==='log'){ S.logs = S.logs.filter(l => l.id !== o.id); if (o.data) S.logs.push({id:o.id, ...o.data}); }
+    else if (o.op==='active'){ if (o.data) S.active[o.kind] = o.data; else delete S.active[o.kind]; }
+    else S.settings = {...S.settings, ...o.data};
+  }
+  S.logs.sort((a,b)=>b.t-a.t);
+  S.loaded = true; render(); cache.save();
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
 }
 async function loadHome(){
@@ -582,7 +621,7 @@ const live = {
     ws.onmessage = e => {
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.event==='phx_reply' && m.ref===this.joinRef){
-        if (m.payload?.status==='ok'){ S.online = true; loadCloud().catch(cloudFail); } else { S.online = false; render(); }
+        if (m.payload?.status==='ok'){ S.online = true; outbox.flush().then(() => loadCloud()).catch(cloudFail); } else { S.online = false; render(); }
       }
       else if (m.event==='postgres_changes') cloudChange(m.payload?.data);
       else if (m.event==='phx_error' || m.event==='phx_close') ws.close();
@@ -600,10 +639,11 @@ const live = {
 function cloudFail(e){ if (e?.code==='not_family') signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); else { S.online = false; render(); } }
 function startCloud(){
   S.me = auth.s.email; S.loaded = false; S.online = false; render();
+  cache.restore();
   live.start();
 }
 function signedOut(msg){
-  live.stop(); auth.save(null);
+  live.stop(); auth.save(null); cache.clear();
   S.logs = []; S.active = {}; S.names = {}; S.loaded = false; S.tab = 'home'; S.me = null;
   SI = {step:'email', email:'', busy:false, err:msg || '', key:''};
   closeSheet(); render();
@@ -619,7 +659,7 @@ function applyChange(ch){
   else if (ch.op==='active'){ S.active = {...S.active}; if (ch.data) S.active[ch.kind] = ch.data; else delete S.active[ch.kind]; }
   else if (ch.op==='settings') S.settings = {...S.settings, ...ch.data};
   else if (ch.op==='reload'){ (S.mode==='cloud' ? loadCloud : loadHome)().catch(()=>{}); return; }
-  render();
+  cache.save(); render();
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
 }
 function applyLocal(){
@@ -794,6 +834,8 @@ function render(){
   $('sync').classList.toggle('on', S.mode==='db' || (shared && S.online && S.loaded));
   $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only')
     : shared ? (!S.online ? (S.loaded ? 'Offline' : 'Connecting') : S.loaded ? (S.mode==='home' ? 'Home sync' : 'Family sync') : 'Connecting') : 'This device';
+  const waiting = shared ? outbox.load().length : 0;
+  if (waiting) $('syncText').textContent += ` · ${waiting} waiting`;
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
   if (S.tab==='home') renderHome();
@@ -1529,9 +1571,9 @@ setInterval(() => {
 /* ---------- boot ---------- */
 /* served by server.js on a home laptop: sync through it, and never fall back to a per-phone copy */
 function bootHome(){
-  S.mode='home'; S.loaded=false; render();
+  S.mode='home'; S.loaded=false; render(); cache.restore(); S.online=false;
   const es = new EventSource('api/events');
-  es.onopen = () => { loadHome().then(() => { S.online = true; render(); }).catch(() => { S.online = false; render(); }); };
+  es.onopen = () => { outbox.flush().then(loadHome).then(() => { S.online = true; render(); }).catch(() => { S.online = false; render(); }); };
   es.onmessage = e => { try { applyChange(JSON.parse(e.data)); } catch {} };
   es.onerror = () => { S.online = false; render(); };
 }
@@ -1549,6 +1591,16 @@ function bootCloud(){
     if (document.visibilityState !== 'visible' || !auth.s) return;
     if (!live.ws || live.ws.readyState > 1) live.start(); else loadCloud().catch(cloudFail);
   });
+}
+window.addEventListener('online', () => {
+  if (S.mode!=='home' && S.mode!=='cloud') return;
+  outbox.flush();
+  if (S.mode==='cloud' && auth.s && (!live.ws || live.ws.readyState > 1)) live.start();
+});
+/* offline app shell: not on localhost (stale files while developing) unless ?sw, and not inside claude.ai */
+if ('serviceWorker' in navigator && isSecureContext && !window.claude
+    && (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || new URLSearchParams(location.search).has('sw'))){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 const wantCloud = !window.claude && CLOUD.url && location.protocol !== 'file:'
   && (new URLSearchParams(location.search).has('cloud') || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));

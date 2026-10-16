@@ -13,9 +13,9 @@ const os = require('os');
 const path = require('path');
 
 const ROOT = __dirname;
-const STATIC = new Set(['/index.html', '/manifest.webmanifest']);
+const STATIC = new Set(['/index.html', '/manifest.webmanifest', '/sw.js']);
 const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.webmanifest': 'application/manifest+json',
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json',
   '.svg': 'image/svg+xml', '.png': 'image/png',
 };
 const KEEP_BACKUPS = 30;
