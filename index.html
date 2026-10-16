@@ -1,8 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nestlog</title>
+<meta name="description" content="Baby tracker for feeds, sleep, diapers, pumping and growth.">
+<meta name="theme-color" content="#f4f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#110f16" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nestlog">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Onest:wght@400;500;600&display=swap">
 <style>
+/* base reset: phone safe areas, [hidden] always wins */
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
 /* Nestlog design system
    Layout: single 480px column. Header → "Right now" status card with a 24-hour ribbon → live timers → log actions
    (4 primary tiles, 3 secondary pills) → today → recent. Bottom tab bar. Sheets slide up for every entry.
@@ -131,7 +152,7 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weigh
 
 /* entry list */
 .list{overflow:hidden}
-.entry{display:grid;grid-template-columns:52px 1fr;gap:var(--s3);align-items:center;width:100%;text-align:left;padding:var(--s3) var(--s4);position:relative}
+.entry{display:grid;grid-template-columns:4.6em 1fr;gap:var(--s3);align-items:center;width:100%;text-align:left;padding:var(--s3) var(--s4);position:relative}
 .entry+.entry{border-top:1px solid var(--line)}
 .entry time{font-size:var(--fs-sm);font-weight:500;color:var(--ink-2)}
 .entry .body{display:flex;gap:var(--s3);align-items:center;min-width:0}
@@ -156,6 +177,13 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weigh
 .seg button{flex:1 0 auto;padding:8px 14px;border-radius:var(--r-pill);font-size:var(--fs-sm);font-weight:600;color:var(--muted);white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.presets .chips{display:grid;grid-template-columns:repeat(5,1fr)}
+.presets .chip{padding:0}
+.entry time{white-space:nowrap}
+.fact b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status .wake{height:44px;padding:0 var(--s4);border-radius:var(--r-pill);flex:none;align-self:center}
+.today b{white-space:nowrap;font-size:clamp(17px,5.2vw,var(--fs-xl))}
+.toast.top{bottom:auto;top:calc(var(--s4) + env(safe-area-inset-top,0px))}
 .chip{height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--sunk);font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 
@@ -255,7 +283,8 @@ textarea.dump{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 .err{color:var(--danger);font-size:var(--fs-sm);margin:0}
 .note{font-size:var(--fs-sm);color:var(--ink-2);margin:0}
 </style>
-
+</head>
+<body>
 <div class="app">
   <header class="top">
     <div class="avatar" id="avatar" aria-hidden="true">N</div>
@@ -532,12 +561,12 @@ function renderStatus(){
   const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
   const nurse = lastOf(l => l.type==='nurse' && l.last);
   const diaper = lastOf(l => l.type==='diaper');
-  const feedSub = S.active.nurse ? 'Nursing now' : nurse ? `Next side: ${nurse.last==='L'?'right':'left'}` : feed ? describe(feed) : 'No feeds yet';
+  const feedSub = nurse && feed?.type==='nurse' ? `next ${nurse.last==='L'?'right':'left'}` : feed ? (feed.type==='bottle' ? `${volOut(feed.ml||0)} ${volU()}` : 'nursing') : '';
   $('status').innerHTML = `
-    <div class="head"><div class="state ${cls} num"><small>${label}</small>${value}</div></div>
+    <div class="head"><div class="state ${cls} num"><small>${label}</small>${value}</div>${sl?'<button type="button" class="btn primary wake press" data-act="wake">Woke up</button>':''}</div>
     <div class="facts">
-      <div class="fact k-feed"><i class="dot"></i><div><b>${S.active.nurse?'Feeding':feed?'Fed '+ago(feed.t):'Feeds'}</b><span>${esc(feedSub)}</span></div></div>
-      <div class="fact k-diaper"><i class="dot"></i><div><b>${diaper?'Changed '+ago(diaper.t):'Diapers'}</b><span>${diaper?DIAPER[diaper.kind]:'None logged yet'}</span></div></div>
+      <div class="fact k-feed"><i class="dot"></i><div><b>${S.active.nurse?'Feeding now':feed?ago(feed.t):'No feeds'}</b><span>${S.active.nurse?'Nursing':feed?'Last feed':'Log the first one'}${S.active.nurse||!feed?'':' · '+esc(feedSub)}</span></div></div>
+      <div class="fact k-diaper"><i class="dot"></i><div><b>${diaper?ago(diaper.t):'No changes'}</b><span>${diaper?'Last diaper · '+DIAPER[diaper.kind].toLowerCase():'Log the first one'}</span></div></div>
     </div>
     ${ribbon()}
     <div class="legend"><span class="k-sleep"><i></i>Sleep</span><span class="k-feed"><i style="border-radius:50%"></i>Feed</span><span class="k-diaper"><i></i>Diaper</span><span style="margin-left:auto">Last 24 hours</span></div>`;
@@ -550,11 +579,7 @@ function renderLive(){
       <button type="button" class="open" data-open="nurse"><span class="l">${n.side?`Nursing · ${n.side==='L'?'left':'right'}`:'Nursing · paused'}</span><br><span class="t num">${clock(L+R)}</span></button>
       <span class="ctl"><button type="button" class="mini ${n.side==='L'?'on':''} press" data-side="L" aria-label="Left side">L</button><button type="button" class="mini ${n.side==='R'?'on':''} press" data-side="R" aria-label="Right side">R</button><button type="button" class="mini solid press" data-act="nurseSave">Done</button></span></div>`;
   }
-  if (a.sleep){
-    h += `<div class="timer k-sleep"><i class="pulse"></i>
-      <button type="button" class="open" data-open="sleep"><span class="l">Sleeping since ${tfmt(a.sleep.start)}</span><br><span class="t num" data-clock="${a.sleep.start}">${clock(now()-a.sleep.start)}</span></button>
-      <span class="ctl"><button type="button" class="mini solid press" data-act="wake">Woke up</button></span></div>`;
-  }
+  /* a running sleep lives in the status card, with its own Woke up button */
   $('live').innerHTML = h;
 }
 function renderHome(){
@@ -616,9 +641,9 @@ function renderTimeline(){
 function barChart(k, title, headline, sub, vals, labels, fmt){
   const W=320,H=128,pl=2,pr=2,pt=18,pb=18, n=vals.length;
   const max = Math.max(1, ...vals), bw = (W-pl-pr)/n, gap = n > 10 ? .3 : .22;
-  const past = vals.slice(0,-1).filter((_,i)=>i>=0), avg = past.length ? past.reduce((a,b)=>a+b,0)/past.length : 0;
+  const avg = pastAvg(vals);
   let g = `<line x1="0" x2="${W}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>`;
-  if (avg){ const y = H-pb-(H-pt-pb)*avg/max; g += `<line x1="0" x2="${W}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line-strong)" stroke-dasharray="3 4"/>`; }
+  if (avg !== null){ const y = H-pb-(H-pt-pb)*avg/max; g += `<line x1="0" x2="${W}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line-strong)" stroke-dasharray="3 4"/>`; }
   vals.forEach((v,i) => {
     const h = (H-pt-pb)*v/max, x = pl+i*bw+bw*gap/2, w = bw*(1-gap), y = H-pb-h, last = i===n-1;
     if (v) g += `<path d="M${x} ${H-pb}V${y+Math.min(5,h)}a5 5 0 0 1 5-5h${w-10}a5 5 0 0 1 5 5V${H-pb}Z" fill="var(--c)" opacity="${last?1:.45}"/>`;
@@ -627,6 +652,8 @@ function barChart(k, title, headline, sub, vals, labels, fmt){
   });
   return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${headline}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} per day">${g}</svg></div>`;
 }
+/* mean of the days before today that have any entries; null when there are none */
+function pastAvg(vals){ const p = vals.slice(0,-1).filter(v => v > 0); return p.length ? p.reduce((a,b)=>a+b,0)/p.length : null; }
 function growthChart(){
   const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
   if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
@@ -652,15 +679,16 @@ function renderTrends(){
   const n = S.range, today = startOfDay(now()); const days = [...Array(n)].map((_,i)=>today-(n-1-i)*DAY);
   const st = days.map(dayStats);
   const labels = days.map(d => n<=7 ? new Date(d).toLocaleDateString([], {weekday:'narrow'}) : new Date(d).getDate());
-  const avg = a => { const p = a.slice(0,-1); return p.length ? p.reduce((x,y)=>x+y,0)/p.length : 0; };
   const sleepH = st.map(s=>+(s.sleepMs/HR).toFixed(1)), feeds = st.map(s=>s.feeds), bottle = st.map(s=>volOut(s.bottleMl)), diapers = st.map(s=>s.diapers), pump = st.map(s=>volOut(s.pumpMl));
-  const note = `Dashed line is the average before today`;
+  /* headline: average of earlier days that have entries; with no history yet, today's figure */
+  const head = (vals, f) => { const a = pastAvg(vals); return a === null ? [f(vals.at(-1)), 'So far today'] : [f(a), null]; };
+  const chart = (k, title, vals, f, sub) => { const [h, alt] = head(vals, f); return barChart(k, title, h, alt || sub, vals, labels, v=>v); };
   $('trends').innerHTML =
-    barChart('sleep','Sleep', `${avg(sleepH).toFixed(1)} h`, `Average hours per day · ${note.toLowerCase()}`, sleepH, labels, v=>v)+
-    barChart('feed','Feeds', `${avg(feeds).toFixed(1)}`, `Average nursing and bottle feeds per day`, feeds, labels, v=>v)+
-    (bottle.some(Boolean) ? barChart('feed','Bottle', `${Math.round(avg(bottle))} ${volU()}`, `Average bottle volume per day`, bottle, labels, v=>v) : '')+
-    barChart('diaper','Diapers', `${avg(diapers).toFixed(1)}`, `Average changes per day`, diapers, labels, v=>v)+
-    (pump.some(Boolean) ? barChart('pump','Pumped', `${Math.round(avg(pump))} ${volU()}`, `Average pumped per day`, pump, labels, v=>v) : '')+
+    chart('sleep','Sleep', sleepH, v=>`${(+v).toFixed(1)} h`, `Average hours per day · dashed line marks it`)+
+    chart('feed','Feeds', feeds, v=>(+v).toFixed(1), `Average nursing and bottle feeds per day`)+
+    (bottle.some(Boolean) ? chart('feed','Bottle', bottle, v=>`${Math.round(v)} ${volU()}`, `Average bottle volume per day`) : '')+
+    chart('diaper','Diapers', diapers, v=>(+v).toFixed(1), `Average changes per day`)+
+    (pump.some(Boolean) ? chart('pump','Pumped', pump, v=>`${Math.round(v)} ${volU()}`, `Average pumped per day`) : '')+
     growthChart();
 }
 function renderBaby(){
@@ -670,7 +698,7 @@ function renderBaby(){
   }
   $('shareNote').innerHTML = S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
-    : `Sharing is off on this screen, so entries stay in this browser. Open Nestlog from its claude.ai link while signed in to sync with your partner.`;
+    : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. Live sync between phones works in the claude.ai version of Nestlog.`;
 }
 
 /* ---------- sheets ---------- */
@@ -699,7 +727,7 @@ function openSheet(type, existing){
     const presets = oz() ? [2,3,4,5,6] : [60,90,120,150,180];
     const last = lastOf(l=>l.type==='bottle');
     const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
-    body = `${amount('fAmt','Amount', val, oz()?0.5:10)}${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}
+    body = `${amount('fAmt','Amount', val, oz()?0.5:10)}<div class="presets">${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}</div>
       <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||last?.content||'formula')}</div>${when('fTime','When',time,!existing)}`;
   } else if (type==='solids'){
     body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}`;
@@ -831,6 +859,13 @@ function fileStem(){
   const n = (S.settings.name||'baby').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'baby';
   return `nestlog-${n}-${toLocalInput(now()).slice(0,10)}`;
 }
+function blobSave(filename, data){
+  const type = filename.endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/json';
+  const url = URL.createObjectURL(new Blob([data], {type}));
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.hidden = true;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 async function doExport(kind, btn){
   if (!S.logs.length){ toast('Nothing to export yet'); return; }
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
@@ -841,6 +876,10 @@ async function doExport(kind, btn){
     if (downloads){
       try { await downloads.save({filename, data}); toast(`Saved ${filename}`); return; }
       catch(e){ if (e?.code==='declined') return; if (e?.code==='rate_limited'){ toast('A download is already waiting for your answer'); return; } }
+    }
+    /* outside claude.ai (e.g. GitHub Pages) a normal browser download works */
+    if (!window.claude){
+      try { blobSave(filename, data); toast(`Downloading ${filename}`); return; } catch {}
     }
     $('exportFallback').hidden = false; $('exportText').value = data; $('exportText').dataset.name = filename;
     $('exportText').scrollIntoView({block:'nearest', behavior:'smooth'});
@@ -1038,6 +1077,7 @@ let toastT;
 function toast(msg, actionLabel, onAction){
   const t=$('toast'); t.textContent=msg;
   if (actionLabel){ const b=document.createElement('button'); b.type='button'; b.textContent=actionLabel; b.onclick=()=>{ t.hidden=true; onAction(); }; t.append(b); }
+  t.classList.toggle('top', !!sheetState); /* keep it clear of a sheet's buttons */
   t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, actionLabel?6000:2600);
 }
 
@@ -1075,3 +1115,5 @@ applyLocal();
 })();
 })();
 </script>
+</body>
+</html>
