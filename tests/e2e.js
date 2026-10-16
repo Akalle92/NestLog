@@ -172,6 +172,75 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* Nara Baby export: every kind of row comes in, converted to Nestlog's units and fields */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="baby"]');
+    await p.setInputFiles('#importFile', path.join(__dirname, 'fixtures', 'nara-sample.csv')); await p.waitForTimeout(400);
+    const prev = await text(p, '#importPanel');
+    check('nara: preview finds 15 entries and nothing unreadable', /15 new entries/.test(prev) && !/couldn’t be read/.test(prev), prev.replace(/\s+/g, ' ').slice(0, 160));
+    check('nara: offers the baby details from the export', /Test Baby, born 2026-01-15/.test(prev));
+    await p.screenshot({ path: `${SHOTS}/7-nara-preview.png`, fullPage: true });
+    await p.click('#impGo'); await p.waitForTimeout(400);
+    const L = await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')));
+    const g = id => L.logs[id] || {};
+    const close = (a, b) => Math.abs(a - b) < 0.02;
+    check('nara: formula bottle with brand, note and caregiver', g('nara-t-fx-bottle1').ml === 120 && g('nara-t-fx-bottle1').brand === 'Brand A' && g('nara-t-fx-bottle1').note === 'Leftover 20 ml' && g('nara-t-fx-bottle1').byName === 'Parent One');
+    check('nara: ounces become ml', g('nara-t-fx-bottle2').ml === 59 && g('nara-t-fx-bottle2').content === 'breastmilk');
+    check('nara: diaper colour, texture and blowout', g('nara-t-fx-diaper').kind === 'both' && g('nara-t-fx-diaper').color === 'brown yellow' && g('nara-t-fx-diaper').texture === 'mucous runny' && g('nara-t-fx-diaper').flags === 'blowout');
+    check('nara: growth in lb and inches becomes kg and cm', close(g('nara-t-fx-growth').kg, 4.763) && g('nara-t-fx-growth').cm === 55.9 && g('nara-t-fx-growth').head === 38.5);
+    check('nara: pumps with total only and duration only', g('nara-t-fx-pump1').tml === 40 && g('nara-t-fx-pump1').min === 25 && g('nara-t-fx-pump2').min === 20);
+    check('nara: medicine with dose, temperature in °C', g('nara-t-fx-medical').name === 'Fever Reducer' && g('nara-t-fx-medical').dose === '1.25 ml' && close(g('nara-t-fx-medical-t').c, 38));
+    check('nara: routine, vaccine and milestone', g('nara-t-fx-routine').type === 'medicine' && g('nara-t-fx-vaccine').name === 'Vaccine A, Vaccine B' && g('nara-t-fx-first').title === 'First smile');
+    check('nara: combo feed becomes nursing plus bottle', g('nara-t-fx-combo').type === 'nurse' && g('nara-t-fx-combo').last === 'R' && g('nara-t-fx-combo-b').ml === 20);
+    await p.click('.tabs [data-tab="timeline"]'); await p.waitForTimeout(200);
+    check('nara: caregiver shows on the entry', /· Parent/.test(await text(p, '#timeline')));
+    await p.screenshot({ path: `${SHOTS}/7-nara-timeline.png`, fullPage: true });
+    await p.click('[data-filter="health"]'); await p.waitForTimeout(150);
+    check('nara: health filter shows medicine, vaccine and temperature', /Fever Reducer/.test(await text(p, '#timeline')) && /Vaccine A/.test(await text(p, '#timeline')) && /°C/.test(await text(p, '#timeline')));
+    await p.click('.tabs [data-tab="baby"]');
+    await p.setInputFiles('#importFile', path.join(__dirname, 'fixtures', 'nara-sample.csv')); await p.waitForTimeout(400);
+    check('nara: importing the same file again adds nothing', /No new entries/.test(await text(p, '#importPanel')));
+    check('nara: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* new log types: each sheet saves and shows */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.click('[data-open="medicine"]'); await p.waitForTimeout(200);
+    await p.screenshot({ path: `${SHOTS}/8-medicine-sheet.png` });
+    await p.fill('#fName', 'Vitamin D'); await p.fill('#fDose', '1 drop'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
+    await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
+    await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
+    await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('[data-open="diaper"]'); await p.click('[data-chip="kind"][data-v="dirty"]');
+    check('diaper: colour and texture appear for a dirty diaper', await p.isVisible('#dirtyBits'));
+    await p.click('[data-chip="color"][data-v="yellow"]'); await p.click('[data-chip="texture"][data-v="seedy"]'); await p.click('[data-chip="flags"][data-v="rash"]');
+    await p.screenshot({ path: `${SHOTS}/8-diaper-sheet.png` });
+    await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
+    const rec = await text(p, '#recent');
+    check('new types: medicine, temperature, milestone, vaccine, diaper details all saved', /Vitamin D · 1 drop/.test(rec) && /37.8 °C/.test(rec) && /First smile/.test(rec) && /MMR/.test(rec) && /yellow, seedy · Rash/.test(rec), rec.replace(/\s+/g, ' ').slice(0, 200));
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    check('trends: temperature chart appears once there is a reading', /Temperature/.test(await text(p, '#trends')));
+    const taste = await p.evaluate(tasteAudit);
+    check('new types: taste house rules on trends', !taste.length, taste.join(' | '));
+    await p.click('.tabs [data-tab="home"]'); await p.waitForTimeout(200);
+    await p.screenshot({ path: `${SHOTS}/8-home-new-types.png`, fullPage: true });
+    check('new types: home has no horizontal overflow', await noOverflow(p));
+    check('new types: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* home server: two phones on the same Wi-Fi share one log through server.js */
   {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nestlog-'));

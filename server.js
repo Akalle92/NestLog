@@ -25,21 +25,31 @@ const SAFE_ID = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
 const num = v => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : 0);
 const str = (v, n = 120) => (typeof v === 'string' ? v.slice(0, n) : '');
 const who = v => (typeof v === 'string' && v.length < 80 ? v : null);
+const vocab = list => v => String(v || '').toLowerCase().split(/[\s,]+/).filter((w, i, a) => list.includes(w) && a.indexOf(w) === i).join(' ');
 const FIELDS = {
   nurse: { left: num, right: num, end: num, last: v => (v === 'R' ? 'R' : 'L') },
-  bottle: { ml: num, content: v => (v === 'breastmilk' ? 'breastmilk' : 'formula') },
+  bottle: { ml: num, content: v => (v === 'breastmilk' || v === 'mixed' ? v : 'formula'), brand: v => str(v, 40) },
   solids: { food: v => str(v), reaction: v => str(v, 30) },
   sleep: { end: num },
-  diaper: { kind: v => (['wet', 'dirty', 'both', 'dry'].includes(v) ? v : 'wet'), note: v => str(v) },
-  pump: { lml: num, rml: num, min: num },
+  diaper: { kind: v => (['wet', 'dirty', 'both', 'dry'].includes(v) ? v : 'wet'),
+    color: vocab(['yellow', 'green', 'brown', 'black', 'red']), texture: vocab(['seedy', 'mush', 'runny', 'solid', 'pebble', 'mucous']), flags: vocab(['blowout', 'rash']) },
+  pump: { lml: num, rml: num, tml: num, min: num },
   growth: { kg: num, cm: num, head: num },
+  medicine: { name: v => str(v, 80), dose: v => str(v, 40) },
+  vaccine: { name: v => str(v, 80) },
+  temp: { c: num },
+  milestone: { title: v => str(v, 80) },
 };
+const COMMON = { note: v => str(v, 200), byName: v => str(v, 40) };
 function cleanLog(raw) {
   if (!raw || typeof raw !== 'object' || !FIELDS[raw.type]) return null;
   const t = num(raw.t); if (!t) return null;
   const o = { type: raw.type, t, created: num(raw.created) || Date.now(), by: who(raw.by) };
-  for (const [k, fix] of Object.entries(FIELDS[raw.type])) if (raw[k] !== undefined) o[k] = fix(raw[k]);
+  for (const [k, fix] of Object.entries({ ...FIELDS[raw.type], ...COMMON })) if (raw[k] !== undefined) o[k] = fix(raw[k]);
   if (o.type === 'sleep' && !(o.end > t)) return null;
+  if ((o.type === 'medicine' || o.type === 'vaccine') && !o.name) return null;
+  if (o.type === 'milestone' && !o.title) return null;
+  if (o.type === 'temp' && !(o.c >= 30 && o.c <= 45)) return null;
   return o;
 }
 const side = v => (v === 'L' || v === 'R' ? v : null);
@@ -51,7 +61,7 @@ function cleanActive(kind, raw) {
 }
 function cleanSettings(raw) {
   raw = raw && typeof raw === 'object' ? raw : {};
-  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg' };
+  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg', temp: raw.temp === 'F' ? 'F' : 'C' };
 }
 
 /* ---------- storage: one JSON file, written atomically ---------- */

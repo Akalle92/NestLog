@@ -37,7 +37,7 @@ img{max-width:100%}
   /* action: buttons and focus are ink, not a brand hue */
   --brand:#1b211e; --brand-ink:#f7f6f3; --brand-soft:#e2e1dc;
   /* log families */
-  --c-feed:#b0611a; --c-sleep:#2b6890; --c-diaper:#14786a; --c-pump:#b13d66; --c-growth:#477a28;
+  --c-feed:#b0611a; --c-sleep:#2b6890; --c-diaper:#14786a; --c-pump:#b13d66; --c-growth:#477a28; --c-health:#a5352c; --c-moment:#806400;
   --danger:#b4232b; --ok:#14786a;
   /* type */
   --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
@@ -55,7 +55,7 @@ img{max-width:100%}
   --bg:#121413; --surface:#1b1e1c; --raised:#222624; --sunk:#292d2b; --line:#2f3431; --line-strong:#454b47;
   --ink:#ecebe6; --ink-2:#cfd0ca; --muted:#a2a7a0;
   --brand:#ecebe6; --brand-ink:#121413; --brand-soft:#2e3330;
-  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472;
+  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472; --c-health:#f0938a; --c-moment:#d8bd55;
   --danger:#f08a8f; --ok:#4fbfad;
   --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
   --tint:18%; color-scheme:dark}}
@@ -63,13 +63,13 @@ img{max-width:100%}
   --bg:#121413; --surface:#1b1e1c; --raised:#222624; --sunk:#292d2b; --line:#2f3431; --line-strong:#454b47;
   --ink:#ecebe6; --ink-2:#cfd0ca; --muted:#a2a7a0;
   --brand:#ecebe6; --brand-ink:#121413; --brand-soft:#2e3330;
-  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472;
+  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472; --c-health:#f0938a; --c-moment:#d8bd55;
   --danger:#f08a8f; --ok:#4fbfad;
   --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
   --tint:18%; color-scheme:dark}
 
 /* family helpers: set --c, get ink + tint */
-.k-feed{--c:var(--c-feed)} .k-sleep{--c:var(--c-sleep)} .k-diaper{--c:var(--c-diaper)} .k-pump{--c:var(--c-pump)} .k-growth{--c:var(--c-growth)}
+.k-feed{--c:var(--c-feed)} .k-sleep{--c:var(--c-sleep)} .k-diaper{--c:var(--c-diaper)} .k-pump{--c:var(--c-pump)} .k-growth{--c:var(--c-growth)} .k-health{--c:var(--c-health)} .k-moment{--c:var(--c-moment)}
 .tint{background:color-mix(in oklab, var(--c) var(--tint), var(--surface));color:var(--c)}
 
 /* base */
@@ -139,8 +139,8 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 .tile .tl{display:grid;min-width:0}
 .tile b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);color:var(--ink);letter-spacing:-.01em}
 .tile small{font-size:var(--fs-s);font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pills{display:flex;gap:var(--s2);margin-top:var(--s2)}
-.pill{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:48px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-m);font-weight:600}
+.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-top:var(--s2)}
+.pill{min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:48px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-m);font-weight:600}
 .pill svg{width:18px;height:18px;color:var(--c)}
 
 /* today */
@@ -286,7 +286,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 .signin h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-2xl);line-height:.95;letter-spacing:-.04em}
 .signin .lead{margin:var(--s3) 0 0;font-size:var(--fs-l);color:var(--ink-2);max-width:30ch}
 .signin form{display:grid;gap:var(--s4);padding:var(--s5)}
-.signin .linkbtn{justify-self:start;min-height:44px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.linkbtn{justify-self:start;min-height:44px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .note{font-size:var(--fs-s);color:var(--ink-2);margin:0}
 </style>
 </head>
@@ -335,6 +335,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
         <div class="grid2">
           <div class="field"><label class="label" for="setVol">Volume</label><select id="setVol"><option value="ml">Millilitres (ml)</option><option value="oz">Ounces (oz)</option></select></div>
           <div class="field"><label class="label" for="setWt">Weight</label><select id="setWt"><option value="kg">Kilograms</option><option value="lb">Pounds</option></select></div>
+          <div class="field"><label class="label" for="setTemp">Temperature</label><select id="setTemp"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></div>
         </div>
         <button class="btn primary" type="submit">Save baby details</button>
       </div>
@@ -383,6 +384,10 @@ const I = {
   diaper: sv('<path d="M3.5 6.5h17v2.5a8.5 8.5 0 0 1-17 0Z"/><path d="M8 6.5v2.5M16 6.5v2.5"/>'),
   pump: sv('<path d="M5.5 6.5a4.5 4.5 0 0 1 9 0Z"/><path d="M10 6.5v3.5"/><path d="M7.5 10h5v8.5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2Z"/><path d="M14.5 6.5h3a2 2 0 0 1 2 2v2"/>'),
   growth: sv('<path d="M4 20h16"/><path d="M7 20v-8M12 20V6M17 20v-5"/>'),
+  medicine: sv('<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-40 12 12)"/><path d="m9.2 8.8 5.6 6.4"/>'),
+  vaccine: sv('<path d="m17 3.5 3.5 3.5M18.75 5.25l-3 3"/><path d="m15.5 6.5 2 2-8.5 8.5H7v-2Z"/><path d="M7 17l-3.5 3.5M11 9.5l1.5 1.5M9 11.5l1.5 1.5"/>'),
+  temp: sv('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 17.5V11"/>'),
+  milestone: sv('<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9Z"/>'),
   home: sv('<path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4Z"/>'),
   list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
   chart: sv('<path d="M4 19h16"/><path d="m5 15 4-5 4 3 6-7"/>'),
@@ -396,12 +401,22 @@ const TYPES = {
   sleep:{label:'Sleep',short:'Sleep',k:'sleep',icon:I.sleep,group:'sleep'},
   diaper:{label:'Diaper',short:'Diaper',k:'diaper',icon:I.diaper,group:'diaper'},
   pump:{label:'Pumping',short:'Pump',k:'pump',icon:I.pump,group:'pump'},
-  growth:{label:'Growth',short:'Growth',k:'growth',icon:I.growth,group:'growth'}
+  growth:{label:'Growth',short:'Growth',k:'growth',icon:I.growth,group:'growth'},
+  medicine:{label:'Medicine',short:'Medicine',k:'health',icon:I.medicine,group:'health'},
+  vaccine:{label:'Vaccine',short:'Vaccine',k:'health',icon:I.vaccine,group:'health'},
+  temp:{label:'Temperature',short:'Temp',k:'health',icon:I.temp,group:'health'},
+  milestone:{label:'Milestone',short:'Milestone',k:'moment',icon:I.milestone,group:'moment'}
 };
+/* diaper details: fixed vocabularies, so imports and edits can't add arbitrary words */
+const DCOLOR = {yellow:'Yellow',green:'Green',brown:'Brown',black:'Black',red:'Red'};
+const DTEXTURE = {seedy:'Seedy',mush:'Mushy',runny:'Runny',solid:'Solid',pebble:'Pebbles',mucous:'Mucous'};
+const DFLAGS = {blowout:'Blowout',rash:'Rash'};
+const words = (v, vocab) => String(v||'').toLowerCase().split(/[\s,]+/).filter((w,i,a) => vocab[w] && a.indexOf(w)===i).join(' ');
+const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled','First steps'];
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg',temp:'C'}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -618,7 +633,7 @@ async function write(fn){
 /* ---------- time ---------- */
 const MIN = 6e4, HR = 36e5, DAY = 864e5;
 const now = () => Date.now();
-function dur(ms){ ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60); return h ? `${h}h ${m%60}m` : `${m}m`; }
+function dur(ms){ ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60); return h >= 48 ? `${Math.floor(h/24)}d ${h%24}h` : h ? `${h}h ${m%60}m` : `${m}m`; }
 function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0'); }
 const ago = t => (now()-t) < MIN ? 'just now' : dur(now()-t)+' ago';
 const tfmt = t => new Date(t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
@@ -656,16 +671,31 @@ const volU = () => S.settings.vol;
 const wtOut = kg => S.settings.wt === 'lb' ? +(kg/KG_PER_LB).toFixed(2) : +kg.toFixed(2);
 const wtIn = v => S.settings.wt === 'lb' ? v*KG_PER_LB : v;
 const wtU = () => S.settings.wt;
+const fahr = () => S.settings.temp === 'F';
+const tempOut = c => fahr() ? +(c*9/5+32).toFixed(1) : +(+c).toFixed(1);
+const tempIn = v => fahr() ? (v-32)*5/9 : v;
+const tempU = () => fahr() ? '°F' : '°C';
 
 /* ---------- derived ---------- */
 function describe(l){
+  const d = describeMain(l);
+  return l.note && l.type !== 'diaper' ? [d, l.note].filter(Boolean).join(' · ') : d;
+}
+function describeMain(l){
   switch(l.type){
     case 'nurse': return `Left ${dur(l.left||0)} · Right ${dur(l.right||0)}${l.last?` · ended ${l.last==='L'?'left':'right'}`:''}`;
-    case 'bottle': return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':'formula'}`;
+    case 'bottle': if (!l.ml) return [l.content==='breastmilk'?'Breast milk':'Formula', 'amount not recorded', l.brand].filter(Boolean).join(' · ');
+      return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':l.content==='mixed'?'breast milk + formula':'formula'}${l.brand?` · ${l.brand}`:''}`;
     case 'solids': return [l.food, l.reaction].filter(Boolean).join(' · ') || 'Solids';
     case 'sleep': return l.end ? `${dur(l.end-l.t)} · until ${tfmt(l.end)}` : 'In progress';
-    case 'diaper': return DIAPER[l.kind] + (l.note?` · ${l.note}`:'');
-    case 'pump': return `${volOut((l.lml||0)+(l.rml||0))} ${volU()} · L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}${l.min?` · ${l.min} min`:''}`;
+    case 'diaper': { const det = [l.color, l.texture].filter(Boolean).join(', '), fl = (l.flags||'').split(' ').filter(Boolean).map(f=>DFLAGS[f]).join(', ');
+      return [DIAPER[l.kind], det, fl, l.note].filter(Boolean).join(' · '); }
+    case 'pump': { const tot = (l.lml||0)+(l.rml||0) || l.tml || 0;
+      return [tot ? `${volOut(tot)} ${volU()}` : '', l.lml||l.rml ? `L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}` : '', l.min ? `${l.min} min` : ''].filter(Boolean).join(' · ') || 'Pumped'; }
+    case 'medicine': return [l.name, l.dose].filter(Boolean).join(' · ');
+    case 'vaccine': return l.name || 'Vaccine';
+    case 'temp': return `${tempOut(l.c)} ${tempU()}`;
+    case 'milestone': return l.title || 'Milestone';
     case 'growth': return [l.kg?`${wtOut(l.kg)} ${wtU()}`:'', l.cm?`${l.cm} cm`:'', l.head?`head ${l.head} cm`:''].filter(Boolean).join(' · ');
   }
   return '';
@@ -683,7 +713,7 @@ function dayStats(from){
   const diapers = inDay.filter(l=>l.type==='diaper');
   const wet = diapers.filter(d=>d.kind==='wet'||d.kind==='both').length;
   const dirty = diapers.filter(d=>d.kind==='dirty'||d.kind==='both').length;
-  const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+(l.lml||0)+(l.rml||0),0);
+  const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+((l.lml||0)+(l.rml||0) || l.tml || 0),0);
   return {feeds:feeds.length, bottleMl, nurseMs, sleepMs, wet, dirty, diapers:diapers.length, pumpMl};
 }
 function nurseTotals(){
@@ -770,7 +800,7 @@ function renderHome(){
     tile('bottle', lastBottle ? `${volOut(lastBottle.ml)} ${volU()}` : '') +
     tile('sleep', S.active.sleep ? 'Wake up' : 'Start') +
     tile('diaper', '');
-  $('pills').innerHTML = ['solids','pump','growth'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
+  $('pills').innerHTML = ['solids','pump','growth','medicine','temp','milestone'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
 
   const d = dayStats(startOfDay(now()));
   $('totals').innerHTML =
@@ -786,7 +816,8 @@ function renderHome(){
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
-  const who = l.by && l.by !== S.me && S.names[l.by] ? ` <span class="by">· ${esc(S.names[l.by].split(' ')[0])}</span>` : '';
+  const name = l.by && l.by !== S.me && S.names[l.by] ? S.names[l.by] : !l.by || l.by !== S.me ? l.byName : '';
+  const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
   return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span></span></button>`;
 }
 let namesPending = false;
@@ -802,7 +833,7 @@ async function resolveNames(){
   } finally { namesPending = false; }
 }
 function renderTimeline(){
-  const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth']];
+  const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth'],['health','Health'],['moment','Milestones']];
   $('filters').innerHTML = F.map(([k,l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
   if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:var(--s5)"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
   const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
@@ -811,7 +842,7 @@ function renderTimeline(){
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
   $('timeline').innerHTML = groups.map(g => {
     const s = dayStats(startOfDay(g.t));
-    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diapers</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
+    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
   }).join('');
 }
 
@@ -832,25 +863,36 @@ function barChart(k, title, headline, sub, vals, labels, fmt){
 }
 /* mean of the days before today that have any entries; null when there are none */
 function pastAvg(vals){ const p = vals.slice(0,-1).filter(v => v > 0); return p.length ? p.reduce((a,b)=>a+b,0)/p.length : null; }
-function growthChart(){
-  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
-  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+/* line over time: weight, temperature */
+function lineChart(k, title, pts, fmt, unit, sub){
   const W=320,H=150,pl=32,pr=8,pt=12,pb=20;
-  const xs = pts.map(p=>p.t), ys = pts.map(p=>wtOut(p.kg));
+  const xs = pts.map(p=>p.t), ys = pts.map(p=>p.v);
   let x0=Math.min(...xs), x1=Math.max(...xs); if (x1===x0){ x0-=DAY*7; x1+=DAY*7; }
   let y0=Math.min(...ys), y1=Math.max(...ys); const padY=Math.max(.2,(y1-y0)*.18); y0=Math.max(0,y0-padY); y1+=padY;
   const X=t=>pl+(t-x0)/(x1-x0)*(W-pl-pr), Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pt-pb);
   let g='';
   for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
-  const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(wtOut(p.kg)).toFixed(1)}`).join(' ');
+  const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
   if (pts.length>1) g += `<path d="${line} L${X(pts.at(-1).t).toFixed(1)} ${H-pb} L${X(pts[0].t).toFixed(1)} ${H-pb}Z" fill="var(--c)" opacity=".12"/>`;
   g += `<path d="${line}" fill="none" stroke="var(--c)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
-  pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(wtOut(p.kg))}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
+  pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
   const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
   g += `<text x="${pl}" y="${H-4}">${fd(x0)}</text><text x="${W-pr}" y="${H-4}" text-anchor="end">${fd(x1)}</text>`;
+  return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${fmt(pts.at(-1).v)} ${unit}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} over time">${g}</svg></div>`;
+}
+function growthChart(){
+  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
+  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+  const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
   const last = pts.at(-1), first = pts[0], gain = last.kg - first.kg;
   const sub = pts.length > 1 ? `${gain>=0?'+':''}${wtOut(Math.abs(gain)) * (gain<0?-1:1)} ${wtU()} since ${fd(first.t)}` : `Measured ${fd(last.t)}`;
-  return `<div class="card chart k-growth"><header><h3>Weight</h3><span class="big num">${wtOut(last.kg)} ${wtU()}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">${g}</svg></div>`;
+  return lineChart('growth', 'Weight', pts.map(p=>({t:p.t, v:wtOut(p.kg)})), v=>v, wtU(), sub);
+}
+function tempChart(){
+  const pts = S.logs.filter(l=>l.type==='temp' && l.c).sort((a,b)=>a.t-b.t).slice(-30);
+  if (!pts.length) return '';
+  const last = pts.at(-1);
+  return lineChart('health', 'Temperature', pts.map(p=>({t:p.t, v:tempOut(p.c)})), v=>v, tempU(), `Last taken ${dayLabel(last.t).toLowerCase()} at ${tfmt(last.t)}`);
 }
 function renderTrends(){
   $('range').innerHTML = [[7,'7 days'],[14,'14 days'],[30,'30 days']].map(([v,l]) => `<button type="button" data-range="${v}" aria-pressed="${S.range===v}">${l}</button>`).join('');
@@ -867,12 +909,12 @@ function renderTrends(){
     (bottle.some(Boolean) ? chart('feed','Bottle', bottle, v=>`${Math.round(v)} ${volU()}`, `Average bottle volume per day`) : '')+
     chart('diaper','Diapers', diapers, v=>(+v).toFixed(1), `Average changes per day`)+
     (pump.some(Boolean) ? chart('pump','Pumped', pump, v=>`${Math.round(v)} ${volU()}`, `Average pumped per day`) : '')+
-    growthChart();
+    growthChart()+tempChart();
 }
 function renderBaby(){
   const st = S.settings;
   if (!document.activeElement?.closest?.('#settingsForm')){
-    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
+    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
   const acts = $('shareActions');
   acts.hidden = S.mode!=='cloud';
@@ -934,9 +976,17 @@ function when(id, label, v, quick=true){
   const q = quick ? `<div class="chips">${[['0','Now'],['15','15m ago'],['30','30m ago'],['60','1h ago']].map(([m,l])=>`<button type="button" class="chip press" data-ago="${m}" data-for="${id}">${l}</button>`).join('')}</div>` : '';
   return `<div class="field when"><label class="label" for="${id}">${label}</label>${q}<input id="${id}" type="datetime-local" value="${toLocalInput(v)}"></div>`;
 }
+function amountU(id, label, val, step, unit){ return amount(id, label, val, step).replace(`<span class="u">${volU()}</span>`, `<span class="u">${unit}</span>`); }
 function amount(id, label, val, step){
   return `<div class="field"><span class="label" id="${id}-l">${label}</span><div class="amount"><button type="button" class="press" data-step="${id}" data-d="-${step}" aria-label="Less">−</button><span class="val"><input id="${id}" aria-labelledby="${id}-l" type="number" inputmode="decimal" step="any" min="0" value="${val}"><span class="u">${volU()}</span></span><button type="button" class="press" data-step="${id}" data-d="${step}" aria-label="More">+</button></div></div>`;
 }
+function textField(id, label, val, ph='', max=120){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" value="${esc(val||'')}" placeholder="${esc(ph)}" maxlength="${max}" autocomplete="off"></div>`; }
+const noteField = e => textField('fNote', 'Note', e.note, 'Optional', 200);
+/* chips that fill a text field: recently used names, so a repeat entry is one tap */
+function recentChips(name, target, vals){ return vals.length ? `<div class="chips" role="group">${vals.map(v=>`<button type="button" class="chip press" data-fill="${target}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>` : ''; }
+const recent = (type, key, n=4) => [...new Set(S.logs.filter(l=>l.type===type && l[key]).map(l=>l[key]))].slice(0,n);
+/* multi-select chips: the value is the pressed chips' keys joined by spaces */
+function multiChips(name, vocab, cur){ const on = new Set(String(cur||'').split(' ')); return `<div class="chips" role="group">${Object.entries(vocab).map(([v,l])=>`<button type="button" class="chip press" data-chip="${name}" data-multi="1" data-v="${v}" aria-pressed="${on.has(v)}">${l}</button>`).join('')}</div>`; }
 function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
 function openSheet(type, existing){
@@ -947,28 +997,43 @@ function openSheet(type, existing){
     body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint" style="text-align:center"></p><div class="row-actions" id="nurseActions"></div>
       <details><summary>Log a past feed instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fTime','Started',now())}<div class="grid2">${numField('fL','Left (min)',0,'numeric')}${numField('fR','Right (min)',0,'numeric')}</div><button class="btn soft" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
   } else if (type==='nurse'){
-    body = `${when('fTime','Started',time,false)}<div class="grid2">${numField('fL','Left (min)',Math.round((e.left||0)/MIN),'numeric')}${numField('fR','Right (min)',Math.round((e.right||0)/MIN),'numeric')}</div><div class="field"><span class="label">Finished on</span>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>`;
+    body = `${when('fTime','Started',time,false)}<div class="grid2">${numField('fL','Left (min)',Math.round((e.left||0)/MIN),'numeric')}${numField('fR','Right (min)',Math.round((e.right||0)/MIN),'numeric')}</div><div class="field"><span class="label">Finished on</span>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>${noteField(e)}`;
   } else if (type==='bottle'){
     const presets = oz() ? [2,3,4,5,6] : [60,90,120,150,180];
     const last = lastOf(l=>l.type==='bottle');
     const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
     body = `${amount('fAmt','Amount', val, oz()?0.5:10)}<div class="presets">${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}</div>
-      <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||last?.content||'formula')}</div>${when('fTime','When',time,!existing)}`;
+      <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk'],['mixed','Both']],e.content||last?.content||'formula')}</div>
+      <div class="field">${textField('fBrand','Formula brand', existing ? e.brand : last?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='solids'){
-    body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}`;
+    body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='sleep' && !existing){
     body = S.active.sleep
       ? `<div class="bigclock num" data-clock="${S.active.sleep.start}">${clock(now()-S.active.sleep.start)}</div>${when('fAdj','Fell asleep at',S.active.sleep.start,false)}<button class="btn primary" type="button" data-act="wake">Woke up · save sleep</button><button class="btn danger" type="button" data-act="cancelSleep">Discard timer</button>`
       : `<button class="btn primary" type="button" data-act="sleepStart">Start sleep timer</button><details><summary>Log a past sleep instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fStart','Fell asleep',now()-HR,false)}${when('fEnd','Woke up',now(),false)}<button class="btn soft" type="button" data-act="sleepManual">Save past sleep</button></div></details>`;
   } else if (type==='sleep'){
-    body = `${when('fStart','Fell asleep',e.t,false)}${when('fEnd','Woke up',e.end||now(),false)}`;
+    body = `${when('fStart','Fell asleep',e.t,false)}${when('fEnd','Woke up',e.end||now(),false)}${noteField(e)}`;
   } else if (type==='diaper'){
-    body = `<div class="field"><span class="label">What was in it</span>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div><div class="field"><label class="label" for="fNote">Note</label><input id="fNote" value="${esc(e.note||'')}" placeholder="Optional · colour, rash, blowout" autocomplete="off"></div>${when('fTime','When',time,!existing)}`;
+    const dirty = e.kind==='dirty' || e.kind==='both';
+    body = `<div class="field"><span class="label">What was in it</span>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div>
+      <div id="dirtyBits" style="display:grid;gap:var(--s5)" ${dirty?'':'hidden'}><div class="field"><span class="label">Colour</span>${multiChips('color',DCOLOR,e.color)}</div><div class="field"><span class="label">Texture</span>${multiChips('texture',DTEXTURE,e.texture)}</div></div>
+      <div class="field"><span class="label">Anything else</span>${multiChips('flags',DFLAGS,e.flags)}</div>${noteField(e)}${when('fTime','When',time,!existing)}`;
   } else if (type==='pump'){
     const st = oz()?0.5:10;
-    body = `${amount('fPL','Left', e.lml?volOut(e.lml):0, st)}${amount('fPR','Right', e.rml?volOut(e.rml):0, st)}${numField('fMin','Duration (min)', e.min||15, 'numeric')}${when('fTime','When',time,!existing)}`;
+    body = `${amount('fPL','Left', e.lml?volOut(e.lml):0, st)}${amount('fPR','Right', e.rml?volOut(e.rml):0, st)}${numField('fMin','Duration (min)', e.min||15, 'numeric')}${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='growth'){
-    body = `<div class="grid3">${numField('fKg',`Weight (${wtU()})`, e.kg?wtOut(e.kg):'')}${numField('fCm','Length (cm)', e.cm||'')}${numField('fHead','Head (cm)', e.head||'')}</div>${when('fTime','Measured on',time,false)}`;
+    body = `<div class="grid3">${numField('fKg',`Weight (${wtU()})`, e.kg?wtOut(e.kg):'')}${numField('fCm','Length (cm)', e.cm||'')}${numField('fHead','Head (cm)', e.head||'')}</div>${when('fTime','Measured on',time,false)}${noteField(e)}`;
+  } else if (type==='medicine'){
+    body = `<div class="field">${textField('fName','Medicine', e.name, 'e.g. Vitamin D drops', 80)}${recentChips('med','fName',recent('medicine','name'))}</div>
+      ${textField('fDose','Dose', e.dose, 'Optional · e.g. 1.25 ml', 40)}${when('fTime','Given',time,!existing)}${noteField(e)}
+      ${existing ? '' : `<button class="linkbtn" type="button" data-act="asVaccine">Log a vaccine instead</button>`}`;
+  } else if (type==='vaccine'){
+    body = `${textField('fName','Vaccines given', e.name, 'e.g. DTaP, HepB', 80)}${when('fTime','Given on',time,false)}${noteField(e)}`;
+  } else if (type==='temp'){
+    const last = lastOf(l=>l.type==='temp');
+    body = `${amountU('fTemp','Temperature', e.c ? tempOut(e.c) : last ? tempOut(last.c) : (fahr()?98.6:37), fahr()?0.2:0.1, tempU())}${when('fTime','Taken',time,!existing)}${noteField(e)}`;
+  } else if (type==='milestone'){
+    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
   }
   const live = !existing && (type==='nurse' || type==='sleep');
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
@@ -987,6 +1052,7 @@ function renderNurse(){
   $('nurseActions').innerHTML = n ? `<button class="btn primary" type="button" data-act="nurseSave">Done · save feed</button><button class="btn soft" type="button" data-act="nurseDiscard">Discard</button>` : '';
   $('nurseHint').textContent = n ? `Started ${tfmt(n.start)} · ${clock(L+R)} total` : 'Tap a side to start. Tap the other side to switch.';
 }
+const multiVal = name => [...$('sheetRoot').querySelectorAll(`[data-chip="${name}"][aria-pressed="true"]`)].map(b=>b.dataset.v).join(' ');
 const chipVal = name => $('sheetRoot').querySelector(`[data-chip="${name}"][aria-pressed="true"]`)?.dataset.v || '';
 const num = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? 0 : v; };
 
@@ -996,17 +1062,24 @@ async function saveSheet(){
   const T = id => fromLocalInput($(id).value);
   let data;
   if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;} data={...base,t:T('fTime'),left:L,right:R,last:chipVal('last')||(R&&!L?'R':'L')}; data.end=data.t+L+R; }
-  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula'}; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:$('fBrand').value.trim().slice(0,40)}; }
   else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate'); $('fFood').focus(); return;} data={...base,t:T('fTime'),food:f.slice(0,120),reaction:chipVal('reaction')}; }
   else if (type==='sleep'){ const a=T('fStart'), b=T('fEnd'); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
-  else if (type==='diaper'){ data={...base,t:T('fTime'),kind:chipVal('kind')||'wet',note:$('fNote').value.trim().slice(0,120)}; }
-  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r){toast('Enter how much you pumped');return;} data={...base,t:T('fTime'),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; }
+  else if (type==='diaper'){ const k=chipVal('kind')||'wet', dirty=k==='dirty'||k==='both'; data={...base,t:T('fTime'),kind:k,color:dirty?multiVal('color'):'',texture:dirty?multiVal('texture'):'',flags:multiVal('flags')}; }
+  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r&&!num('fMin')){toast('Enter how much you pumped or for how long');return;} data={...base,t:T('fTime'),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; if(!l&&!r&&e.tml) data.tml=e.tml; }
   else if (type==='growth'){ const kg=num('fKg'); if(!kg && !num('fCm') && !num('fHead')){toast('Enter at least one measurement');return;} data={...base,t:T('fTime'),kg:kg?+wtIn(kg).toFixed(3):0,cm:num('fCm'),head:num('fHead')}; }
+  else if (type==='medicine'){ const n=$('fName').value.trim(); if(!n){toast('Add the medicine name'); $('fName').focus(); return;} data={...base,t:T('fTime'),name:n.slice(0,80),dose:$('fDose').value.trim().slice(0,40)}; }
+  else if (type==='vaccine'){ const n=$('fName').value.trim(); if(!n){toast('Add which vaccines were given'); $('fName').focus(); return;} data={...base,t:T('fTime'),name:n.slice(0,80)}; }
+  else if (type==='temp'){ const c=tempIn(num('fTemp')); if(c<30||c>45){toast(`Enter a temperature between ${tempOut(30)} and ${tempOut(45)} ${tempU()}`);return;} data={...base,t:T('fTime'),c:+c.toFixed(2)}; }
+  else if (type==='milestone'){ const n=$('fTitle').value.trim(); if(!n){toast('Add what happened'); $('fTitle').focus(); return;} data={...base,t:T('fTime'),title:n.slice(0,80)}; }
+  if ($('fNote')) data.note = $('fNote').value.trim().slice(0,200);
+  if (e.byName) data.byName = e.byName;
   const id = existing?.id || uid();
   if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing ? 'Changes saved' : `${TYPES[type].label} saved`); }
 }
 
 async function act(a, el){
+  if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
   if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
   if (a==='signOut'){ live.stop(); await auth.signOut(); signedOut(''); return; }
   if (a==='uploadLocal'){
@@ -1058,13 +1131,14 @@ async function tapSide(s){
 }
 
 /* ---------- export ---------- */
-const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','food','reaction','diaper','note','pump_left_ml','pump_right_ml','pump_min','weight_kg','length_cm','head_cm','logged_by'];
+const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','brand','food','reaction','diaper','diaper_color','diaper_texture','diaper_flags','note','pump_left_ml','pump_right_ml','pump_total_ml','pump_min','weight_kg','length_cm','head_cm','medicine','dose','temp_c','title','logged_by','caregiver'];
 const fmtLocal = t => t ? toLocalInput(t).replace('T',' ') : '';
 const r1 = v => v ? +(+v).toFixed(1) : '';
 function toRow(l){
   return {id:l.id, type:l.type, start:fmtLocal(l.t), end:fmtLocal(l.end),
     left_min:r1((l.left||0)/MIN), right_min:r1((l.right||0)/MIN), last_side:l.last||'',
-    amount_ml:l.ml||'', content:l.content||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
+    amount_ml:l.ml||'', content:l.content||'', brand:l.brand||'', diaper_color:l.color||'', diaper_texture:l.texture||'', diaper_flags:l.flags||'',
+    pump_total_ml:l.tml||'', medicine:l.type==='medicine'||l.type==='vaccine' ? l.name||'' : '', dose:l.dose||'', temp_c:l.c||'', title:l.title||'', caregiver:l.byName||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
     pump_left_ml:l.lml||'', pump_right_ml:l.rml||'', pump_min:l.min||'',
     weight_kg:l.kg?+(+l.kg).toFixed(3):'', length_cm:l.cm||'', head_cm:l.head||'',
     logged_by: l.by ? (l.by===S.me ? 'me' : (S.names[l.by]||'partner')) : ''};
@@ -1156,14 +1230,60 @@ function normalize(raw, fromCsv){
   const o = {type, t, created: nn(raw.created) || now(), by: (!fromCsv && typeof raw.by==='string' && raw.by.length<80) ? raw.by : null};
   if (type==='nurse'){ o.left = fromCsv ? nn(raw.left_min)*MIN : nn(raw.left); o.right = fromCsv ? nn(raw.right_min)*MIN : nn(raw.right);
     const ls = str(fromCsv?raw.last_side:raw.last,1).toUpperCase(); o.last = ls==='R'?'R':'L'; o.end = isFinite(endRaw) ? endRaw : t+o.left+o.right; }
-  if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); o.content = str(raw.content,12)==='breastmilk'?'breastmilk':'formula'; if (!o.ml) return null; }
+  if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); const c = str(raw.content,12); o.content = c==='breastmilk'||c==='mixed' ? c : 'formula'; o.brand = str(raw.brand,40); }
   if (type==='solids'){ o.food = str(raw.food); o.reaction = str(raw.reaction,30); if (!o.food) return null; }
   if (type==='sleep'){ if (!isFinite(endRaw) || endRaw <= t) return null; o.end = endRaw; }
-  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = DIAPER[k]?k:'wet'; o.note = str(raw.note); }
-  if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml) return null; }
+  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = DIAPER[k]?k:'wet';
+    o.color = words(fromCsv?raw.diaper_color:raw.color, DCOLOR); o.texture = words(fromCsv?raw.diaper_texture:raw.texture, DTEXTURE); o.flags = words(fromCsv?raw.diaper_flags:raw.flags, DFLAGS); }
+  if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.tml = Math.round(nn(fromCsv?raw.pump_total_ml:raw.tml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml && !o.tml && !o.min) return null; }
   if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
+  if (type==='medicine' || type==='vaccine'){ o.name = str(fromCsv?raw.medicine:raw.name, 80); if (type==='medicine') o.dose = str(raw.dose, 40); if (!o.name) return null; }
+  if (type==='temp'){ o.c = nn(fromCsv?raw.temp_c:raw.c); if (o.c < 30 || o.c > 45) return null; }
+  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; }
+  const note = str(raw.note, 200).trim(); if (note) o.note = note;
+  const byName = str(fromCsv?raw.caregiver:raw.byName, 40).trim(); if (byName) o.byName = byName;
   const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;
   return {id, data:o};
+}
+/* Nara Baby export (CSV, one row per activity, "[Kind] Field" columns). Each row becomes raw objects shaped
+   like Nestlog entries; normalize() still decides what gets in. */
+const isNara = rows => rows.length && '_activitykey' in rows[0] && 'start date/time (epoch)' in rows[0];
+const NARA_ML = (v, u) => { const x = parseFloat(v); return isFinite(x) ? (/oz/i.test(u) ? x*ML_PER_OZ : x) : 0; };
+function fromNara(r){
+  const g = k => (r[k] ?? '').trim(), t = +g('start date/time (epoch)');
+  const kind = g('type').toLowerCase(), key = g('_activitykey').replace(/[^A-Za-z0-9_-]/g, '');
+  if (!t || !key) return [];
+  const base = {t, created:t, note:g('note').replace(/\s+/g,' '), byName:g('created by caregiver'), id:'nara-'+key};
+  const by = S.mode==='cloud' ? Object.keys(S.names).find(em => S.names[em].toLowerCase() === base.byName.toLowerCase() || S.names[em].toLowerCase() === base.byName.toLowerCase().split(' ')[0]) : null;
+  if (by) base.by = by;
+  const vol = (pre, k) => NARA_ML(g(`[${pre}] ${k}`), g(`[${pre}] ${k} unit`));
+  const bottle = pre => { const ty = g(`[${pre}] type`).toLowerCase();
+    return {...base, type:'bottle', ml: vol(pre,'formula volume') + vol(pre,'breast milk volume') || vol(pre,'volume'),
+      content: ty==='breast milk' ? 'breastmilk' : ty.includes('breast') && ty.includes('formula') ? 'mixed' : 'formula', brand:g(`[${pre}] formula name`)}; };
+  if (kind==='bottle feed') return [bottle('bottle feed')];
+  if (kind==='combo feed'){
+    const L = +g('[combo feed] left duration (seconds)')*1000 || 0, R = +g('[combo feed] right duration (seconds)')*1000 || 0, out = [];
+    if (L || R) out.push({...base, type:'nurse', left:L, right:R, last:/right/i.test(g('[combo feed] end side'))?'R':'L', end:t+L+R});
+    const b = bottle('combo feed'); if (b.ml) out.push(L||R ? {...b, id:base.id+'-b'} : b);
+    return out;
+  }
+  if (kind==='sleep') return [{...base, type:'sleep', end: +g('[sleep] end date/time (epoch)') || t + (+g('[sleep] duration (seconds)'))*1000}];
+  if (kind==='diaper'){ const ty = g('[diaper] type').toLowerCase();
+    return [{...base, type:'diaper', kind: ty.includes('dirty') && ty.includes('wet') ? 'both' : ty.includes('dirty') ? 'dirty' : ty.includes('dry') ? 'dry' : 'wet',
+      color:g('[diaper] dirty color'), texture:g('[diaper] dirty texture').toLowerCase().replace(/\brun\b/g,'runny'), flags:g('[diaper] detail')}]; }
+  if (kind==='growth'){ const w = parseFloat(g('[growth] weight')), wu = g('[growth] weight unit'), h = parseFloat(g('[growth] height')), hd = parseFloat(g('[growth] head size'));
+    const cm = (v, u) => isFinite(v) ? +(/in/i.test(u) ? v*2.54 : v).toFixed(1) : 0;
+    return [{...base, type:'growth', kg: isFinite(w) ? +(/lb/i.test(wu) ? w*KG_PER_LB : /oz/i.test(wu) ? w*KG_PER_LB/16 : /^g$/i.test(wu) ? w/1000 : w).toFixed(3) : 0,
+      cm: cm(h, g('[growth] height unit')), head: cm(hd, g('[growth] head size unit'))}]; }
+  if (kind==='pump') return [{...base, type:'pump', lml:vol('pump','left volume'), rml:vol('pump','right volume'), tml:vol('pump','total volume'), min: Math.round(+g('[pump] duration (seconds)')/60) || 0}];
+  if (kind==='routine') return [{...base, type:'medicine', name:g('[routine] routine')}];
+  if (kind==='medical'){ const out = [], m = g('[medical] medication'), tc = parseFloat(g('[medical] temperature'));
+    if (m){ const x = m.match(/^(.*?),\s*([\d.]+)\s*\((\w+)\)\s*$/); out.push({...base, type:'medicine', name: x ? x[1] : m, dose: x ? `${x[2]} ${x[3].toLowerCase()}` : ''}); }
+    if (isFinite(tc)) out.push({...base, type:'temp', c: /f/i.test(g('[medical] temperature unit')) ? (tc-32)*5/9 : tc, id: m ? base.id+'-t' : base.id});
+    return out; }
+  if (kind==='vaccine') return [{...base, type:'vaccine', name:g('[vaccine] vaccine').split(/\s*\n\s*/).filter(Boolean).join(', ')}];
+  if (kind==='baby first') return [{...base, type:'milestone', title:g('[baby first] baby first')}];
+  return [];
 }
 let pending = null;
 async function readImport(file){
@@ -1171,17 +1291,26 @@ async function readImport(file){
   if (file.size > 20*1024*1024){ panel.innerHTML = `<p class="err">That file is over 20 MB, larger than any Nestlog export. Check you picked the right file.</p>`; return; }
   let text; try { text = await file.text(); } catch { panel.innerHTML = `<p class="err">Couldn’t read that file. Try choosing it again.</p>`; return; }
   const isJson = /\.json$/i.test(file.name) || text.trim().startsWith('{');
-  let raws = [], settings = null; const fromCsv = !isJson;
+  let raws = [], settings = null, nara = false;
   try {
     if (isJson){ const j = JSON.parse(text); raws = Array.isArray(j.logs) ? j.logs : []; settings = j.settings && typeof j.settings==='object' ? j.settings : null; }
-    else raws = parseCsv(text);
+    else {
+      raws = parseCsv(text);
+      if (isNara(raws)){ /* the Profile row carries the baby's name and birth date */
+        const prof = raws.find(r => (r.type||'').toLowerCase()==='profile');
+        if (prof) settings = {...S.settings, name:prof['profile name']||'', birth:prof['[profile] birth date']||''};
+        raws = raws.filter(r => r !== prof).flatMap(r => { const out = fromNara(r); return out.length ? out : [{}]; });
+        nara = true;
+      }
+    }
   } catch { panel.innerHTML = `<p class="err">This file isn’t valid ${isJson?'JSON':'CSV'}. Use a file downloaded from Nestlog’s Export section.</p>`; return; }
   panel.innerHTML = `<p class="hint">Checking ${esc(file.name)}…</p>`;
   let existing; try { existing = await allLogs(); } catch { existing = S.logs; }
   const have = new Set(existing.map(l=>l.id)); const seen = new Set();
   const fresh = []; let dupes = 0, bad = 0;
+  const fromCsv = !isJson && !nara;
   for (const r of raws){ const n = normalize(r, fromCsv); if (!n){ bad++; continue; } if (have.has(n.id) || seen.has(n.id)){ dupes++; continue; } seen.add(n.id); fresh.push(n); }
-  if (settings){ settings = {name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg'}; }
+  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C'}; }
   pending = {fresh, settings};
   const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
   const fdt = t => new Date(t).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
@@ -1190,7 +1319,7 @@ async function readImport(file){
     <b>${esc(file.name)}</b>
     ${fresh.length ? `<span>${fresh.length} new ${fresh.length===1?'entry':'entries'} · ${span}</span><ul>${Object.entries(counts).map(([k,v])=>`<li>${v} ${TYPES[k].label.toLowerCase()}</li>`).join('')}</ul>` : `<span>No new entries in this file.</span>`}
     ${dupes ? `<span class="hint">${dupes} already in Nestlog, will be skipped.</span>` : ''}
-    ${bad ? `<span class="hint">${bad} row${bad>1?'s':''} couldn’t be read and will be skipped.</span>` : ''}
+    ${bad ? `<span class="hint">${bad} row${bad>1?'s are':' is'} empty or couldn’t be read and will be skipped.</span>` : ''}
     ${settings && (settings.name||settings.birth) ? `<label class="check"><input type="checkbox" id="impSettings" ${!S.settings.name?'checked':''}> Also use baby details from the backup (${esc(settings.name||'no name')}${settings.birth?', born '+esc(settings.birth):''})</label>` : ''}
     <div class="bar" id="impBar" hidden><i></i></div>
     <div class="row-actions">${fresh.length ? `<button class="btn primary" type="button" data-io="import" id="impGo">Import ${fresh.length} ${fresh.length===1?'entry':'entries'}</button>` : ''}<button class="btn soft" type="button" data-io="cancel">${fresh.length?'Cancel':'Close'}</button></div>
@@ -1247,7 +1376,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1262,7 +1391,10 @@ document.addEventListener('click', e => {
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
   if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
+  if (d.fill){ $(d.fill).value = d.v; return; }
+  if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
+    if (d.chip==='kind') $('dirtyBits').hidden = !(d.v==='dirty' || d.v==='both');
     const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true';
     grp.forEach(b=>b.setAttribute('aria-pressed','false'));
     if (!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true');
@@ -1298,7 +1430,7 @@ document.addEventListener('submit', e => {
   if (e.target.id==='sheetForm') saveSheet();
   if (e.target.id==='signinForm') signinSubmit();
   if (e.target.id==='settingsForm'){
-    const data = {name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value};
+    const data = {...S.settings, name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value, temp:$('setTemp').value};
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
   }
 });

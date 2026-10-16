@@ -25,7 +25,7 @@ grant execute on function private.is_family() to authenticated;
 create table public.logs (
   id text primary key check (id ~ '^[A-Za-z0-9_.~:@+-]{1,120}$'),
   t bigint not null,
-  data jsonb not null check (data ->> 'type' in ('nurse', 'bottle', 'solids', 'sleep', 'diaper', 'pump', 'growth')),
+  data jsonb not null check (data ->> 'type' in ('nurse', 'bottle', 'solids', 'sleep', 'diaper', 'pump', 'growth', 'medicine', 'vaccine', 'temp', 'milestone')),
   updated_at timestamptz not null default now()
 );
 create index logs_t_idx on public.logs (t desc);
