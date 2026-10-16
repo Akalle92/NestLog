@@ -63,17 +63,21 @@ Import (`normalize`) and the home server's `cleanLog` both whitelist types and f
 
 ## Design system
 
+The look follows the house rules of the taste skill (github.com/Leonxlnx/taste-skill), applied to an app. `npm test` measures them on every tab (`tasteAudit`, `paletteAudit` in `tests/e2e.js`), so a change that breaks one fails the build.
+
+**House rules:** no shadows on things at rest (only `.sheet` and `.toast` float); no hairlines or 1px outlined boxes (separate with space or one tone step; chart axes are data and may stay); no glass/backdrop blur; no small uppercase letter-spaced labels; no violet or indigo; no gradients; at most **five font sizes**; two typefaces; every button and chip is a full pill.
+
 Tokens are at the top of the `<style>` block. Use them; never hard-code a color.
 
-- **Neutrals:** `--bg`, `--surface`, `--raised`, `--sunk`, `--line`, `--line-strong`, `--ink`, `--ink-2`, `--muted`. Lilac-grey, tinted toward the plum brand.
-- **Brand:** `--brand` (deep plum; lilac in dark), `--brand-ink`, `--brand-soft`.
-- **Log families:** `--c-feed` amber, `--c-sleep` indigo, `--c-diaper` teal, `--c-pump` rose, `--c-growth` green. Put `.k-feed` / `.k-sleep` / … on an element to set `--c`, then `.tint` gives the 14% tint background with `--c` ink. Every icon chip, chart and timer uses this pattern.
-- **Type:** `--f-display` (Bricolage Grotesque: names, big numbers, headings) and `--f-ui` (Onest: everything else). Scale is `--fs-2xs` 11 … `--fs-3xl` 44. Numbers that tick or line up get `.num` (tabular figures).
-- **Space / shape:** `--s1`…`--s8` (4px grid), `--r-sm` 10, `--r-md` 14, `--r-lg` 22, `--r-pill`. Elevation is `--shadow-1` for cards and `--shadow-2` for sheets and toasts.
+- **Neutrals:** `--bg` (stone ground), `--surface` (one tone step: cards, the tab bar), `--raised` (sheets), `--sunk` (fields and chips on a surface), `--line` / `--line-strong` (chart internals and the sheet grab handle only), `--ink`, `--ink-2`, `--muted` (≥ 4.5:1 on `--bg`).
+- **Action:** `--brand` is the ink colour (dark in light mode, light in dark mode), with `--brand-ink` on top and `--brand-soft` for the selected tab. Buttons are neutral; colour belongs to the log families.
+- **Log families:** `--c-feed` amber, `--c-sleep` slate blue, `--c-diaper` teal, `--c-pump` rose, `--c-growth` green. Put `.k-feed` / `.k-sleep` / … on an element to set `--c`, then `.tint` gives the tint background with `--c` ink. Icon chips, the log tiles, charts and timers use this pattern.
+- **Type:** `--f-display` (Bricolage Grotesque: names, big numbers, headings) and `--f-ui` (Onest: everything else). Five sizes: `--fs-s` 13 (secondary notes), `--fs-m` 16 (body, buttons, fields), `--fs-l` 18 (section heads), `--fs-xl` 26 (titles, stats), `--fs-2xl` 44 (the one big number). Numbers that tick or line up get `.num` (tabular figures).
+- **Space / shape:** `--s1`…`--s8` (4px grid), `--r-sm` 10 (fields), `--r-md` 14, `--r-lg` 22 (cards, tiles), `--r-pill` (every button). `--shadow-2` is the only shadow, for sheets and toasts.
 - **Motion:** `--t-fast` 120ms, `--t-med` 220ms, `--ease`. All animation sits inside `prefers-reduced-motion: no-preference`.
 - **Themes:** light values on bare `:root`, with dark redefined twice: under `prefers-color-scheme: dark` (guarded by `:not([data-theme="light"])`) and under `[data-theme="dark"]`. A new token goes in all three blocks.
 
-Components: `.card`, `.tile` (primary log actions), `.pill` (secondary), `.timer`, `.mini`, `.fact`, `.entry`, `.seg` (segmented control), `.chip`, `.btn.primary|.soft|.danger`, `.amount` (big stepper), `.sheet`, `.toast`.
+Components: `.card`, `.tile` (primary log actions: tinted, icon beside label, 2×2), `.pill` (secondary), `.timer`, `.mini`, `.fact`, `.entry`, `.seg` (segmented control), `.chip`, `.btn.primary|.soft|.danger`, `.amount` (big stepper), `.sheet`, `.toast`.
 
 ## Copy
 

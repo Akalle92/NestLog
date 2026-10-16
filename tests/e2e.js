@@ -44,6 +44,41 @@ function seed() {
   }));
 }
 
+// The taste skill's house rules, measured in the page instead of hoped for.
+function tasteAudit() {
+  const out = [];
+  const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+  const floats = el => el.closest('.sheet, .toast');
+  const sizes = new Set();
+  for (const el of document.querySelectorAll('body *')) {
+    if (!visible(el)) continue;
+    const cs = getComputedStyle(el);
+    if (cs.boxShadow !== 'none' && !floats(el)) out.push(`shadow at rest on ${el.className || el.tagName}`);
+    if (cs.backdropFilter && cs.backdropFilter !== 'none') out.push(`glass on ${el.className || el.tagName}`);
+    if (cs.textTransform === 'uppercase') out.push(`uppercase label ${el.className || el.tagName}`);
+    if (!/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && ['Top', 'Right', 'Bottom', 'Left'].some(e => parseFloat(cs['border' + e + 'Width']) > 0 && cs['border' + e + 'Style'] !== 'none')) out.push(`line on ${el.className || el.tagName}`);
+    if ([...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) sizes.add(cs.fontSize);
+  }
+  if (sizes.size > 5) out.push(`${sizes.size} font sizes: ${[...sizes].join(' ')}`);
+  return out;
+}
+function paletteAudit() {
+  const root = getComputedStyle(document.documentElement);
+  const rgb = v => { const h = root.getPropertyValue(v).trim().replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255); };
+  const hsl = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+    const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+    let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(h * 60 + 360) % 360, s, l]; };
+  const lum = c => { const [r, g, b] = c.map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * r + .7152 * g + .0722 * b; };
+  const contrast = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, n) => n - m); return (x + .05) / (y + .05); };
+  const out = [];
+  for (const v of ['--brand', '--c-feed', '--c-sleep', '--c-diaper', '--c-pump', '--c-growth']) {
+    const [h, s] = hsl(rgb(v)); if (s > .15 && h >= 240 && h <= 300) out.push(`${v} is violet (hue ${Math.round(h)})`);
+  }
+  for (const v of ['--ink', '--muted']) { const c = contrast(v, '--bg'); if (c < 4.5) out.push(`${v} on --bg is ${c.toFixed(2)}:1`); }
+  return out;
+}
+
 (async () => {
   const server = await start(0);
   const URL = `http://localhost:${server.address().port}/`;
@@ -71,6 +106,10 @@ function seed() {
     check(`[${scheme}] status shows asleep`, /Asleep since/.test(await text(p, '#status')));
     check(`[${scheme}] no horizontal overflow`, await noOverflow(p));
     check(`[${scheme}] toast hidden at rest`, !(await p.isVisible('#toast')));
+    const tasteHome = await p.evaluate(tasteAudit);
+    check(`[${scheme}] home: taste house rules`, !tasteHome.length, tasteHome.slice(0, 6).join(' | '));
+    const pal = await p.evaluate(paletteAudit);
+    check(`[${scheme}] palette: no violet, readable ink`, !pal.length, pal.join(' | '));
 
     if (scheme === 'light') {
       await p.click('[data-open="bottle"]'); await p.waitForTimeout(250);
@@ -107,6 +146,8 @@ function seed() {
       await p.click(`.tabs [data-tab="${tab}"]`); await p.waitForTimeout(250);
       await p.screenshot({ path: `${SHOTS}/4-${tab}-${scheme}.png`, fullPage: true });
       check(`[${scheme}] ${tab}: no horizontal overflow`, await noOverflow(p));
+      const taste = await p.evaluate(tasteAudit);
+      check(`[${scheme}] ${tab}: taste house rules`, !taste.length, taste.slice(0, 6).join(' | '));
     }
 
     if (scheme === 'light') {
