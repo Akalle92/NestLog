@@ -17,6 +17,7 @@ Baby tracker web app for one family (two caregivers). Single file, no framework,
 | `index.html` | The whole app: CSS tokens + styles, markup, one IIFE script |
 | `manifest.webmanifest`, `icons/` | Home-screen install (PWA manifest, SVG + PNG icons) |
 | `.nojekyll` | Tells GitHub Pages to serve files as-is |
+| `server.js` | Home server (`npm run home`): serves the app on the LAN and stores one shared log in `data/` |
 | `tests/serve.js` | Dependency-free static server (`npm start`) |
 | `tests/e2e.js` | Playwright checks + screenshots (`npm test`) |
 
@@ -32,7 +33,9 @@ The same `index.html` runs in two places. The boot code at the bottom of the scr
 
    The Artifact version is published without the `<!doctype>`/`<head>` wrapper (the claude.ai publisher adds its own). To update it, give Claude in claude.ai the new body and ask it to republish to the existing Artifact.
 
-All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`), which handles both. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
+3. **Home server (`server.js` on a laptop).** It serves `index.html` with `<meta name="nestlog-server" content="home">` added, so `S.mode = 'home'`. Data is `data/nestlog.json` (same shape as the local copy), written atomically, with a daily copy in `data/backups/`. API: `GET api/state`, `PUT|DELETE api/logs/:id`, `PUT|DELETE api/active/:kind`, `PUT api/settings`, `POST api/import`, and `GET api/events` (Server-Sent Events) which pushes each change (`{op:'log'|'active'|'settings'|'reload'}`) to every phone; `applyChange()` applies it. The server re-validates every write (`cleanLog`, `cleanActive`, `cleanSettings`) and only serves the app files. It never falls back to local mode, so phones can't silently split the log; when the laptop is unreachable the header says Offline.
+
+All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`, `putMany` for import), which handles all three. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
 
 ## Script layout (top to bottom)
 
@@ -56,7 +59,7 @@ Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on
 
 Running timers: `active.nurse = { start, left, right, side: 'L'|'R'|null, since, lastSide, by }` and `active.sleep = { start, by }`.
 
-Import (`normalize`) whitelists types and fields and rebuilds each entry, so imported files can't inject arbitrary data. Keep it that way when adding fields, and add the column to `CSV_COLS` / `toRow`.
+Import (`normalize`) and the home server's `cleanLog` both whitelist types and fields and rebuilds each entry, so imported files can't inject arbitrary data. Keep it that way when adding fields, add the column to `CSV_COLS` / `toRow`, and add the field to `FIELDS` in `server.js`.
 
 ## Design system
 
@@ -78,7 +81,7 @@ Plain and short; it gets read at 3am. Buttons start with a verb ("Save bottle", 
 
 ## Ideas not built yet
 
-- Live sync on the GitHub Pages version (e.g. Supabase) so both phones share one log outside claude.ai
+- Live sync on the GitHub Pages version (e.g. Supabase); the home server covers this for use on home Wi-Fi
 - Offline support with a service worker (watch out for stale caches while developing)
 - Feed / diaper reminders ("3h since the last feed")
 - Medicine, temperature and milestone logs

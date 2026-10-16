@@ -5,6 +5,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { start } = require('./serve');
+const home = require('../server');
+const os = require('os');
 
 const SHOTS = path.join(__dirname, 'screenshots');
 fs.mkdirSync(SHOTS, { recursive: true });
@@ -127,6 +129,59 @@ function seed() {
 
     check(`[${scheme}] no script errors`, errors.length === 0, errors.join(' | '));
     await ctx.close();
+  }
+
+  /* home server: two phones on the same Wi-Fi share one log through server.js */
+  {
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nestlog-'));
+    const hs = await home.start({ port: 0, host: '127.0.0.1', dataDir });
+    const HOME = `http://127.0.0.1:${hs.address().port}/`;
+    const phone = async () => {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      const p = await ctx.newPage(); p.errors = [];
+      p.on('pageerror', e => p.errors.push(e.message));
+      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
+      await p.goto(HOME); await p.waitForTimeout(500); return p;
+    };
+    const a = await phone(), b = await phone();
+    check('home: header says Home sync', /Home sync/.test(await text(a, '#syncText')), await text(a, '#syncText'));
+
+    await a.click('[data-open="bottle"]'); await a.waitForTimeout(200);
+    await a.click('[data-chip="preset"][data-v="120"]');
+    await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
+    check('home: bottle from phone A shows on phone B live', /120 ml/.test(await text(b, '#recent')));
+    const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'nestlog.json'), 'utf8'));
+    check('home: entry is written to the data file', Object.values(saved.logs).some(l => l.type === 'bottle' && l.ml === 120));
+
+    await b.click('[data-open="sleep"]'); await b.waitForTimeout(200);
+    await b.click('[data-act="sleepStart"]'); await b.waitForTimeout(500);
+    check('home: sleep timer from phone B shows on phone A', /Asleep since/.test(await text(a, '#status')));
+
+    await a.click('.tabs [data-tab="baby"]'); await a.fill('#setName', 'Mira');
+    await a.click('#settingsForm button[type=submit]'); await a.waitForTimeout(500);
+    check('home: baby details sync to phone B', (await text(b, '#babyName')) === 'Mira');
+    await a.screenshot({ path: `${SHOTS}/5-home-baby.png`, fullPage: true });
+
+    await b.reload(); await b.waitForTimeout(500);
+    check('home: phone B still has everything after reload', /120 ml/.test(await text(b, '#recent')) && /Asleep since/.test(await text(b, '#status')));
+    await b.screenshot({ path: `${SHOTS}/5-home-today.png`, fullPage: true });
+
+    const backup = path.join(SHOTS, 'backup.json');
+    if (fs.existsSync(backup)) {
+      await a.setInputFiles('#importFile', backup); await a.waitForTimeout(400);
+      await a.click('#impGo'); await a.waitForTimeout(600);
+      check('home: import saves to the server and reaches phone B', Object.keys(hs.store.get().logs).length > 30 && (await b.locator('#recent .entry').count()) > 3);
+    }
+
+    check('home: no script errors', !a.errors.length && !b.errors.length, [...a.errors, ...b.errors].join(' | '));
+    // deliberate bad requests below log 4xx errors in the console, so script errors are checked above
+    const bad = await a.evaluate(() => fetch('api/logs/x1', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"type":"evil","t":1}' }).then(r => r.status));
+    check('home: server rejects unknown entry types', bad === 400, String(bad));
+    const leak = await a.evaluate(async () => [(await fetch('server.js')).status, (await fetch('data/nestlog.json')).status, (await fetch('package.json')).status]);
+    check('home: server only serves the app files', leak.every(s => s === 404), leak.join(','));
+
+    await a.context().close(); await b.context().close();
+    hs.close(); fs.rmSync(dataDir, { recursive: true, force: true });
   }
 
   await browser.close(); server.close();

@@ -98,7 +98,7 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weigh
 .who p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .sync{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:500;color:var(--muted);padding:6px 10px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--shadow-1);white-space:nowrap}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
-.sync.live i{background:var(--ok)}
+.sync.on i{background:var(--ok)}
 
 /* status card */
 .status{padding:var(--s5) var(--s5) var(--s4);display:grid;gap:var(--s4)}
@@ -393,37 +393,77 @@ const TYPES = {
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const buzz = () => { try { navigator.vibrate?.(12); } catch {} };
 
-/* ---------- store: shared db, else this device ---------- */
+/* ---------- store: shared db, the home server, else this device ---------- */
 const local = {
   key:'nestlog-v1',
   load(){ try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
   save(d){ try { localStorage.setItem(this.key, JSON.stringify(d)); } catch {} }
 };
+/* home server (server.js on a laptop): plain JSON requests; every phone gets the change over /api/events */
+async function home(method, path, body){
+  const r = await fetch('api/'+path, {method, headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
+  if (!r.ok) throw Object.assign(new Error('home '+r.status), {code: r.status===413 ? 'too_large' : 'home'});
+  const ch = await r.json(); S.online = true; applyChange(ch); return ch;
+}
 const store = {
   async putLog(id, data){
     if (db) return db.collection('logs').doc(id).set(data);
+    if (S.mode==='home') return home('PUT', 'logs/'+encodeURIComponent(id), data);
     const d = local.load(); d.logs = d.logs || {}; d.logs[id] = data; local.save(d); applyLocal();
   },
   async delLog(id){
     if (db) return db.collection('logs').doc(id).delete();
+    if (S.mode==='home') return home('DELETE', 'logs/'+encodeURIComponent(id));
     const d = local.load(); if (d.logs) delete d.logs[id]; local.save(d); applyLocal();
   },
   async setActive(kind, data){
     if (db) return data ? db.doc('active/'+kind).set(data) : db.doc('active/'+kind).delete();
+    if (S.mode==='home') return home(data ? 'PUT' : 'DELETE', 'active/'+kind, data || undefined);
     const d = local.load(); d.active = d.active || {}; if (data) d.active[kind] = data; else delete d.active[kind]; local.save(d); applyLocal();
   },
   async setSettings(data){
     if (db) return db.doc('settings/baby').set(data);
+    if (S.mode==='home') return home('PUT', 'settings', data);
     const d = local.load(); d.settings = data; local.save(d); applyLocal();
+  },
+  /* many entries at once (import): one write instead of one per entry */
+  async putMany(logs, settings){
+    if (S.mode==='home'){ await fetch('api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({logs, settings})}).then(r => { if (!r.ok) throw new Error('home '+r.status); }); return loadHome(); }
+    const d = local.load(); d.logs = {...(d.logs||{}), ...logs}; if (settings) d.settings = settings; local.save(d); applyLocal();
   }
 };
+function applyHome(d){
+  S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
+  S.active = d.active || {};
+  S.settings = {...S.settings, ...(d.settings||{})};
+  S.loaded = true; render();
+  if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+}
+async function loadHome(){
+  const r = await fetch('api/state', {cache:'no-store'});
+  if (!r.ok) throw new Error('home '+r.status);
+  applyHome(await r.json());
+}
+/* one change from the home server; arrives twice for the phone that made it, which is harmless */
+function applyChange(ch){
+  if (!ch || S.mode!=='home') return;
+  if (ch.op==='log'){
+    S.logs = S.logs.filter(l => l.id !== ch.id);
+    if (ch.data){ S.logs.push({id:ch.id, ...ch.data}); S.logs.sort((a,b)=>b.t-a.t); }
+  }
+  else if (ch.op==='active'){ S.active = {...S.active}; if (ch.data) S.active[ch.kind] = ch.data; else delete S.active[ch.kind]; }
+  else if (ch.op==='settings') S.settings = {...S.settings, ...ch.data};
+  else if (ch.op==='reload'){ loadHome().catch(()=>{}); return; }
+  render();
+  if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+}
 function applyLocal(){
   const d = local.load();
   S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
@@ -437,6 +477,7 @@ async function write(fn){
   catch(e){
     if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask for Editor access.'); }
     else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete old entries to keep logging.'); }
+    else if (S.mode==='home'){ S.online = false; render(); toast('That didn’t save. Check the laptop running Nestlog is on, then try again.'); }
     else toast('That didn’t save. Check your connection and try again.');
     return false;
   }
@@ -526,8 +567,9 @@ function render(){
   $('babyName').textContent = st.name || 'Your baby';
   $('avatar').textContent = (st.name || 'N').trim().charAt(0).toUpperCase();
   $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add name and birth date in Baby';
-  $('sync').classList.toggle('live', S.mode==='db');
-  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only') : 'This device';
+  $('sync').classList.toggle('on', S.mode==='db' || (S.mode==='home' && S.online && S.loaded));
+  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only')
+    : S.mode==='home' ? (!S.online ? 'Offline' : S.loaded ? 'Home sync' : 'Connecting') : 'This device';
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
   if (S.tab==='home') renderHome();
@@ -696,7 +738,9 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
   }
-  $('shareNote').innerHTML = S.mode==='db'
+  $('shareNote').innerHTML = S.mode==='home'
+    ? `Entries are saved on the laptop running Nestlog and sync live to every phone on your home Wi-Fi. To add a phone, open this same address on it. The laptop keeps a dated backup each day.`
+    : S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
     : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. Live sync between phones works in the claude.ai version of Nestlog.`;
 }
@@ -967,7 +1011,9 @@ async function runImport(){
   const bar = $('impBar'); bar.hidden = false; const fill = bar.firstElementChild;
   let done = 0, failed = 0, stop = null;
   if (!db){
-    const d = local.load(); d.logs = d.logs || {}; fresh.forEach(f => d.logs[f.id] = f.data); if (useSettings) d.settings = pending.settings; local.save(d); done = fresh.length; applyLocal();
+    try { await store.putMany(Object.fromEntries(fresh.map(f => [f.id, f.data])), useSettings ? pending.settings : null); done = fresh.length; }
+    catch {}
+    fill.style.width = '100%';
   } else {
     let i = 0;
     const worker = async () => {
@@ -1091,8 +1137,18 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- boot ---------- */
-applyLocal();
+/* served by server.js on a home laptop: sync through it, and never fall back to a per-phone copy */
+function bootHome(){
+  S.mode='home'; S.loaded=false; render();
+  const es = new EventSource('api/events');
+  es.onopen = () => { loadHome().then(() => { S.online = true; render(); }).catch(() => { S.online = false; render(); }); };
+  es.onmessage = e => { try { applyChange(JSON.parse(e.data)); } catch {} };
+  es.onerror = () => { S.online = false; render(); };
+}
+if (document.querySelector('meta[name="nestlog-server"][content="home"]')) bootHome();
+else applyLocal();
 (async () => {
+  if (S.mode==='home') return;
   if (!window.claude?.use) { S.mode='local'; render(); return; }
   try {
     const [d, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);
