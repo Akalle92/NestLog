@@ -52,6 +52,24 @@ create policy "family uses logs" on public.logs for all to authenticated using (
 create policy "family uses timers" on public.active for all to authenticated using ((select private.is_family())) with check ((select private.is_family()));
 create policy "family uses settings" on public.settings for all to authenticated using ((select private.is_family())) with check ((select private.is_family()));
 
+-- Anyone on the list can add, rename or remove people (Baby → Family in the app)...
+create policy "family adds people" on public.family_members for insert to authenticated with check ((select private.is_family()));
+create policy "family renames people" on public.family_members for update to authenticated using ((select private.is_family())) with check ((select private.is_family()));
+create policy "family removes people" on public.family_members for delete to authenticated using ((select private.is_family()));
+-- ...but the list never goes empty, so the family can't lock itself out.
+create function private.keep_one_member() returns trigger
+language plpgsql set search_path = ''
+as $$
+begin
+  if not exists (select 1 from public.family_members) then
+    raise exception 'The family list needs at least one person.' using errcode = 'P0001';
+  end if;
+  return null;
+end;
+$$;
+create constraint trigger family_keep_one after delete on public.family_members
+  deferrable initially immediate for each row execute function private.keep_one_member();
+
 revoke all on public.family_members, public.logs, public.active, public.settings from anon;
 
 -- Live updates to every phone.

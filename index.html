@@ -219,6 +219,13 @@ input:focus,select:focus{outline:2px solid var(--ink);outline-offset:0;backgroun
 .row-actions{display:flex;gap:var(--s2)}
 .row-actions .btn{flex:1}
 .stack{display:grid;gap:var(--s2)}
+.people{display:grid;gap:var(--s2)}
+.person{display:flex;align-items:center;gap:var(--s3);min-width:0}
+.person .avatar{width:40px;height:40px;font-size:var(--fs-m)}
+.person .who2{flex:1;min-width:0}
+.person b{display:block;font-weight:600}
+.person .who2 span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person .btn{height:44px;flex:none}
 .hint{font-size:var(--fs-s);color:var(--muted);margin:0}
 details summary{cursor:pointer;font-size:var(--fs-s);font-weight:600;color:var(--brand);list-style:none}
 details summary::-webkit-details-marker{display:none}
@@ -355,6 +362,22 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 
     <h2 class="sec">Sharing</h2>
     <div class="card group"><div class="item"><p class="note" id="shareNote"></p><div class="stack" id="shareActions" hidden></div></div></div>
+
+    <div id="familyBox" hidden>
+      <h2 class="sec">Family</h2>
+      <div class="card group">
+        <div class="item"><div id="familyList" class="people"></div></div>
+        <form class="item" id="familyForm" novalidate>
+          <h3>Add someone</h3>
+          <div class="grid2">
+            <div class="field"><label class="label" for="famName">First name</label><input id="famName" autocomplete="off" maxlength="40"></div>
+            <div class="field"><label class="label" for="famEmail">Email</label><input id="famEmail" type="email" inputmode="email" autocapitalize="off" spellcheck="false" autocomplete="off" maxlength="120"></div>
+          </div>
+          <button class="btn primary" type="submit">Add to family</button>
+          <p class="hint">They open Nestlog, type this email and get a sign-in code.</p>
+        </form>
+      </div>
+    </div>
 
     <h2 class="sec">Export</h2>
     <div class="card group"><div class="item">
@@ -1017,6 +1040,7 @@ function renderBaby(){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
   renderReminders();
+  renderFamily();
   const acts = $('shareActions');
   acts.hidden = S.mode!=='cloud';
   if (S.mode==='cloud'){
@@ -1026,12 +1050,35 @@ function renderBaby(){
       + `<button class="btn soft" type="button" data-act="signOut">Sign out</button>`;
   }
   $('shareNote').innerHTML = S.mode==='cloud'
-    ? `Signed in as <b>${esc(S.me||'')}</b>. Everyone on the family list sees the same log, live, wherever they are. To add someone, put their email in the <b>family_members</b> table in Supabase.`
+    ? `Signed in as <b>${esc(S.me||'')}</b>. Everyone on the family list sees the same log, live, wherever they are. Add or remove people under Family below.`
     : S.mode==='home'
     ? `Entries are saved on the laptop running Nestlog and sync live to every phone on your home Wi-Fi. To add a phone, open this same address on it. The laptop keeps a dated backup each day.`
     : S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
     : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. For one shared, live log, use Nestlog at akalle92.github.io/NestLog (family sign-in) or run the home server on a laptop.`;
+}
+
+/* family list (cloud mode): anyone on it can add or remove people; the database keeps at least one */
+let famArmed = null;
+function renderFamily(){
+  $('familyBox').hidden = S.mode!=='cloud';
+  if (S.mode!=='cloud') return;
+  const people = Object.entries(S.names).sort((a,b) => (a[0]===S.me ? -1 : b[0]===S.me ? 1 : a[1].localeCompare(b[1])));
+  $('familyList').innerHTML = people.map(([email, name]) => `<div class="person"><span class="avatar" aria-hidden="true">${esc((name||email).charAt(0).toUpperCase())}</span>
+    <div class="who2"><b>${esc(name||email.split('@')[0])}${email===S.me?' (you)':''}</b><span>${esc(email)}</span></div>
+    ${email===S.me ? '' : `<button type="button" class="btn ${famArmed===email?'danger armed':'soft'}" data-act="famRemove" data-email="${esc(email)}">${famArmed===email?'Tap again to remove':'Remove'}</button>`}</div>`).join('');
+}
+async function loadFamily(){
+  const fam = await rest('GET', 'family_members?select=email,name');
+  S.names = Object.fromEntries(fam.map(f => [f.email, f.name || f.email.split('@')[0]]));
+  cache.save(); render();
+}
+async function addFamily(email, name, quiet){
+  try { await rest('POST', 'family_members', {email, name}, 'return=minimal'); }
+  catch(e){ toast(e.status===409 ? 'That email is already on the family list.' : offlineError(e) ? 'Adding someone needs a connection. Try again when you’re online.' : 'Couldn’t add them. Try again.'); return false; }
+  await loadFamily().catch(()=>{});
+  if (!quiet) toast(`${name || email} can now sign in`);
+  return true;
 }
 
 /* sign-in screen (cloud mode): email, then the code from the email. Rebuilt only when its step changes. */
@@ -1180,6 +1227,16 @@ async function saveSheet(){
 }
 
 async function act(a, el){
+  if (a==='famRemove'){
+    const email = el.dataset.email;
+    if (famArmed !== email){ famArmed = email; renderFamily(); setTimeout(() => { if (famArmed===email){ famArmed = null; renderFamily(); } }, 4000); return; }
+    famArmed = null; const name = S.names[email] || '';
+    try { await rest('DELETE', 'family_members?email=eq.'+encodeURIComponent(email)); }
+    catch(e){ toast(offlineError(e) ? 'Removing someone needs a connection. Try again when you’re online.' : 'Couldn’t remove them. The family list needs at least one person.'); renderFamily(); return; }
+    await loadFamily().catch(()=>{});
+    toast(`${name || email} removed`, 'Undo', () => addFamily(email, name, true));
+    return;
+  }
   if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} renderReminders(); checkReminders(); return; }
   if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
   if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
@@ -1533,6 +1590,11 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id==='sheetForm') saveSheet();
   if (e.target.id==='signinForm') signinSubmit();
+  if (e.target.id==='familyForm'){
+    const email = $('famEmail').value.trim().toLowerCase(), name = $('famName').value.trim().slice(0,40);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter their email address, like name@example.com.'); $('famEmail').focus(); return; }
+    addFamily(email, name).then(ok => { if (ok){ $('famEmail').value = ''; $('famName').value = ''; document.activeElement?.blur(); } });
+  }
   if (e.target.id==='settingsForm'){
     const data = {...S.settings, name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value, temp:$('setTemp').value};
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));

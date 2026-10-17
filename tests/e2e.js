@@ -370,7 +370,11 @@ function paletteAudit() {
         if (!fake.family.some(f => f.email === who(req))) return reply(route, 403, { message: 'row-level security' });
         const u = new globalThis.URL(req.url()), table = u.pathname.split('/').pop(), m = req.method(), q = u.searchParams;
         const eq = k => (q.get(k) || '').replace(/^eq\./, '');
-        if (table === 'family_members') return reply(route, 200, fake.family);
+        if (table === 'family_members') {
+          if (m === 'GET') return reply(route, 200, fake.family);
+          if (m === 'POST') { const r = req.postDataJSON(); if (fake.family.some(f => f.email === r.email)) return reply(route, 409, { code: '23505' }); fake.family.push({ email: r.email, name: r.name || '' }); return reply(route, 201); }
+          if (m === 'DELETE') { const e = decodeURIComponent(eq('email')); if (fake.family.length <= 1) return reply(route, 400, { message: 'The family list needs at least one person.' }); fake.family = fake.family.filter(f => f.email !== e); return reply(route, 204); }
+        }
         if (table === 'logs') {
           if (m === 'GET') { const off = +q.get('offset') || 0, lim = +q.get('limit') || 1000;
             return reply(route, 200, Object.entries(fake.logs).sort((x, y) => y[1].t - x[1].t).slice(off, off + lim).map(([id, data]) => ({ id, data }))); }
@@ -401,7 +405,7 @@ function paletteAudit() {
       if (init) await ctx.addInitScript(init.fn, init.arg);
       const p = await ctx.newPage(); p.errors = [];
       p.on('pageerror', e => p.errors.push(e.message));
-      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of 40[134]/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
+      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of 40[1349]/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
       await p.goto(URL + '?cloud'); await p.waitForTimeout(500); return p;
     };
     const session = { fn: email => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-' + email, refresh: 'r-' + email, exp: Date.now() + 36e5, email })); } }, arg: 'b@x.com' };
@@ -464,7 +468,26 @@ function paletteAudit() {
     check('offline: syncs when back online', Object.values(fake.logs).some(l => l.ml === 150) && !/waiting/.test(await text(a, '#syncText')), await text(a, '#syncText'));
     check('offline: other phone gets it after the sync', /150 ml/.test(await text(b, '#recent')));
 
-    await a.click('.tabs [data-tab="baby"]'); await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
+    /* family list: add someone, remove them with a second tap, undo */
+    await a.click('.tabs [data-tab="baby"]'); await a.waitForTimeout(200);
+    check('family: list shows both members', /Ankur \(you\)/.test(await text(a, '#familyList')) && /Priya/.test(await text(a, '#familyList')));
+    await a.fill('#famName', 'Nani'); await a.fill('#famEmail', 'Nani@X.com'); await a.click('#familyForm button[type=submit]'); await a.waitForTimeout(400);
+    check('family: adding someone puts them on the list', fake.family.some(f => f.email === 'nani@x.com' && f.name === 'Nani') && /Nani/.test(await text(a, '#familyList')));
+    await a.fill('#famEmail', 'b@x.com'); await a.click('#familyForm button[type=submit]'); await a.waitForTimeout(300);
+    check('family: adding someone already there says so', /already on the family list/.test(await text(a, '#toast')));
+    await a.screenshot({ path: `${SHOTS}/10-family.png`, fullPage: true });
+    const rm = a.locator('[data-act="famRemove"][data-email="nani@x.com"]');
+    await rm.click(); await a.waitForTimeout(100);
+    check('family: remove asks for a second tap', /Tap again to remove/.test(await rm.textContent()) && fake.family.some(f => f.email === 'nani@x.com'));
+    await rm.click(); await a.waitForTimeout(400);
+    check('family: second tap removes them', !fake.family.some(f => f.email === 'nani@x.com') && !/Nani/.test(await text(a, '#familyList')));
+    await a.click('#toast button'); await a.waitForTimeout(400);
+    check('family: undo puts them back', fake.family.some(f => f.email === 'nani@x.com') && /Nani/.test(await text(a, '#familyList')));
+    check('family: no remove button for yourself', !(await a.locator('[data-act="famRemove"][data-email="a@x.com"]').count()));
+    const tasteFam = await a.evaluate(tasteAudit);
+    check('family: taste house rules', !tasteFam.length, tasteFam.join(' | '));
+
+    await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
     check('cloud: sign out returns to the sign-in screen', await a.isVisible('#signinForm'));
     check('cloud: sign out removes the copy kept for offline use', await a.evaluate(() => !localStorage.getItem('nestlog-cache') && !localStorage.getItem('nestlog-session')));
     check('cloud: no script errors', ![a, b, c].some(p => p.errors.length), [a, b, c].flatMap(p => p.errors).join(' | '));
