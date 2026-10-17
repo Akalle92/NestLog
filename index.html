@@ -1633,7 +1633,7 @@ setInterval(() => {
 /* ---------- boot ---------- */
 /* served by server.js on a home laptop: sync through it, and never fall back to a per-phone copy */
 function bootHome(){
-  S.mode='home'; S.loaded=false; render(); cache.restore(); S.online=false;
+  S.mode='home'; S.loaded=false; S.online=false; render(); cache.restore();
   const es = new EventSource('api/events');
   es.onopen = () => { outbox.flush().then(loadHome).then(() => { S.online = true; render(); }).catch(() => { S.online = false; render(); }); };
   es.onmessage = e => { try { applyChange(JSON.parse(e.data)); } catch {} };

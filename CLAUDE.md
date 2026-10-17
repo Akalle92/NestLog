@@ -17,6 +17,8 @@ Baby tracker web app for one family (two caregivers). Single file, no framework,
 | `index.html` | The whole app: CSS tokens + styles, markup, one IIFE script |
 | `manifest.webmanifest`, `icons/` | Home-screen install (PWA manifest, SVG + PNG icons) |
 | `.nojekyll` | Tells GitHub Pages to serve files as-is |
+| `sw.js` | Service worker: offline app shell (network-first page, cache-first icons), notification taps. Not registered on localhost (unless `?sw`) or in claude.ai |
+| `tests/fixtures/nara-sample.csv` | Made-up Nara export (real header, one row per kind) for the import test. Never commit a real export |
 | `server.js` | Home server (`npm run home`): serves the app on the LAN and stores one shared log in `data/` |
 | `supabase/nestlog_init.sql` | Cloud database: tables, row-level security, family allowlist, sign-up hook |
 | `tests/serve.js` | Dependency-free static server (`npm start`) |
@@ -36,7 +38,9 @@ The same `index.html` runs in four places. The boot code at the bottom of the sc
 
 3. **Home server (`server.js` on a laptop).** It serves `index.html` with `<meta name="nestlog-server" content="home">` added, so `S.mode = 'home'`. Data is `data/nestlog.json` (same shape as the local copy), written atomically, with a daily copy in `data/backups/`. API: `GET api/state`, `PUT|DELETE api/logs/:id`, `PUT|DELETE api/active/:kind`, `PUT api/settings`, `POST api/import`, and `GET api/events` (Server-Sent Events) which pushes each change (`{op:'log'|'active'|'settings'|'reload'}`) to every phone; `applyChange()` applies it. The server re-validates every write (`cleanLog`, `cleanActive`, `cleanSettings`) and only serves the app files. It never falls back to local mode, so phones can't silently split the log; when the laptop is unreachable the header says Offline.
 
-4. **Cloud (GitHub Pages).** When not on localhost/file:// and not inside claude.ai (or with `?cloud` in the URL, which the tests use), `S.mode = 'cloud'` and data lives in the Supabase project in `CLOUD` (url + publishable key, public by design). No SDK: `auth` (email code via `/auth/v1/otp` + `/verify`, refresh, session in `localStorage['nestlog-session']`), `rest()` (PostgREST, retries once after a refresh on 401), and `live` (realtime WebSocket, protocol 1.0.0, `postgres_changes` on `logs`/`active`/`settings`, heartbeat, backoff, refetch on reconnect and when the page becomes visible). Changes go through the same `applyChange()` as home mode. Tables: `logs(id, t, data jsonb)`, `active(kind, data)`, `settings(id='baby', data)`, `family_members(email, name)`. Row-level security allows only emails in `family_members` (`private.is_family()`), and the `public.hook_family_only` Before User Created hook stops strangers getting accounts. `S.me` is the user's email and `S.names` comes from `family_members`, so entries show who logged them. Schema: `supabase/nestlog_init.sql`; change it with a new migration (Supabase MCP) and update that file.
+4. **Cloud (GitHub Pages).** When not on localhost/file:// and not inside claude.ai (or with `?cloud` in the URL, which the tests use), `S.mode = 'cloud'` and data lives in the Supabase project in `CLOUD` (url + publishable key, public by design). No SDK: `auth` (email code via `/auth/v1/otp` + `/verify`, refresh, session in `localStorage['nestlog-session']`), `rest()` (PostgREST, retries once after a refresh on 401), and `live` (realtime WebSocket, protocol 1.0.0, `postgres_changes` on `logs`/`active`/`settings`, heartbeat, backoff, refetch on reconnect and when the page becomes visible). Changes go through the same `applyChange()` as home mode. Tables: `logs(id, t, data jsonb)`, `active(kind, data)`, `settings(id='baby', data)`, `family_members(email, name)`. Row-level security allows only emails in `family_members` (`private.is_family()`); family members can add/rename/remove people (Baby → Family, `renderFamily`), and the `family_keep_one` trigger keeps at least one. Also the `public.hook_family_only` Before User Created hook stops strangers getting accounts. `S.me` is the user's email and `S.names` comes from `family_members`, so entries show who logged them. Schema: `supabase/nestlog_init.sql`; change it with a new migration (Supabase MCP) and update that file.
+
+In home and cloud mode every write is one op `{op:'log'|'active'|'settings', ...}` (`sendOp`). When there's no connection (`offlineError`), `sendShared` puts it in `outbox` (`localStorage['nestlog-outbox']`), applies it locally, and `outbox.flush()` replays in order on `online`, socket rejoin and home reconnect. `cache` keeps the last synced log in `localStorage['nestlog-cache']` so the app opens offline; `applyHome` lays pending outbox ops over each snapshot. Sign out clears both.
 
 All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`, `putMany` for import), which handles all four. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
 
@@ -48,17 +52,25 @@ UI is rebuilt with template strings. Clicks are handled by one delegated listene
 
 ## Data model
 
-Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on claude.ai, `null` locally). Stored units are fixed (**ml, kg, cm, ms**); `S.settings.vol` / `.wt` only change display, through `volOut`/`volIn` and `wtOut`/`wtIn`.
+Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on claude.ai, email in cloud mode, `null` locally). Any entry may have `note` (≤ 200 chars) and `byName` (caregiver name from an import, shown when `by` doesn't resolve to a family member). Stored units are fixed (**ml, kg, cm, ms**); `S.settings.vol` / `.wt` only change display, through `volOut`/`volIn` and `wtOut`/`wtIn`.
 
 | type | fields |
 | --- | --- |
 | `nurse` | `left`, `right` (ms per side), `last` (`'L'`/`'R'`, drives "next side"), `end` |
-| `bottle` | `ml`, `content` (`formula` / `breastmilk`) |
+| `bottle` | `ml` (0 = not recorded), `content` (`formula` / `breastmilk` / `mixed`), `brand` |
 | `solids` | `food`, `reaction` |
 | `sleep` | `end` (required, > `t`) |
-| `diaper` | `kind` (`wet` / `dirty` / `both` / `dry`), `note` |
-| `pump` | `lml`, `rml`, `min` |
+| `diaper` | `kind` (`wet` / `dirty` / `both` / `dry`); `color`, `texture`, `flags`: space-separated words from fixed vocabularies (`DCOLOR`, `DTEXTURE`, `DFLAGS`) |
+| `pump` | `lml`, `rml`, `tml` (total when sides weren't recorded), `min` (a pump needs some volume or a duration) |
 | `growth` | `kg`, `cm`, `head` (any subset) |
+| `medicine` | `name`, `dose` |
+| `vaccine` | `name` |
+| `temp` | `c` (stored °C; shown in `S.settings.temp` `'C'`/`'F'` via `tempOut`/`tempIn`) |
+| `milestone` | `title` |
+
+Settings: `name`, `birth`, `vol`, `wt`, `temp`, and reminder gaps `feedGap` / `diaperGap` (minutes, 0 = off). `dueState()` decides what's due; `checkReminders()` runs on the tick and notifies once per last-entry id per phone (`localStorage['nestlog-reminded']`).
+
+Imports: `readImport` handles Nestlog JSON/CSV and Nara Baby CSV (`isNara` + `fromNara`, ids `nara-<_activityKey>`). Every path ends in `normalize()`.
 
 Running timers: `active.nurse = { start, left, right, side: 'L'|'R'|null, since, lastSide, by }` and `active.sleep = { start, by }`.
 
@@ -74,7 +86,7 @@ Tokens are at the top of the `<style>` block. Use them; never hard-code a color.
 
 - **Neutrals:** `--bg` (stone ground), `--surface` (one tone step: cards, the tab bar), `--raised` (sheets), `--sunk` (fields and chips on a surface), `--line` / `--line-strong` (chart internals and the sheet grab handle only), `--ink`, `--ink-2`, `--muted` (≥ 4.5:1 on `--bg`).
 - **Action:** `--brand` is the ink colour (dark in light mode, light in dark mode), with `--brand-ink` on top and `--brand-soft` for the selected tab. Buttons are neutral; colour belongs to the log families.
-- **Log families:** `--c-feed` amber, `--c-sleep` slate blue, `--c-diaper` teal, `--c-pump` rose, `--c-growth` green. Put `.k-feed` / `.k-sleep` / … on an element to set `--c`, then `.tint` gives the tint background with `--c` ink. Icon chips, the log tiles, charts and timers use this pattern.
+- **Log families:** `--c-feed` amber, `--c-sleep` slate blue, `--c-diaper` teal, `--c-pump` rose, `--c-growth` green, `--c-health` brick red (medicine, vaccine, temperature), `--c-moment` ochre (milestones). Put `.k-feed` / `.k-sleep` / `.k-health` / … on an element to set `--c`, then `.tint` gives the tint background with `--c` ink. Icon chips, the log tiles, charts and timers use this pattern.
 - **Type:** `--f-display` (Bricolage Grotesque: names, big numbers, headings) and `--f-ui` (Onest: everything else). Five sizes: `--fs-s` 13 (secondary notes), `--fs-m` 16 (body, buttons, fields), `--fs-l` 18 (section heads), `--fs-xl` 26 (titles, stats), `--fs-2xl` 44 (the one big number). Numbers that tick or line up get `.num` (tabular figures).
 - **Space / shape:** `--s1`…`--s8` (4px grid), `--r-sm` 10 (fields), `--r-md` 14, `--r-lg` 22 (cards, tiles), `--r-pill` (every button). `--shadow-2` is the only shadow, for sheets and toasts.
 - **Motion:** `--t-fast` 120ms, `--t-med` 220ms, `--ease`. All animation sits inside `prefers-reduced-motion: no-preference`.
@@ -88,6 +100,6 @@ Plain and short; it gets read at 3am. Buttons start with a verb ("Save bottle", 
 
 ## Ideas not built yet
 
-- Offline support with a service worker (watch out for stale caches while developing)
-- Feed / diaper reminders ("3h since the last feed")
-- Medicine, temperature and milestone logs
+- Server-pushed reminders (Web Push from Supabase) so notifications arrive when the app is closed
+- Medicine schedules ("next dose due at 7:30")
+- A photo on milestones

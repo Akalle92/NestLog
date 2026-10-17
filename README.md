@@ -1,6 +1,6 @@
 # Nestlog
 
-A baby tracker for the first months: nursing with a left/right timer, bottles, solids, sleep, diapers, pumping and growth. It shows what's happening right now, a 24-hour strip of the day, a timeline, and 7/14/30-day trends with a weight curve.
+A baby tracker for the first months: nursing with a left/right timer, bottles, solids, sleep, diapers (with colour and texture), pumping, growth, medicine, vaccines, temperature and milestones, with a note on anything. It shows what's happening right now, a 24-hour strip of the day, a timeline, and 7/14/30-day trends with a weight curve.
 
 **Live app:** https://akalle92.github.io/NestLog/
 
@@ -15,7 +15,7 @@ The GitHub Pages version keeps one shared log in a free [Supabase](https://supab
 
 Everyone sees the same log, live, and each entry shows who logged it. If you used Nestlog on this phone before, **Baby → Sharing → Upload entries from this phone** moves those entries into the shared log.
 
-**Adding or removing someone:** in the Supabase dashboard, open the NestLog project → **Table editor → family_members** and add or delete a row (email in lowercase, plus a first name). Removing a row cuts off access straight away.
+**Adding or removing someone:** in the app, **Baby → Family**. Type their first name and email and tap **Add to family**; they can sign in straight away. **Remove** takes a second tap and can be undone. Anyone on the list can do this, and the list always keeps at least one person. (The same list is the `family_members` table in the Supabase dashboard.)
 
 **One-time setup in the Supabase dashboard** (project NestLog):
 1. **Authentication → Emails → Magic Link** template: put the code in the email, for example
@@ -26,6 +26,24 @@ Everyone sees the same log, live, and each entry shows who logged it. If you use
 The database setup is in [`supabase/nestlog_init.sql`](supabase/nestlog_init.sql) (tables, access rules, live updates, the sign-up hook).
 
 **Limits on the free plan:** a project with no activity for a week pauses (daily logging keeps it awake; **Restore** in the dashboard wakes it). Supabase's built-in email sends only a few emails an hour, which is fine for signing in once per phone; for more, connect your own email sender under Authentication → SMTP.
+
+## Bring your history from Nara Baby
+
+In Nara, export your data as CSV, then in Nestlog open **Baby → Import** and choose the file. Nestlog reads every kind of Nara entry: bottle feeds (with the formula brand), sleep, diapers (wet/dirty, colour, texture, blowout, rash), growth (pounds and inches are converted), pumping, routines and medication (as medicine), vaccines, baby firsts (as milestones) and combo feeds. Notes and who logged each entry come along, and it offers to use the baby's name and birth date from the export.
+
+The preview shows what will be added before anything is saved. Importing the same file again adds nothing new. Rows Nara saved empty (a sleep that starts and ends at the same minute, a pump with no time or amount) are skipped.
+
+## Reminders
+
+**Baby → Reminders** sets when a feed or diaper change is due (off, or 2 to 5 hours after the last one). The setting is shared by everyone. Once one is due, Today shows it tinted. Tap **Allow notifications** to also get a notification on that phone.
+
+Phones limit notifications from web apps:
+- **Android and computers:** they arrive while Nestlog is open or recently used in the background.
+- **iPhone:** you need iOS 16.4 or newer and Nestlog added to the Home Screen, and they only arrive while iOS keeps the app running. Don't rely on them as an alarm.
+
+## Works offline
+
+After the first visit, the website version opens with no signal. Entries you log offline appear straight away; the header shows **Offline · 2 waiting**, and they sync in order as soon as you're back online. The last synced log stays on the phone for this, and signing out removes it.
 
 ## Run it at home on your laptop
 
@@ -46,7 +64,7 @@ It prints the addresses to use:
   On your phones:   http://192.168.1.23:8080/
 ```
 
-Open the "On your phones" address on each phone (same Wi-Fi), then add it to the home screen as described below.
+Open the "On your phones" address on each phone (same Wi-Fi), then add it to the home screen as described below. (Offline mode and notifications need a secure https address, so they work on the website version but not on the home server's local address.)
 
 - **Your data** is in `data/nestlog.json` in the NestLog folder. A dated copy goes into `data/backups/` each day (the last 30 are kept). To keep it somewhere else: `NESTLOG_DATA=~/Documents/nestlog npm run home`.
 - **The laptop has to be on and awake** while you log. If it sleeps, the header says *Offline* and saves fail with a message; they work again once it wakes. On a Mac, `caffeinate -i npm run home` keeps it awake while Nestlog runs.
