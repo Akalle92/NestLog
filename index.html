@@ -1106,7 +1106,8 @@ async function signinSubmit(){
     SI.busy = true; SI.err = ''; renderSignin();
     try { await auth.sendCode(email); SI.step = 'code'; }
     catch(e){ SI.err = e.status===403 || e.status===422 ? 'That email isn’t on the family list. Ask the person who set up Nestlog to add it.'
-      : e.status===429 ? 'A code was sent a moment ago. Wait a minute, then try again.' : 'Couldn’t send the code. Check your connection and try again.'; }
+      : e.status===429 ? 'A code was sent a moment ago. Wait a minute, then try again.'
+      : e.status >= 500 ? 'The email didn’t send in time. Wait a minute, then try again.' : 'Couldn’t send the code. Check your connection and try again.'; }
     SI.busy = false; renderSignin(); return;
   }
   const code = $('siCode').value.replace(/\D/g, '');

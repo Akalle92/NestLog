@@ -359,6 +359,7 @@ function paletteAudit() {
       await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/auth/v1/**', async route => {
         const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
         const path = new globalThis.URL(req.url()).pathname.replace('/auth/v1/', ''), body = req.postDataJSON() || {};
+        if (path === 'otp' && body.email === 'slow@x.com') return reply(route, 504, { msg: 'context deadline exceeded' });
         if (path === 'otp') return fake.family.some(f => f.email === body.email) ? reply(route, 200, {}) : reply(route, 403, { msg: "This email isn't on the family list." });
         if (path === 'verify') return body.token === '123456' ? reply(route, 200, { access_token: 'tok-' + body.email, refresh_token: 'r-' + body.email, expires_in: 3600, user: { email: body.email } }) : reply(route, 403, { msg: 'Token has expired or is invalid', error_code: 'otp_expired' });
         if (path === 'token') { const e = String(body.refresh_token).slice(2); return reply(route, 200, { access_token: 'tok-' + e, refresh_token: 'r-' + e, expires_in: 3600, user: { email: e } }); }
@@ -405,7 +406,7 @@ function paletteAudit() {
       if (init) await ctx.addInitScript(init.fn, init.arg);
       const p = await ctx.newPage(); p.errors = [];
       p.on('pageerror', e => p.errors.push(e.message));
-      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of 40[1349]/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
+      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of (40[1349]|504)/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
       await p.goto(URL + '?cloud'); await p.waitForTimeout(500); return p;
     };
     const session = { fn: email => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-' + email, refresh: 'r-' + email, exp: Date.now() + 36e5, email })); } }, arg: 'b@x.com' };
@@ -418,6 +419,8 @@ function paletteAudit() {
     await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
     await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
+    await a.fill('#siEmail', 'slow@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
+    check('cloud: a slow email service says to wait, not to check the connection', /didn’t send in time/.test(await text(a, '#signinForm')));
     await a.fill('#siEmail', 'a@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: code step shows', await a.isVisible('#siCode'));
     await a.fill('#siCode', '000000'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
