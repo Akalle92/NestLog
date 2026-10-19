@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#3b2d64"/>
+  <rect width="512" height="512" fill="#1b211e"/>
   <mask id="m"><rect width="512" height="512" fill="#fff"/><circle cx="314" cy="214" r="118" fill="#000"/></mask>
-  <circle cx="240" cy="278" r="142" fill="#c3b6f4" mask="url(#m)"/>
-  <circle cx="356" cy="160" r="34" fill="#eba55a"/>
+  <circle cx="240" cy="278" r="142" fill="#ecebe6" mask="url(#m)"/>
+  <circle cx="356" cy="160" r="34" fill="#e6a35e"/>
 </svg>

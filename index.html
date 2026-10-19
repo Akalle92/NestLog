@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nestlog</title>
 <meta name="description" content="Baby tracker for feeds, sleep, diapers, pumping and growth.">
-<meta name="theme-color" content="#f4f3f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#110f16" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f1ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121413" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nestlog">
@@ -24,67 +24,66 @@ body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
 
-/* Nestlog design system
+/* Nestlog design system (house rules from the taste skill, applied to an app)
    Layout: single 480px column. Header → "Right now" status card with a 24-hour ribbon → live timers → log actions
-   (4 primary tiles, 3 secondary pills) → today → recent. Bottom tab bar. Sheets slide up for every entry.
-   Color: lilac-grey neutrals with a plum ink; one hue per log family, always used as ink + 14% tint.
-   Type: Bricolage Grotesque for names and numbers, Onest for UI text. */
+   (4 tinted tiles in a 2×2 grid, 3 secondary pills) → today → recent. Bottom tab bar. Sheets slide up for every entry.
+   Color: stone neutrals, a green-black ink, and buttons in ink (no brand hue). One hue per log family, used as ink + tint.
+   Surfaces differ by one tone step: no shadows at rest, no hairlines, no glass, no violet, no uppercase labels.
+   Type: Bricolage Grotesque for names and numbers, Onest for UI text. Five sizes only. Every button is a pill. */
 :root{
   /* neutrals */
-  --bg:#f4f3f7; --surface:#ffffff; --raised:#ffffff; --sunk:#eceaf1; --line:#e2dfe8; --line-strong:#cfcad8;
-  --ink:#221d2c; --ink-2:#4a4456; --muted:#6f6979;
-  /* brand */
-  --brand:#3b2d64; --brand-ink:#ffffff; --brand-soft:#e7e2f5;
+  --bg:#f2f1ee; --surface:#ffffff; --raised:#ffffff; --sunk:#e8e7e2; --line:#dddbd5; --line-strong:#c4c1b9;
+  --ink:#1b211e; --ink-2:#3c433f; --muted:#5d645f;
+  /* action: buttons and focus are ink, not a brand hue */
+  --brand:#1b211e; --brand-ink:#f7f6f3; --brand-soft:#e2e1dc;
   /* log families */
-  --c-feed:#c9761f; --c-sleep:#5b54c9; --c-diaper:#1d8c80; --c-pump:#c24672; --c-growth:#4f8a2c;
-  --danger:#b4232b; --ok:#1d8c80;
+  --c-feed:#b0611a; --c-sleep:#2b6890; --c-diaper:#14786a; --c-pump:#b13d66; --c-growth:#477a28; --c-health:#a5352c; --c-moment:#806400;
+  --danger:#b4232b; --ok:#14786a;
   /* type */
   --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --f-ui:"Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fs-2xs:11px; --fs-xs:12px; --fs-sm:13px; --fs-md:15px; --fs-lg:17px; --fs-xl:22px; --fs-2xl:30px; --fs-3xl:44px;
+  --fs-s:13px; --fs-m:16px; --fs-l:18px; --fs-xl:26px; --fs-2xl:44px;
   /* space, radius, elevation, motion */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
   --r-sm:10px; --r-md:14px; --r-lg:22px; --r-pill:999px;
-  --shadow-1:0 1px 1px rgb(34 22 60 / .04), 0 2px 10px rgb(34 22 60 / .05);
-  --shadow-2:0 10px 40px rgb(20 12 40 / .18);
-  --scrim:rgb(18 12 30 / .42);
+  --shadow-2:0 10px 40px rgb(16 22 19 / .18);
+  --scrim:rgb(14 18 16 / .42);
   --ease:cubic-bezier(.2,.8,.2,1); --t-fast:120ms; --t-med:220ms;
   --tint:14%;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#110f16; --surface:#1a1721; --raised:#211d2a; --sunk:#25212f; --line:#2f2a3a; --line-strong:#3f384c;
-  --ink:#efecf4; --ink-2:#cdc7d8; --muted:#a29bad;
-  --brand:#c3b6f4; --brand-ink:#171222; --brand-soft:#2b2443;
-  --c-feed:#eba55a; --c-sleep:#9d97f5; --c-diaper:#4fc4b6; --c-pump:#ec88ab; --c-growth:#93c56c;
-  --danger:#f08a8f; --ok:#4fc4b6;
-  --shadow-1:0 0 0 1px rgb(255 255 255 / .02); --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
+  --bg:#121413; --surface:#1b1e1c; --raised:#222624; --sunk:#292d2b; --line:#2f3431; --line-strong:#454b47;
+  --ink:#ecebe6; --ink-2:#cfd0ca; --muted:#a2a7a0;
+  --brand:#ecebe6; --brand-ink:#121413; --brand-soft:#2e3330;
+  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472; --c-health:#f0938a; --c-moment:#d8bd55;
+  --danger:#f08a8f; --ok:#4fbfad;
+  --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
   --tint:18%; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#110f16; --surface:#1a1721; --raised:#211d2a; --sunk:#25212f; --line:#2f2a3a; --line-strong:#3f384c;
-  --ink:#efecf4; --ink-2:#cdc7d8; --muted:#a29bad;
-  --brand:#c3b6f4; --brand-ink:#171222; --brand-soft:#2b2443;
-  --c-feed:#eba55a; --c-sleep:#9d97f5; --c-diaper:#4fc4b6; --c-pump:#ec88ab; --c-growth:#93c56c;
-  --danger:#f08a8f; --ok:#4fc4b6;
-  --shadow-1:0 0 0 1px rgb(255 255 255 / .02); --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
+  --bg:#121413; --surface:#1b1e1c; --raised:#222624; --sunk:#292d2b; --line:#2f3431; --line-strong:#454b47;
+  --ink:#ecebe6; --ink-2:#cfd0ca; --muted:#a2a7a0;
+  --brand:#ecebe6; --brand-ink:#121413; --brand-soft:#2e3330;
+  --c-feed:#e6a35e; --c-sleep:#7db2d8; --c-diaper:#4fbfad; --c-pump:#e88aa9; --c-growth:#9ac472; --c-health:#f0938a; --c-moment:#d8bd55;
+  --danger:#f08a8f; --ok:#4fbfad;
+  --shadow-2:0 10px 40px rgb(0 0 0 / .5); --scrim:rgb(0 0 0 / .55);
   --tint:18%; color-scheme:dark}
 
 /* family helpers: set --c, get ink + tint */
-.k-feed{--c:var(--c-feed)} .k-sleep{--c:var(--c-sleep)} .k-diaper{--c:var(--c-diaper)} .k-pump{--c:var(--c-pump)} .k-growth{--c:var(--c-growth)}
+.k-feed{--c:var(--c-feed)} .k-sleep{--c:var(--c-sleep)} .k-diaper{--c:var(--c-diaper)} .k-pump{--c:var(--c-pump)} .k-growth{--c:var(--c-growth)} .k-health{--c:var(--c-health)} .k-moment{--c:var(--c-moment)}
 .tint{background:color-mix(in oklab, var(--c) var(--tint), var(--surface));color:var(--c)}
 
 /* base */
 html,body{height:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:var(--fs-md);line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:var(--fs-m);line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 .app{max-width:480px;margin:0 auto;padding:0 var(--s4) calc(104px + env(safe-area-inset-bottom,0px))}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
 .num{font-variant-numeric:tabular-nums}
 .disp{font-family:var(--f-display);font-weight:600;letter-spacing:-.01em}
 .muted{color:var(--muted)}
-.eyebrow{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-h2.sec{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:var(--s6) 0 var(--s3);font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg);letter-spacing:-.01em}
-h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weight:600;color:var(--brand)}
-.card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+h2.sec{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:var(--s6) 0 var(--s3);font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);letter-spacing:-.01em}
+h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight:600;color:var(--brand)}
+.card{background:var(--surface);border-radius:var(--r-lg)}
 @media (prefers-reduced-motion:no-preference){
   .press{transition:transform var(--t-fast) var(--ease), background var(--t-fast)}
   .press:active{transform:scale(.97)}
@@ -92,124 +91,126 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-sm);font-weigh
 
 /* header */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);margin-inline:calc(var(--s4) * -1);padding:var(--s4) var(--s4) var(--s3);display:flex;align-items:center;gap:var(--s3)}
-.avatar{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand);font-family:var(--f-display);font-weight:700;font-size:var(--fs-lg)}
+.avatar{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--ink);color:var(--bg);font-family:var(--f-display);font-weight:700;font-size:var(--fs-l)}
 .who{flex:1;min-width:0}
 .who h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-xl);line-height:1.1;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.who p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
-.sync{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:500;color:var(--muted);padding:6px 10px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--shadow-1);white-space:nowrap}
+.who p{margin:0;font-size:var(--fs-s);color:var(--muted)}
+.sync{display:flex;align-items:center;gap:6px;font-size:var(--fs-s);font-weight:500;color:var(--muted);padding:6px 10px;border-radius:var(--r-pill);background:var(--surface);white-space:nowrap}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
-.sync.live i{background:var(--ok)}
+.sync.on i{background:var(--ok)}
 
 /* status card */
 .status{padding:var(--s5) var(--s5) var(--s4);display:grid;gap:var(--s4)}
 .status .head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s3)}
-.status .state{font-family:var(--f-display);font-weight:600;font-size:var(--fs-3xl);line-height:1;letter-spacing:-.03em}
-.status .state small{display:block;font-family:var(--f-ui);font-size:var(--fs-sm);font-weight:500;letter-spacing:0;color:var(--muted);margin-bottom:6px}
+.status .state{font-family:var(--f-display);font-weight:600;font-size:var(--fs-2xl);line-height:1;letter-spacing:-.035em}
+.status .state small{display:block;font-family:var(--f-ui);font-size:var(--fs-s);font-weight:500;letter-spacing:0;color:var(--muted);margin-bottom:6px}
 .status .state.asleep{color:var(--c-sleep)}
 .facts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
-.fact{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r-md);background:var(--sunk);min-width:0}
+.fact{display:flex;gap:10px;align-items:center;min-width:0}
 .fact .dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
-.fact b{display:block;font-weight:600;font-size:var(--fs-sm)}
-.fact span{display:block;font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fact b{display:block;font-weight:600;font-size:var(--fs-s)}
+.fact span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fact>div{min-width:0}
+.fact.due{margin:calc(var(--s2) * -1);padding:var(--s2);border-radius:var(--r-md);background:color-mix(in oklab, var(--c) var(--tint), var(--surface))}
+.fact.due b{color:var(--c)}
 .ribbon svg{display:block;width:100%;height:auto}
-.ribbon .labels{display:flex;justify-content:space-between;font-size:var(--fs-2xs);color:var(--muted);margin-top:4px}
-.legend{display:flex;gap:var(--s3);font-size:var(--fs-2xs);color:var(--muted)}
+.ribbon .labels{display:flex;justify-content:space-between;font-size:var(--fs-s);color:var(--muted);margin-top:4px}
+.legend{display:flex;gap:var(--s3);font-size:var(--fs-s);color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .legend i{width:8px;height:8px;border-radius:2px;background:var(--c)}
 
 /* live timers */
 .live{display:grid;gap:var(--s2);margin-top:var(--s3)}
 .live:empty{display:none}
-.timer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:var(--s3);padding:var(--s3) var(--s3) var(--s3) var(--s4);border-radius:var(--r-lg);background:color-mix(in oklab, var(--c) var(--tint), var(--surface));border:1px solid color-mix(in oklab, var(--c) 30%, transparent)}
+.timer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:var(--s3);padding:var(--s3) var(--s3) var(--s3) var(--s4);border-radius:var(--r-lg);background:color-mix(in oklab, var(--c) var(--tint), var(--surface))}
 .timer .pulse{width:10px;height:10px;border-radius:50%;background:var(--c)}
 .timer .t{font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);line-height:1.1}
-.timer .l{font-size:var(--fs-xs);color:var(--ink-2)}
+.timer .l{font-size:var(--fs-s);color:var(--ink-2)}
 .timer .open{text-align:left;min-width:0}
 .timer .ctl{display:flex;gap:6px}
-.mini{min-width:44px;height:40px;padding:0 12px;border-radius:var(--r-sm);background:var(--surface);font-size:var(--fs-sm);font-weight:600;color:var(--ink)}
+.mini{min-width:44px;height:44px;padding:0 14px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-m);font-weight:600;color:var(--ink)}
 .mini.on{background:var(--c);color:var(--surface)}
 .mini.solid{background:var(--ink);color:var(--surface)}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.3;transform:scale(.8)}}}
 
 /* log actions */
-.primary4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
-.tile{display:grid;justify-items:center;gap:var(--s2);padding:var(--s4) var(--s1) var(--s3);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-1);font-size:var(--fs-sm);font-weight:600}
-.tile .ic{width:46px;height:46px;border-radius:50%;display:grid;place-items:center}
+.primary4{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+.tile{display:flex;align-items:center;gap:var(--s3);min-height:72px;padding:var(--s3) var(--s4);border-radius:var(--r-lg);text-align:left;min-width:0}
+.tile .ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--surface);color:var(--c)}
 .tile .ic svg{width:24px;height:24px}
-.tile small{font-size:var(--fs-2xs);font-weight:500;color:var(--muted);margin-top:-6px;white-space:nowrap}
-.pills{display:flex;gap:var(--s2);margin-top:var(--s2)}
-.pill{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--shadow-1);font-size:var(--fs-sm);font-weight:600}
+.tile .tl{display:grid;min-width:0}
+.tile b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);color:var(--ink);letter-spacing:-.01em}
+.tile small{font-size:var(--fs-s);font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-top:var(--s2)}
+.pill{min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:48px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-m);font-weight:600}
 .pill svg{width:18px;height:18px;color:var(--c)}
 
 /* today */
-.today{display:grid;grid-template-columns:repeat(4,1fr);padding:var(--s4) var(--s2)}
-.today div{text-align:center;padding:0 var(--s1);border-left:1px solid var(--line);min-width:0}
-.today div:first-child{border-left:0}
-.today b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);line-height:1.15}
-.today b small{font-size:var(--fs-xs);font-family:var(--f-ui);font-weight:500;color:var(--muted)}
-.today span{font-size:var(--fs-2xs);color:var(--muted)}
+.today{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5) var(--s4);padding:var(--s5)}
+.today div{min-width:0}
+.today b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);line-height:1.1;letter-spacing:-.02em}
+.today b small{font-size:var(--fs-s);font-family:var(--f-ui);font-weight:500;color:var(--muted)}
+.today span{font-size:var(--fs-s);color:var(--muted)}
 
 /* entry list */
-.list{overflow:hidden}
+.list{overflow:hidden;padding:var(--s1) 0}
 .entry{display:grid;grid-template-columns:4.6em 1fr;gap:var(--s3);align-items:center;width:100%;text-align:left;padding:var(--s3) var(--s4);position:relative}
-.entry+.entry{border-top:1px solid var(--line)}
-.entry time{font-size:var(--fs-sm);font-weight:500;color:var(--ink-2)}
+.entry time{font-size:var(--fs-s);font-weight:500;color:var(--ink-2)}
 .entry .body{display:flex;gap:var(--s3);align-items:center;min-width:0}
 .entry .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .entry .ic svg{width:17px;height:17px}
 .entry .txt{min-width:0}
-.entry b{display:block;font-weight:600;font-size:var(--fs-md)}
-.entry .by{font-weight:500;color:var(--muted);font-size:var(--fs-sm)}
-.entry .txt>span{display:block;font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry b{display:block;font-weight:600;font-size:var(--fs-m)}
+.entry .by{font-weight:500;color:var(--muted);font-size:var(--fs-s)}
+.entry .txt>span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (hover:hover){.entry:hover{background:var(--sunk)}}
 .day{margin-top:var(--s5)}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);margin-bottom:var(--s2);padding:0 var(--s1)}
-.dayhead b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg)}
-.dayhead span{font-size:var(--fs-xs);color:var(--muted)}
-.empty{padding:var(--s6) var(--s5);text-align:center;color:var(--muted);font-size:var(--fs-sm)}
-.empty b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg);color:var(--ink);margin-bottom:4px}
+.dayhead b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-l)}
+.dayhead span{font-size:var(--fs-s);color:var(--muted)}
+.empty{padding:var(--s6) var(--s5);text-align:center;color:var(--muted);font-size:var(--fs-s)}
+.empty b{display:block;font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);color:var(--ink);margin-bottom:4px}
 .skel{height:60px;border-radius:var(--r-md);background:var(--surface);margin-bottom:var(--s2)}
 @media (prefers-reduced-motion:no-preference){.skel{animation:sk 1.2s ease-in-out infinite}@keyframes sk{50%{opacity:.45}}}
 
 /* segmented + chips */
 .seg{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--sunk);overflow-x:auto;scrollbar-width:none}
-.seg button{flex:1 0 auto;padding:8px 14px;border-radius:var(--r-pill);font-size:var(--fs-sm);font-weight:600;color:var(--muted);white-space:nowrap}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.seg button{flex:1 0 auto;min-height:40px;padding:8px 14px;border-radius:var(--r-pill);font-size:var(--fs-m);font-weight:600;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .presets .chips{display:grid;grid-template-columns:repeat(5,1fr)}
 .presets .chip{padding:0}
 .entry time{white-space:nowrap}
 .fact b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status .wake{height:44px;padding:0 var(--s4);border-radius:var(--r-pill);flex:none;align-self:center}
-.today b{white-space:nowrap;font-size:clamp(17px,5.2vw,var(--fs-xl))}
+.status .wake{height:48px;padding:0 var(--s4);border-radius:var(--r-pill);flex:none;align-self:center}
+.today b{white-space:nowrap}
 .toast.top{bottom:auto;top:calc(var(--s4) + env(safe-area-inset-top,0px))}
-.chip{height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--sunk);font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);white-space:nowrap}
+.chip{height:44px;padding:0 16px;border-radius:var(--r-pill);background:var(--sunk);font-size:var(--fs-m);font-weight:600;color:var(--ink-2);white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 
 /* trends */
 .chart{padding:var(--s4) var(--s4) var(--s3);margin-bottom:var(--s3)}
 .chart header{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3)}
-.chart h3{margin:0;font-family:var(--f-display);font-weight:600;font-size:var(--fs-lg)}
+.chart h3{margin:0;font-family:var(--f-display);font-weight:600;font-size:var(--fs-l)}
 .chart .big{font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl);color:var(--c)}
-.chart p{margin:2px 0 var(--s3);font-size:var(--fs-xs);color:var(--muted)}
+.chart p{margin:2px 0 var(--s3);font-size:var(--fs-s);color:var(--muted)}
 .chart svg{display:block;width:100%;height:auto}
-.chart text{fill:var(--muted);font-family:var(--f-ui);font-size:10px}
+.chart text{fill:var(--muted);font-family:var(--f-ui);font-size:var(--fs-s)}
 
 /* forms */
 .field{display:grid;gap:6px;min-width:0}
-.label{font-size:var(--fs-sm);font-weight:600;color:var(--ink-2)}
-input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--sunk);border:1px solid transparent;border-radius:var(--r-sm);padding:11px 12px;width:100%;box-sizing:border-box;min-width:0;transition:border-color var(--t-fast)}
-input:focus,select:focus{outline:none;border-color:var(--brand);background:var(--surface)}
+.label{font-size:var(--fs-s);font-weight:600;color:var(--ink-2)}
+input,select{font:inherit;font-size:var(--fs-m);color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:12px 14px;min-height:48px;width:100%;box-sizing:border-box;min-width:0}
+input:focus,select:focus{outline:2px solid var(--ink);outline-offset:0;background:var(--surface)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
-.amount{display:grid;grid-template-columns:48px 1fr 48px;gap:var(--s2);align-items:center}
-.amount button{height:48px;border-radius:var(--r-md);background:var(--sunk);font-size:22px;font-weight:500}
+.amount{display:grid;grid-template-columns:52px 1fr 52px;gap:var(--s2);align-items:center}
+.amount button{height:52px;border-radius:var(--r-pill);background:var(--sunk);font-size:var(--fs-xl);font-weight:500}
 .amount .val{display:flex;align-items:baseline;justify-content:center;gap:6px}
-.amount input{background:none;border:0;text-align:center;font-family:var(--f-display);font-weight:600;font-size:var(--fs-3xl);padding:0;width:4.2ch}
-.amount input:focus{background:none}
-.amount .u{font-size:var(--fs-md);color:var(--muted);font-weight:500}
-.btn{height:50px;padding:0 var(--s5);border-radius:var(--r-md);font-weight:600;font-size:var(--fs-md);display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
+.amount input{background:none;border:0;text-align:center;font-family:var(--f-display);font-weight:600;font-size:var(--fs-2xl);padding:0;width:4.2ch}
+.amount input:focus{outline:none;background:var(--sunk);border-radius:var(--r-sm)}
+.amount .u{font-size:var(--fs-m);color:var(--muted);font-weight:500}
+.btn{height:52px;padding:0 var(--s4);border-radius:var(--r-pill);white-space:nowrap;font-weight:600;font-size:var(--fs-m);display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
 .btn.primary{background:var(--brand);color:var(--brand-ink)}
 .btn.soft{background:var(--sunk);color:var(--ink)}
 .btn.danger{color:var(--danger);height:44px}
@@ -217,20 +218,28 @@ input:focus,select:focus{outline:none;border-color:var(--brand);background:var(-
 .btn[disabled]{opacity:.55;cursor:default}
 .row-actions{display:flex;gap:var(--s2)}
 .row-actions .btn{flex:1}
-.hint{font-size:var(--fs-sm);color:var(--muted);margin:0}
-details summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--brand);list-style:none}
+.stack{display:grid;gap:var(--s2)}
+.people{display:grid;gap:var(--s2)}
+.person{display:flex;align-items:center;gap:var(--s3);min-width:0}
+.person .avatar{width:40px;height:40px;font-size:var(--fs-m)}
+.person .who2{flex:1;min-width:0}
+.person b{display:block;font-weight:600}
+.person .who2 span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person .btn{height:44px;flex:none}
+.hint{font-size:var(--fs-s);color:var(--muted);margin:0}
+details summary{cursor:pointer;font-size:var(--fs-s);font-weight:600;color:var(--brand);list-style:none}
 details summary::-webkit-details-marker{display:none}
 
 /* nursing */
 .sides{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
 .side{aspect-ratio:1;max-width:100%;border-radius:50%;display:grid;place-content:center;justify-items:center;gap:2px;background:var(--sunk);border:3px solid transparent;transition:background var(--t-med),border-color var(--t-med)}
-.side .s{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.side .t{font-family:var(--f-display);font-weight:600;font-size:var(--fs-2xl)}
-.side .st{font-size:var(--fs-xs);color:var(--muted)}
+.side .s{font-size:var(--fs-s);font-weight:600;color:var(--muted)}
+.side .t{font-family:var(--f-display);font-weight:600;font-size:var(--fs-xl)}
+.side .st{font-size:var(--fs-s);color:var(--muted)}
 .side.on{border-color:var(--c-feed);background:color-mix(in oklab, var(--c-feed) var(--tint), var(--surface))}
 .side.on .st{color:var(--c-feed);font-weight:600}
 .side.sug .st{color:var(--ink-2);font-weight:600}
-.bigclock{font-family:var(--f-display);font-weight:600;font-size:56px;text-align:center;line-height:1;color:var(--c-sleep);letter-spacing:-.03em}
+.bigclock{font-family:var(--f-display);font-weight:600;font-size:var(--fs-2xl);text-align:center;line-height:1;color:var(--c-sleep);letter-spacing:-.03em}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
@@ -240,7 +249,7 @@ details summary::-webkit-details-marker{display:none}
 .sheet .title .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
 .sheet .title .ic svg{width:20px;height:20px}
 .sheet h2{margin:0;flex:1;font-family:var(--f-display);font-weight:700;font-size:var(--fs-xl);letter-spacing:-.02em}
-.sheet .x{width:36px;height:36px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
+.sheet .x{width:44px;height:44px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
 .sheet .x svg{width:16px;height:16px}
 .sheet form{display:grid;gap:var(--s5)}
 @media (prefers-reduced-motion:no-preference){
@@ -250,47 +259,55 @@ details summary::-webkit-details-marker{display:none}
 
 /* when */
 .when{display:grid;gap:var(--s2)}
-.when .chips .chip{height:34px;padding:0 12px}
+.when .chips .chip{height:40px;padding:0 14px}
 
 /* tab bar */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:color-mix(in oklab, var(--surface) 92%, transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabs div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);padding:6px var(--s2)}
-.tabs button{height:54px;display:grid;justify-items:center;align-content:center;gap:3px;font-size:var(--fs-2xs);font-weight:600;color:var(--muted);border-radius:var(--r-md)}
+.tabs button{height:56px;display:grid;justify-items:center;align-content:center;gap:3px;font-size:var(--fs-s);font-weight:600;color:var(--muted);border-radius:var(--r-pill)}
 .tabs svg{width:22px;height:22px}
-.tabs button[aria-current="page"]{color:var(--brand)}
+.tabs button[aria-current="page"]{color:var(--ink)}
 .tabs button[aria-current="page"] svg{background:var(--brand-soft);border-radius:var(--r-pill);padding:3px 14px;box-sizing:content-box;margin:-3px 0}
 
 /* toast */
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:var(--s3);max-width:calc(100% - 32px);box-sizing:border-box;padding:12px 18px;border-radius:var(--r-pill);background:var(--ink);color:var(--surface);font-size:var(--fs-sm);font-weight:500;box-shadow:var(--shadow-2)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:var(--s3);max-width:calc(100% - 32px);box-sizing:border-box;padding:12px 18px;border-radius:var(--r-pill);background:var(--ink);color:var(--surface);font-size:var(--fs-m);font-weight:500;box-shadow:var(--shadow-2)}
 .toast button{color:var(--surface);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 
 /* baby / settings */
 .group{overflow:hidden}
 .group .item{padding:var(--s4);display:grid;gap:var(--s3)}
-.group .item+.item{border-top:1px solid var(--line)}
-.group h3{margin:0;font-size:var(--fs-md);font-weight:600}
-.drop{display:grid;place-items:center;gap:2px;text-align:center;padding:var(--s5);border:1.5px dashed var(--line-strong);border-radius:var(--r-md);color:var(--muted);font-size:var(--fs-sm);cursor:pointer}
-.drop b{color:var(--ink);font-weight:600;font-size:var(--fs-md)}
-.drop.over{border-color:var(--brand);background:var(--brand-soft)}
-.preview{display:grid;gap:var(--s2);padding:var(--s4);border-radius:var(--r-md);background:var(--sunk);font-size:var(--fs-sm)}
+.group .item+.item{padding-top:var(--s2)}
+.group h3{margin:0;font-size:var(--fs-m);font-weight:600}
+.drop{display:grid;place-items:center;gap:2px;text-align:center;padding:var(--s5);background:var(--sunk);border-radius:var(--r-md);color:var(--muted);font-size:var(--fs-s);cursor:pointer}
+.drop b{color:var(--ink);font-weight:600;font-size:var(--fs-m)}
+.drop.over{background:var(--brand-soft);outline:2px solid var(--ink)}
+.preview{display:grid;gap:var(--s2);padding:var(--s4);border-radius:var(--r-md);background:var(--sunk);font-size:var(--fs-s)}
 .preview ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
-.preview li{padding:4px 10px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-xs);font-weight:500}
+.preview li{padding:4px 10px;border-radius:var(--r-pill);background:var(--surface);font-size:var(--fs-s);font-weight:500}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .2s}
 .check{display:flex;align-items:center;gap:10px}
 .check input{width:20px;height:20px;flex:none;accent-color:var(--brand)}
-textarea.dump{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:var(--s3);width:100%;box-sizing:border-box;height:160px;resize:vertical}
-.err{color:var(--danger);font-size:var(--fs-sm);margin:0}
-.note{font-size:var(--fs-sm);color:var(--ink-2);margin:0}
+textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:var(--s3);width:100%;box-sizing:border-box;height:160px;resize:vertical}
+.err{color:var(--danger);font-size:var(--fs-s);margin:0}
+/* sign-in (cloud mode) */
+.signin{display:grid;gap:var(--s6);padding-top:calc(var(--s8) * 2)}
+.signin h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-2xl);line-height:.95;letter-spacing:-.04em}
+.signin .lead{margin:var(--s3) 0 0;font-size:var(--fs-l);color:var(--ink-2);max-width:30ch}
+.signin form{display:grid;gap:var(--s4);padding:var(--s5)}
+.linkbtn{justify-self:start;min-height:44px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.note{font-size:var(--fs-s);color:var(--ink-2);margin:0}
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="top">
+  <header class="top" id="top">
     <div class="avatar" id="avatar" aria-hidden="true">N</div>
     <div class="who"><h1 id="babyName">Your baby</h1><p id="babyAge">Add name and birth date in Baby</p></div>
     <div class="sync" id="sync"><i></i><span id="syncText">Connecting</span></div>
   </header>
+
+  <main id="view-signin" hidden></main>
 
   <main id="view-home">
     <section class="card status" id="status" aria-live="polite"></section>
@@ -327,13 +344,40 @@ textarea.dump{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
         <div class="grid2">
           <div class="field"><label class="label" for="setVol">Volume</label><select id="setVol"><option value="ml">Millilitres (ml)</option><option value="oz">Ounces (oz)</option></select></div>
           <div class="field"><label class="label" for="setWt">Weight</label><select id="setWt"><option value="kg">Kilograms</option><option value="lb">Pounds</option></select></div>
+          <div class="field"><label class="label" for="setTemp">Temperature</label><select id="setTemp"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></div>
         </div>
         <button class="btn primary" type="submit">Save baby details</button>
       </div>
     </form>
 
+    <h2 class="sec">Reminders</h2>
+    <div class="card group"><div class="item">
+      <div class="grid2">
+        <div class="field"><label class="label" for="setFeedGap">Feed due after</label><select id="setFeedGap" data-gap="feedGap"></select></div>
+        <div class="field"><label class="label" for="setDiaperGap">Diaper due after</label><select id="setDiaperGap" data-gap="diaperGap"></select></div>
+      </div>
+      <p class="note" id="remindNote"></p>
+      <div class="stack" id="remindActions"></div>
+    </div></div>
+
     <h2 class="sec">Sharing</h2>
-    <div class="card group"><div class="item"><p class="note" id="shareNote"></p></div></div>
+    <div class="card group"><div class="item"><p class="note" id="shareNote"></p><div class="stack" id="shareActions" hidden></div></div></div>
+
+    <div id="familyBox" hidden>
+      <h2 class="sec">Family</h2>
+      <div class="card group">
+        <div class="item"><div id="familyList" class="people"></div></div>
+        <form class="item" id="familyForm" novalidate>
+          <h3>Add someone</h3>
+          <div class="grid2">
+            <div class="field"><label class="label" for="famName">First name</label><input id="famName" autocomplete="off" maxlength="40"></div>
+            <div class="field"><label class="label" for="famEmail">Email</label><input id="famEmail" type="email" inputmode="email" autocapitalize="off" spellcheck="false" autocomplete="off" maxlength="120"></div>
+          </div>
+          <button class="btn primary" type="submit">Add to family</button>
+          <p class="hint">They open Nestlog, type this email and get a sign-in code.</p>
+        </form>
+      </div>
+    </div>
 
     <h2 class="sec">Export</h2>
     <div class="card group"><div class="item">
@@ -359,7 +403,7 @@ textarea.dump{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
   </main>
 </div>
 
-<nav class="tabs" aria-label="Sections"><div id="tabs"></div></nav>
+<nav class="tabs" id="tabbar" aria-label="Sections"><div id="tabs"></div></nav>
 <div id="sheetRoot"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -375,6 +419,10 @@ const I = {
   diaper: sv('<path d="M3.5 6.5h17v2.5a8.5 8.5 0 0 1-17 0Z"/><path d="M8 6.5v2.5M16 6.5v2.5"/>'),
   pump: sv('<path d="M5.5 6.5a4.5 4.5 0 0 1 9 0Z"/><path d="M10 6.5v3.5"/><path d="M7.5 10h5v8.5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2Z"/><path d="M14.5 6.5h3a2 2 0 0 1 2 2v2"/>'),
   growth: sv('<path d="M4 20h16"/><path d="M7 20v-8M12 20V6M17 20v-5"/>'),
+  medicine: sv('<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-40 12 12)"/><path d="m9.2 8.8 5.6 6.4"/>'),
+  vaccine: sv('<path d="m17 3.5 3.5 3.5M18.75 5.25l-3 3"/><path d="m15.5 6.5 2 2-8.5 8.5H7v-2Z"/><path d="M7 17l-3.5 3.5M11 9.5l1.5 1.5M9 11.5l1.5 1.5"/>'),
+  temp: sv('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 17.5V11"/>'),
+  milestone: sv('<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9Z"/>'),
   home: sv('<path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4Z"/>'),
   list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
   chart: sv('<path d="M4 19h16"/><path d="m5 15 4-5 4 3 6-7"/>'),
@@ -388,42 +436,255 @@ const TYPES = {
   sleep:{label:'Sleep',short:'Sleep',k:'sleep',icon:I.sleep,group:'sleep'},
   diaper:{label:'Diaper',short:'Diaper',k:'diaper',icon:I.diaper,group:'diaper'},
   pump:{label:'Pumping',short:'Pump',k:'pump',icon:I.pump,group:'pump'},
-  growth:{label:'Growth',short:'Growth',k:'growth',icon:I.growth,group:'growth'}
+  growth:{label:'Growth',short:'Growth',k:'growth',icon:I.growth,group:'growth'},
+  medicine:{label:'Medicine',short:'Medicine',k:'health',icon:I.medicine,group:'health'},
+  vaccine:{label:'Vaccine',short:'Vaccine',k:'health',icon:I.vaccine,group:'health'},
+  temp:{label:'Temperature',short:'Temp',k:'health',icon:I.temp,group:'health'},
+  milestone:{label:'Milestone',short:'Milestone',k:'moment',icon:I.milestone,group:'moment'}
 };
+/* diaper details: fixed vocabularies, so imports and edits can't add arbitrary words */
+const DCOLOR = {yellow:'Yellow',green:'Green',brown:'Brown',black:'Black',red:'Red'};
+const DTEXTURE = {seedy:'Seedy',mush:'Mushy',runny:'Runny',solid:'Solid',pebble:'Pebbles',mucous:'Mucous'};
+const DFLAGS = {blowout:'Blowout',rash:'Rash'};
+const words = (v, vocab) => String(v||'').toLowerCase().split(/[\s,]+/).filter((w,i,a) => vocab[w] && a.indexOf(w)===i).join(' ');
+const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled','First steps'];
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg'}, mode:'local', canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
+/* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
+   row-level security and the family_members allowlist decide who can read or write. */
+const CLOUD = { url:'https://fcthxmkmkqthhkyeymjc.supabase.co', key:'sb_publishable_PPDpdHqK8KPcxDZSgM33Ig_bmuXDfY4' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const buzz = () => { try { navigator.vibrate?.(12); } catch {} };
 
-/* ---------- store: shared db, else this device ---------- */
+/* ---------- store: shared db, the home server, else this device ---------- */
 const local = {
   key:'nestlog-v1',
   load(){ try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
   save(d){ try { localStorage.setItem(this.key, JSON.stringify(d)); } catch {} }
 };
+/* home server (server.js on a laptop): plain JSON requests; every phone gets the change over /api/events */
+async function home(method, path, body){
+  const r = await fetch('api/'+path, {method, headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
+  if (!r.ok) throw Object.assign(new Error('home '+r.status), {code: r.status===413 ? 'too_large' : 'home'});
+  const ch = await r.json(); S.online = true; applyChange(ch); return ch;
+}
+/* shared modes (home server, cloud): every write is one op, {op:'log'|'active'|'settings', ...}, the same shape
+   as a live change. Sent to the server, or kept in the outbox while there's no connection and replayed in order. */
+function sendOp(o){
+  if (S.mode==='home'){
+    if (o.op==='log') return o.data ? home('PUT', 'logs/'+encodeURIComponent(o.id), o.data) : home('DELETE', 'logs/'+encodeURIComponent(o.id));
+    if (o.op==='active') return home(o.data ? 'PUT' : 'DELETE', 'active/'+o.kind, o.data || undefined);
+    return home('PUT', 'settings', o.data);
+  }
+  const up = 'resolution=merge-duplicates,return=minimal';
+  if (o.op==='log') return o.data ? rest('POST', 'logs?on_conflict=id', {id:o.id, t:o.data.t, data:o.data}, up) : rest('DELETE', 'logs?id=eq.'+encodeURIComponent(o.id));
+  if (o.op==='active') return o.data ? rest('POST', 'active?on_conflict=kind', {kind:o.kind, data:o.data}, up) : rest('DELETE', 'active?kind=eq.'+o.kind);
+  return rest('POST', 'settings?on_conflict=id', {id:'baby', data:o.data}, up);
+}
+const offlineError = e => e instanceof TypeError || e?.code === 'offline';
+const outbox = {
+  key:'nestlog-outbox', busy:false,
+  load(){ try { return JSON.parse(localStorage.getItem(this.key)) || []; } catch { return []; } },
+  save(q){ try { q.length ? localStorage.setItem(this.key, JSON.stringify(q)) : localStorage.removeItem(this.key); } catch {} },
+  async flush(){
+    if (this.busy) return; this.busy = true;
+    let q = this.load();
+    try { while (q.length){ await sendOp(q[0]); q = this.load(); q.shift(); this.save(q); } S.online = true; }
+    catch(e){ if (offlineError(e)) S.online = false; else { this.save(this.load().slice(1)); toast('One change couldn’t sync and was dropped. Check the entry and log it again.'); } }
+    finally { this.busy = false; render(); }
+  }
+};
+/* last synced copy of the shared log, so the app opens offline. Cleared on sign out. */
+const cache = {
+  key:'nestlog-cache', t:null,
+  load(){ try { return JSON.parse(localStorage.getItem(this.key)); } catch { return null; } },
+  save(){ clearTimeout(this.t); this.t = setTimeout(() => { if (S.mode!=='home' && S.mode!=='cloud' || !S.loaded) return;
+    try { localStorage.setItem(this.key, JSON.stringify({mode:S.mode, me:S.me, logs:Object.fromEntries(S.logs.map(({id,...l}) => [id, l])), active:S.active, settings:S.settings, names:S.names})); } catch {} }, 800); },
+  clear(){ try { localStorage.removeItem(this.key); localStorage.removeItem(outbox.key); } catch {} },
+  restore(){ const c = this.load(); if (!c || c.mode !== S.mode || (S.mode==='cloud' && c.me !== S.me)) return; S.names = c.names || {}; applyHome(c); }
+};
+async function sendShared(o){
+  if (outbox.load().length){ outbox.save([...outbox.load(), o]); applyChange(o); outbox.flush(); return; }
+  try { await sendOp(o); S.online = true; applyChange(o); }
+  catch(e){ if (!offlineError(e)) throw e; outbox.save([...outbox.load(), o]); S.online = false; applyChange(o); }
+}
 const store = {
   async putLog(id, data){
     if (db) return db.collection('logs').doc(id).set(data);
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'log', id, data});
     const d = local.load(); d.logs = d.logs || {}; d.logs[id] = data; local.save(d); applyLocal();
   },
   async delLog(id){
     if (db) return db.collection('logs').doc(id).delete();
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'log', id, data:null});
     const d = local.load(); if (d.logs) delete d.logs[id]; local.save(d); applyLocal();
   },
   async setActive(kind, data){
     if (db) return data ? db.doc('active/'+kind).set(data) : db.doc('active/'+kind).delete();
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'active', kind, data: data || null});
     const d = local.load(); d.active = d.active || {}; if (data) d.active[kind] = data; else delete d.active[kind]; local.save(d); applyLocal();
   },
   async setSettings(data){
     if (db) return db.doc('settings/baby').set(data);
+    if (S.mode==='home' || S.mode==='cloud') return sendShared({op:'settings', data});
     const d = local.load(); d.settings = data; local.save(d); applyLocal();
+  },
+  /* many entries at once (import): one write instead of one per entry */
+  async putMany(logs, settings){
+    if (S.mode==='cloud'){
+      const rows = Object.entries(logs).map(([id, data]) => ({id, t:data.t, data}));
+      for (let i = 0; i < rows.length; i += 500) await rest('POST', 'logs?on_conflict=id', rows.slice(i, i+500), 'resolution=merge-duplicates,return=minimal');
+      if (settings) await rest('POST', 'settings?on_conflict=id', {id:'baby', data:settings}, 'resolution=merge-duplicates,return=minimal');
+      return loadCloud();
+    }
+    if (S.mode==='home'){ await fetch('api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({logs, settings})}).then(r => { if (!r.ok) throw new Error('home '+r.status); }); return loadHome(); }
+    const d = local.load(); d.logs = {...(d.logs||{}), ...logs}; if (settings) d.settings = settings; local.save(d); applyLocal();
   }
 };
+function applyHome(d){
+  S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
+  S.active = d.active || {};
+  S.settings = {...S.settings, ...(d.settings||{})};
+  /* changes still waiting in the outbox stay visible over the server's copy */
+  for (const o of outbox.load()){
+    if (o.op==='log'){ S.logs = S.logs.filter(l => l.id !== o.id); if (o.data) S.logs.push({id:o.id, ...o.data}); }
+    else if (o.op==='active'){ if (o.data) S.active[o.kind] = o.data; else delete S.active[o.kind]; }
+    else S.settings = {...S.settings, ...o.data};
+  }
+  S.logs.sort((a,b)=>b.t-a.t);
+  S.loaded = true; render(); cache.save();
+  if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+}
+async function loadHome(){
+  const r = await fetch('api/state', {cache:'no-store'});
+  if (!r.ok) throw new Error('home '+r.status);
+  applyHome(await r.json());
+}
+/* cloud (Supabase): email-code sign-in, REST for reads and writes, a realtime socket for live changes.
+   No SDK: CLAUDE.md allows no runtime deps, and these are plain HTTP and WebSocket calls. */
+const jwtEmail = tok => { try { return (JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email || '').toLowerCase(); } catch { return ''; } };
+const auth = {
+  key:'nestlog-session', s:null, pending:null,
+  load(){ try { this.s = JSON.parse(localStorage.getItem(this.key)) || null; } catch { this.s = null; } return this.s; },
+  save(v){ this.s = v; try { v ? localStorage.setItem(this.key, JSON.stringify(v)) : localStorage.removeItem(this.key); } catch {} },
+  keep(j){
+    this.save({access:j.access_token, refresh:j.refresh_token, exp:now() + (j.expires_in||3600)*1000, email:(j.user?.email || jwtEmail(j.access_token) || this.s?.email || '').toLowerCase()});
+    live.token(j.access_token);
+  },
+  async call(path, body){
+    const r = await fetch(CLOUD.url+'/auth/v1/'+path, {method:'POST', headers:{apikey:CLOUD.key, 'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || 'auth '+r.status), {status:r.status, code:j.error_code || j.code});
+    return j;
+  },
+  sendCode(email){ return this.call('otp', {email, create_user:true}); },
+  async verify(email, token){ this.keep(await this.call('verify', {type:'email', email, token})); },
+  refresh(){
+    if (!this.s?.refresh) return Promise.reject(Object.assign(new Error('signed out'), {code:'signed_out'}));
+    return this.pending ||= this.call('token?grant_type=refresh_token', {refresh_token:this.s.refresh})
+      .then(j => this.keep(j))
+      .catch(e => { if (e.status >= 400 && e.status < 500) signedOut('Signed out. Sign in again to keep logging.'); throw e; })
+      .finally(() => { this.pending = null; });
+  },
+  async token(){ if (this.s && this.s.exp - now() < 5*MIN) await this.refresh(); return this.s?.access; },
+  async signOut(){
+    const tok = this.s?.access; this.save(null);
+    try { await fetch(CLOUD.url+'/auth/v1/logout', {method:'POST', headers:{apikey:CLOUD.key, Authorization:'Bearer '+tok}}); } catch {}
+  }
+};
+async function rest(method, path, body, prefer){
+  const go = async () => fetch(CLOUD.url+'/rest/v1/'+path, {method, headers:{apikey:CLOUD.key, Authorization:'Bearer '+(await auth.token()),
+    'Content-Type':'application/json', ...(prefer ? {Prefer:prefer} : {})}, body: body===undefined ? undefined : JSON.stringify(body)});
+  let r = await go();
+  if (r.status===401){ await auth.refresh(); r = await go(); }
+  if (!r.ok) throw Object.assign(new Error('cloud '+r.status), {code: r.status===401 || r.status===403 ? 'not_family' : 'cloud', status:r.status});
+  const text = await r.text(); return text ? JSON.parse(text) : null;
+}
+async function cloudAllLogs(){
+  const out = [];
+  for (let off = 0; off < 200000; off += 1000){
+    const page = await rest('GET', `logs?select=id,data&order=t.desc&limit=1000&offset=${off}`);
+    page.forEach(r => out.push({id:r.id, ...r.data}));
+    if (page.length < 1000) break;
+  }
+  return out;
+}
+async function loadCloud(){
+  const [logs, act, set, fam] = await Promise.all([cloudAllLogs(), rest('GET','active?select=kind,data'), rest('GET','settings?select=data&id=eq.baby'), rest('GET','family_members?select=email,name')]);
+  /* signed in, but no longer on the list: the policies return nothing */
+  if (!fam.some(f => f.email === auth.s?.email)){ signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); live.stop(); auth.signOut(); return; }
+  S.names = Object.fromEntries(fam.map(f => [f.email, f.name || f.email.split('@')[0]]));
+  applyHome({logs:Object.fromEntries(logs.map(({id,...l}) => [id, l])), active:Object.fromEntries(act.map(a => [a.kind, a.data])), settings:set[0]?.data || {}});
+}
+function cloudChange(d){
+  if (!d || !d.table) return;
+  const rec = d.type==='DELETE' ? null : d.record, old = d.old_record || {};
+  if (d.table==='logs') applyChange({op:'log', id: rec?.id || old.id, data: rec ? rec.data : null});
+  if (d.table==='active') applyChange({op:'active', kind: rec?.kind || old.kind, data: rec ? rec.data : null});
+  if (d.table==='settings' && rec) applyChange({op:'settings', data: rec.data});
+}
+const live = {
+  ws:null, ref:0, joinRef:null, hb:null, timer:null, retry:0,
+  start(){
+    this.stop();
+    const ws = this.ws = new WebSocket(CLOUD.url.replace(/^http/, 'ws')+'/realtime/v1/websocket?apikey='+encodeURIComponent(CLOUD.key)+'&vsn=1.0.0');
+    ws.onopen = async () => {
+      this.retry = 0; this.joinRef = String(++this.ref);
+      const tok = await auth.token().catch(() => null);
+      this.send({topic:'realtime:nestlog', event:'phx_join', ref:this.joinRef, join_ref:this.joinRef, payload:{access_token:tok, config:{
+        broadcast:{ack:false, self:false}, presence:{enabled:false}, private:false,
+        postgres_changes:['logs','active','settings'].map(table => ({event:'*', schema:'public', table}))}}});
+      this.hb = setInterval(() => this.send({topic:'phoenix', event:'heartbeat', payload:{}, ref:String(++this.ref)}), 25000);
+    };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event==='phx_reply' && m.ref===this.joinRef){
+        if (m.payload?.status==='ok'){ S.online = true; outbox.flush().then(() => loadCloud()).catch(cloudFail); } else { S.online = false; render(); }
+      }
+      else if (m.event==='postgres_changes') cloudChange(m.payload?.data);
+      else if (m.event==='phx_error' || m.event==='phx_close') ws.close();
+    };
+    ws.onclose = () => {
+      clearInterval(this.hb); if (this.ws !== ws) return;
+      S.online = false; render();
+      this.timer = setTimeout(() => this.start(), Math.min(30000, 1000 * 2 ** this.retry++));
+    };
+  },
+  send(m){ if (this.ws?.readyState===1) this.ws.send(JSON.stringify(m)); },
+  token(tok){ if (this.joinRef && tok) this.send({topic:'realtime:nestlog', event:'access_token', ref:String(++this.ref), join_ref:this.joinRef, payload:{access_token:tok}}); },
+  stop(){ clearTimeout(this.timer); clearInterval(this.hb); const w = this.ws; this.ws = null; this.joinRef = null; if (w) try { w.close(); } catch {} }
+};
+function cloudFail(e){ if (e?.code==='not_family') signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); else { S.online = false; render(); } }
+function startCloud(){
+  S.me = auth.s.email; S.loaded = false; S.online = false; render();
+  cache.restore();
+  live.start();
+}
+function signedOut(msg){
+  live.stop(); auth.save(null); cache.clear();
+  S.logs = []; S.active = {}; S.names = {}; S.loaded = false; S.tab = 'home'; S.me = null;
+  SI = {step:'email', email:'', busy:false, err:msg || '', key:''};
+  closeSheet(); render();
+}
+
+/* one change from the home server; arrives twice for the phone that made it, which is harmless */
+function applyChange(ch){
+  if (!ch || (S.mode!=='home' && S.mode!=='cloud')) return;
+  if (ch.op==='log'){
+    S.logs = S.logs.filter(l => l.id !== ch.id);
+    if (ch.data){ S.logs.push({id:ch.id, ...ch.data}); S.logs.sort((a,b)=>b.t-a.t); }
+  }
+  else if (ch.op==='active'){ S.active = {...S.active}; if (ch.data) S.active[ch.kind] = ch.data; else delete S.active[ch.kind]; }
+  else if (ch.op==='settings') S.settings = {...S.settings, ...ch.data};
+  else if (ch.op==='reload'){ (S.mode==='cloud' ? loadCloud : loadHome)().catch(()=>{}); return; }
+  cache.save(); render();
+  if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+}
 function applyLocal(){
   const d = local.load();
   S.logs = Object.entries(d.logs || {}).map(([id,v]) => ({id,...v})).sort((a,b)=>b.t-a.t);
@@ -437,6 +698,8 @@ async function write(fn){
   catch(e){
     if (e && e.code === 'invalid_argument' && db){ S.canWrite = false; render(); toast('Only people with edit access can log. Ask for Editor access.'); }
     else if (e && e.code === 'quota_exceeded'){ toast('Storage is full. Delete old entries to keep logging.'); }
+    else if (e && e.code === 'not_family'){ toast('This email isn’t on the family list, so that didn’t save.'); }
+    else if (S.mode==='home'){ S.online = false; render(); toast('That didn’t save. Check the laptop running Nestlog is on, then try again.'); }
     else toast('That didn’t save. Check your connection and try again.');
     return false;
   }
@@ -445,7 +708,7 @@ async function write(fn){
 /* ---------- time ---------- */
 const MIN = 6e4, HR = 36e5, DAY = 864e5;
 const now = () => Date.now();
-function dur(ms){ ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60); return h ? `${h}h ${m%60}m` : `${m}m`; }
+function dur(ms){ ms = Math.max(0, ms); const m = Math.floor(ms/MIN), h = Math.floor(m/60); return h >= 48 ? `${Math.floor(h/24)}d ${h%24}h` : h ? `${h}h ${m%60}m` : `${m}m`; }
 function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0'); }
 const ago = t => (now()-t) < MIN ? 'just now' : dur(now()-t)+' ago';
 const tfmt = t => new Date(t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
@@ -483,16 +746,31 @@ const volU = () => S.settings.vol;
 const wtOut = kg => S.settings.wt === 'lb' ? +(kg/KG_PER_LB).toFixed(2) : +kg.toFixed(2);
 const wtIn = v => S.settings.wt === 'lb' ? v*KG_PER_LB : v;
 const wtU = () => S.settings.wt;
+const fahr = () => S.settings.temp === 'F';
+const tempOut = c => fahr() ? +(c*9/5+32).toFixed(1) : +(+c).toFixed(1);
+const tempIn = v => fahr() ? (v-32)*5/9 : v;
+const tempU = () => fahr() ? '°F' : '°C';
 
 /* ---------- derived ---------- */
 function describe(l){
+  const d = describeMain(l);
+  return l.note && l.type !== 'diaper' ? [d, l.note].filter(Boolean).join(' · ') : d;
+}
+function describeMain(l){
   switch(l.type){
     case 'nurse': return `Left ${dur(l.left||0)} · Right ${dur(l.right||0)}${l.last?` · ended ${l.last==='L'?'left':'right'}`:''}`;
-    case 'bottle': return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':'formula'}`;
+    case 'bottle': if (!l.ml) return [l.content==='breastmilk'?'Breast milk':'Formula', 'amount not recorded', l.brand].filter(Boolean).join(' · ');
+      return `${volOut(l.ml||0)} ${volU()} ${l.content==='breastmilk'?'breast milk':l.content==='mixed'?'breast milk + formula':'formula'}${l.brand?` · ${l.brand}`:''}`;
     case 'solids': return [l.food, l.reaction].filter(Boolean).join(' · ') || 'Solids';
     case 'sleep': return l.end ? `${dur(l.end-l.t)} · until ${tfmt(l.end)}` : 'In progress';
-    case 'diaper': return DIAPER[l.kind] + (l.note?` · ${l.note}`:'');
-    case 'pump': return `${volOut((l.lml||0)+(l.rml||0))} ${volU()} · L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}${l.min?` · ${l.min} min`:''}`;
+    case 'diaper': { const det = [l.color, l.texture].filter(Boolean).join(', '), fl = (l.flags||'').split(' ').filter(Boolean).map(f=>DFLAGS[f]).join(', ');
+      return [DIAPER[l.kind], det, fl, l.note].filter(Boolean).join(' · '); }
+    case 'pump': { const tot = (l.lml||0)+(l.rml||0) || l.tml || 0;
+      return [tot ? `${volOut(tot)} ${volU()}` : '', l.lml||l.rml ? `L ${volOut(l.lml||0)} / R ${volOut(l.rml||0)}` : '', l.min ? `${l.min} min` : ''].filter(Boolean).join(' · ') || 'Pumped'; }
+    case 'medicine': return [l.name, l.dose].filter(Boolean).join(' · ');
+    case 'vaccine': return l.name || 'Vaccine';
+    case 'temp': return `${tempOut(l.c)} ${tempU()}`;
+    case 'milestone': return l.title || 'Milestone';
     case 'growth': return [l.kg?`${wtOut(l.kg)} ${wtU()}`:'', l.cm?`${l.cm} cm`:'', l.head?`head ${l.head} cm`:''].filter(Boolean).join(' · ');
   }
   return '';
@@ -510,7 +788,7 @@ function dayStats(from){
   const diapers = inDay.filter(l=>l.type==='diaper');
   const wet = diapers.filter(d=>d.kind==='wet'||d.kind==='both').length;
   const dirty = diapers.filter(d=>d.kind==='dirty'||d.kind==='both').length;
-  const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+(l.lml||0)+(l.rml||0),0);
+  const pumpMl = inDay.filter(l=>l.type==='pump').reduce((a,l)=>a+((l.lml||0)+(l.rml||0) || l.tml || 0),0);
   return {feeds:feeds.length, bottleMl, nurseMs, sleepMs, wet, dirty, diapers:diapers.length, pumpMl};
 }
 function nurseTotals(){
@@ -519,15 +797,68 @@ function nurseTotals(){
   return {L:(n.left||0)+(n.side==='L'?run:0), R:(n.right||0)+(n.side==='R'?run:0)};
 }
 
+/* ---------- reminders: a feed or diaper is "due" once its gap has passed since the last one ---------- */
+const GAPS = [[0,'Off'],[120,'2 hours'],[150,'2½ hours'],[180,'3 hours'],[210,'3½ hours'],[240,'4 hours'],[300,'5 hours']];
+const isFeed = l => l.type==='nurse' || l.type==='bottle';
+function dueState(){
+  const st = S.settings, feed = lastOf(isFeed), diaper = lastOf(l => l.type==='diaper');
+  const due = (gap, last) => !!(gap && last && now() - last.t >= gap*MIN);
+  return { feed: !S.active.nurse && due(+st.feedGap, feed) ? feed : null, diaper: due(+st.diaperGap, diaper) ? diaper : null };
+}
+const canNotify = () => 'Notification' in window;
+/* through the service worker when there is one (needed on Android), else a page notification */
+function notify(title, opts){
+  const plain = () => { try { new Notification(title, opts); } catch {} };
+  const sw = navigator.serviceWorker;
+  if (sw?.getRegistration) sw.getRegistration().then(r => r ? r.showNotification(title, opts) : plain()).catch(plain); else plain();
+}
+/* one notification per gap: remembered per phone by the id of the last entry it was about */
+function checkReminders(){
+  if (!canNotify() || Notification.permission !== 'granted' || !S.loaded) return;
+  let seen = {}; try { seen = JSON.parse(localStorage.getItem('nestlog-reminded')) || {}; } catch {}
+  const d = dueState(), name = S.settings.name || 'Baby'; let changed = false;
+  for (const [kind, last] of Object.entries(d)){
+    if (!last || seen[kind] === last.id) continue;
+    seen[kind] = last.id; changed = true;
+    const body = `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
+    const title = kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
+    const opts = {body, tag:'nestlog-'+kind, icon:'icons/icon-192.png', badge:'icons/icon-192.png'};
+    notify(title, opts);
+  }
+  if (changed) try { localStorage.setItem('nestlog-reminded', JSON.stringify(seen)); } catch {}
+}
+function renderReminders(){
+  const st = S.settings;
+  for (const [id, key] of [['setFeedGap','feedGap'],['setDiaperGap','diaperGap']]){
+    const sel = $(id); if (document.activeElement === sel) continue;
+    sel.innerHTML = GAPS.map(([v,l]) => `<option value="${v}" ${(+st[key]||0)===v?'selected':''}>${l}</option>`).join('');
+  }
+  const on = +st.feedGap || +st.diaperGap, perm = canNotify() ? Notification.permission : 'unsupported';
+  $('remindNote').textContent = !on ? 'Pick a gap and Today shows when a feed or diaper change is due. Shared with everyone who logs.'
+    : perm==='granted' ? 'Today shows when one is due, and this phone gets a notification while Nestlog is open or running in the background.'
+    : perm==='denied' ? 'Today shows when one is due. Notifications are blocked for this site; turn them on in the browser’s site settings.'
+    : perm==='unsupported' ? 'Today shows when one is due. This browser can’t show notifications; on iPhone, add Nestlog to the Home Screen first.'
+    : 'Today shows when one is due. Allow notifications to get a nudge on this phone too.';
+  $('remindActions').innerHTML = on && perm==='default' ? `<button class="btn soft" type="button" data-act="allowNotify">Allow notifications</button>` : '';
+}
+
 /* ---------- render ---------- */
 const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
 function render(){
+  const signin = S.mode==='cloud' && !auth.s;
+  $('top').hidden = signin; $('tabbar').hidden = signin; $('view-signin').hidden = !signin;
+  if (signin){ for (const [k] of TABS) $('view-'+k).hidden = true; renderSignin(); return; }
+  SI.key = '';
   const st = S.settings;
   $('babyName').textContent = st.name || 'Your baby';
   $('avatar').textContent = (st.name || 'N').trim().charAt(0).toUpperCase();
   $('babyAge').textContent = st.birth ? ageText(st.birth) : 'Add name and birth date in Baby';
-  $('sync').classList.toggle('live', S.mode==='db');
-  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only') : 'This device';
+  const shared = S.mode==='home' || S.mode==='cloud';
+  $('sync').classList.toggle('on', S.mode==='db' || (shared && S.online && S.loaded));
+  $('syncText').textContent = S.mode==='db' ? (S.canWrite ? 'Synced' : 'View only')
+    : shared ? (!S.online ? (S.loaded ? 'Offline' : 'Connecting') : S.loaded ? (S.mode==='home' ? 'Home sync' : 'Family sync') : 'Connecting') : 'This device';
+  const waiting = shared ? outbox.load().length : 0;
+  if (waiting) $('syncText').textContent += ` · ${waiting} waiting`;
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
   if (S.tab==='home') renderHome();
@@ -539,7 +870,6 @@ function render(){
 function ribbon(){
   const W = 340, to = now(), from = to - DAY, X = t => (t-from)/DAY*W;
   let g = '';
-  for (let i=0;i<=4;i++){ const x = i*W/4; g += `<line x1="${x}" x2="${x}" y1="0" y2="46" stroke="var(--line)" stroke-width="1"/>`; }
   g += `<rect x="0" y="4" width="${W}" height="16" rx="5" fill="var(--sunk)"/>`;
   const sleeps = S.logs.filter(l=>l.type==='sleep' && (l.end||l.t) > from).map(l=>[l.t,l.end||l.t]);
   if (S.active.sleep) sleeps.push([S.active.sleep.start, to]);
@@ -561,12 +891,13 @@ function renderStatus(){
   const feed = lastOf(l => l.type==='nurse' || l.type==='bottle');
   const nurse = lastOf(l => l.type==='nurse' && l.last);
   const diaper = lastOf(l => l.type==='diaper');
+  const due = dueState();
   const feedSub = nurse && feed?.type==='nurse' ? `next ${nurse.last==='L'?'right':'left'}` : feed ? (feed.type==='bottle' ? `${volOut(feed.ml||0)} ${volU()}` : 'nursing') : '';
   $('status').innerHTML = `
     <div class="head"><div class="state ${cls} num"><small>${label}</small>${value}</div>${sl?'<button type="button" class="btn primary wake press" data-act="wake">Woke up</button>':''}</div>
     <div class="facts">
-      <div class="fact k-feed"><i class="dot"></i><div><b>${S.active.nurse?'Feeding now':feed?ago(feed.t):'No feeds'}</b><span>${S.active.nurse?'Nursing':feed?'Last feed':'Log the first one'}${S.active.nurse||!feed?'':' · '+esc(feedSub)}</span></div></div>
-      <div class="fact k-diaper"><i class="dot"></i><div><b>${diaper?ago(diaper.t):'No changes'}</b><span>${diaper?'Last diaper · '+DIAPER[diaper.kind].toLowerCase():'Log the first one'}</span></div></div>
+      <div class="fact k-feed ${due.feed?'due':''}"><i class="dot"></i><div><b>${S.active.nurse?'Feeding now':feed?ago(feed.t):'No feeds'}</b><span>${S.active.nurse?'Nursing':due.feed?'Feed due':feed?'Last feed':'Log the first one'}${S.active.nurse||!feed?'':' · '+esc(feedSub)}</span></div></div>
+      <div class="fact k-diaper ${due.diaper?'due':''}"><i class="dot"></i><div><b>${diaper?ago(diaper.t):'No changes'}</b><span>${diaper?(due.diaper?'Change due · ':'Last diaper · ')+DIAPER[diaper.kind].toLowerCase():'Log the first one'}</span></div></div>
     </div>
     ${ribbon()}
     <div class="legend"><span class="k-sleep"><i></i>Sleep</span><span class="k-feed"><i style="border-radius:50%"></i>Feed</span><span class="k-diaper"><i></i>Diaper</span><span style="margin-left:auto">Last 24 hours</span></div>`;
@@ -584,7 +915,7 @@ function renderLive(){
 }
 function renderHome(){
   renderStatus(); renderLive();
-  const tile = (k, sub) => { const t = TYPES[k]; return `<button type="button" class="tile k-${t.k} press" data-open="${k}"><span class="ic tint">${t.icon}</span>${t.short}${sub?`<small>${sub}</small>`:''}</button>`; };
+  const tile = (k, sub) => { const t = TYPES[k]; return `<button type="button" class="tile tint k-${t.k} press" data-open="${k}"><span class="ic">${t.icon}</span><span class="tl"><b>${t.short}</b>${sub?`<small>${sub}</small>`:''}</span></button>`; };
   const nurse = lastOf(l => l.type==='nurse' && l.last);
   const lastBottle = lastOf(l => l.type==='bottle');
   $('primary4').innerHTML =
@@ -592,7 +923,7 @@ function renderHome(){
     tile('bottle', lastBottle ? `${volOut(lastBottle.ml)} ${volU()}` : '') +
     tile('sleep', S.active.sleep ? 'Wake up' : 'Start') +
     tile('diaper', '');
-  $('pills').innerHTML = ['solids','pump','growth'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
+  $('pills').innerHTML = ['solids','pump','growth','medicine','temp','milestone'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
 
   const d = dayStats(startOfDay(now()));
   $('totals').innerHTML =
@@ -608,7 +939,8 @@ function renderHome(){
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
-  const who = l.by && l.by !== S.me && S.names[l.by] ? ` <span class="by">· ${esc(S.names[l.by].split(' ')[0])}</span>` : '';
+  const name = l.by && l.by !== S.me && S.names[l.by] ? S.names[l.by] : !l.by || l.by !== S.me ? l.byName : '';
+  const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
   return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span></span></button>`;
 }
 let namesPending = false;
@@ -624,7 +956,7 @@ async function resolveNames(){
   } finally { namesPending = false; }
 }
 function renderTimeline(){
-  const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth']];
+  const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth'],['health','Health'],['moment','Milestones']];
   $('filters').innerHTML = F.map(([k,l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
   if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:var(--s5)"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
   const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
@@ -633,7 +965,7 @@ function renderTimeline(){
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
   $('timeline').innerHTML = groups.map(g => {
     const s = dayStats(startOfDay(g.t));
-    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diapers</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
+    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
   }).join('');
 }
 
@@ -654,25 +986,36 @@ function barChart(k, title, headline, sub, vals, labels, fmt){
 }
 /* mean of the days before today that have any entries; null when there are none */
 function pastAvg(vals){ const p = vals.slice(0,-1).filter(v => v > 0); return p.length ? p.reduce((a,b)=>a+b,0)/p.length : null; }
-function growthChart(){
-  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
-  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+/* line over time: weight, temperature */
+function lineChart(k, title, pts, fmt, unit, sub){
   const W=320,H=150,pl=32,pr=8,pt=12,pb=20;
-  const xs = pts.map(p=>p.t), ys = pts.map(p=>wtOut(p.kg));
+  const xs = pts.map(p=>p.t), ys = pts.map(p=>p.v);
   let x0=Math.min(...xs), x1=Math.max(...xs); if (x1===x0){ x0-=DAY*7; x1+=DAY*7; }
   let y0=Math.min(...ys), y1=Math.max(...ys); const padY=Math.max(.2,(y1-y0)*.18); y0=Math.max(0,y0-padY); y1+=padY;
   const X=t=>pl+(t-x0)/(x1-x0)*(W-pl-pr), Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pt-pb);
   let g='';
   for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
-  const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(wtOut(p.kg)).toFixed(1)}`).join(' ');
+  const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
   if (pts.length>1) g += `<path d="${line} L${X(pts.at(-1).t).toFixed(1)} ${H-pb} L${X(pts[0].t).toFixed(1)} ${H-pb}Z" fill="var(--c)" opacity=".12"/>`;
   g += `<path d="${line}" fill="none" stroke="var(--c)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
-  pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(wtOut(p.kg))}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
+  pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
   const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
   g += `<text x="${pl}" y="${H-4}">${fd(x0)}</text><text x="${W-pr}" y="${H-4}" text-anchor="end">${fd(x1)}</text>`;
+  return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${fmt(pts.at(-1).v)} ${unit}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} over time">${g}</svg></div>`;
+}
+function growthChart(){
+  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
+  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+  const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
   const last = pts.at(-1), first = pts[0], gain = last.kg - first.kg;
   const sub = pts.length > 1 ? `${gain>=0?'+':''}${wtOut(Math.abs(gain)) * (gain<0?-1:1)} ${wtU()} since ${fd(first.t)}` : `Measured ${fd(last.t)}`;
-  return `<div class="card chart k-growth"><header><h3>Weight</h3><span class="big num">${wtOut(last.kg)} ${wtU()}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">${g}</svg></div>`;
+  return lineChart('growth', 'Weight', pts.map(p=>({t:p.t, v:wtOut(p.kg)})), v=>v, wtU(), sub);
+}
+function tempChart(){
+  const pts = S.logs.filter(l=>l.type==='temp' && l.c).sort((a,b)=>a.t-b.t).slice(-30);
+  if (!pts.length) return '';
+  const last = pts.at(-1);
+  return lineChart('health', 'Temperature', pts.map(p=>({t:p.t, v:tempOut(p.c)})), v=>v, tempU(), `Last taken ${dayLabel(last.t).toLowerCase()} at ${tfmt(last.t)}`);
 }
 function renderTrends(){
   $('range').innerHTML = [[7,'7 days'],[14,'14 days'],[30,'30 days']].map(([v,l]) => `<button type="button" data-range="${v}" aria-pressed="${S.range===v}">${l}</button>`).join('');
@@ -689,16 +1032,88 @@ function renderTrends(){
     (bottle.some(Boolean) ? chart('feed','Bottle', bottle, v=>`${Math.round(v)} ${volU()}`, `Average bottle volume per day`) : '')+
     chart('diaper','Diapers', diapers, v=>(+v).toFixed(1), `Average changes per day`)+
     (pump.some(Boolean) ? chart('pump','Pumped', pump, v=>`${Math.round(v)} ${volU()}`, `Average pumped per day`) : '')+
-    growthChart();
+    growthChart()+tempChart();
 }
 function renderBaby(){
   const st = S.settings;
   if (!document.activeElement?.closest?.('#settingsForm')){
-    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg';
+    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
-  $('shareNote').innerHTML = S.mode==='db'
+  renderReminders();
+  renderFamily();
+  const acts = $('shareActions');
+  acts.hidden = S.mode!=='cloud';
+  if (S.mode==='cloud'){
+    const have = new Set(S.logs.map(l => l.id));
+    const mine = Object.keys(local.load().logs || {}).filter(id => !have.has(id)).length;
+    acts.innerHTML = (mine && S.loaded ? `<button class="btn primary" type="button" data-act="uploadLocal">Upload ${mine} ${mine===1?'entry':'entries'} from this phone</button>` : '')
+      + `<button class="btn soft" type="button" data-act="signOut">Sign out</button>`;
+  }
+  $('shareNote').innerHTML = S.mode==='cloud'
+    ? `Signed in as <b>${esc(S.me||'')}</b>. Everyone on the family list sees the same log, live, wherever they are. Add or remove people under Family below.`
+    : S.mode==='home'
+    ? `Entries are saved on the laptop running Nestlog and sync live to every phone on your home Wi-Fi. To add a phone, open this same address on it. The laptop keeps a dated backup each day.`
+    : S.mode==='db'
     ? `Everything syncs live between everyone who can open this page. To let your partner log too, open the Share menu and invite them by email as an <b>Editor</b>. Viewers can see the log but can’t add to it.`
-    : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. Live sync between phones works in the claude.ai version of Nestlog.`;
+    : `Entries are saved in this browser, so each phone keeps its own log. To combine them, download a backup on one phone and import it on the other. For one shared, live log, use Nestlog at akalle92.github.io/NestLog (family sign-in) or run the home server on a laptop.`;
+}
+
+/* family list (cloud mode): anyone on it can add or remove people; the database keeps at least one */
+let famArmed = null;
+function renderFamily(){
+  $('familyBox').hidden = S.mode!=='cloud';
+  if (S.mode!=='cloud') return;
+  const people = Object.entries(S.names).sort((a,b) => (a[0]===S.me ? -1 : b[0]===S.me ? 1 : a[1].localeCompare(b[1])));
+  $('familyList').innerHTML = people.map(([email, name]) => `<div class="person"><span class="avatar" aria-hidden="true">${esc((name||email).charAt(0).toUpperCase())}</span>
+    <div class="who2"><b>${esc(name||email.split('@')[0])}${email===S.me?' (you)':''}</b><span>${esc(email)}</span></div>
+    ${email===S.me ? '' : `<button type="button" class="btn ${famArmed===email?'danger armed':'soft'}" data-act="famRemove" data-email="${esc(email)}">${famArmed===email?'Tap again to remove':'Remove'}</button>`}</div>`).join('');
+}
+async function loadFamily(){
+  const fam = await rest('GET', 'family_members?select=email,name');
+  S.names = Object.fromEntries(fam.map(f => [f.email, f.name || f.email.split('@')[0]]));
+  cache.save(); render();
+}
+async function addFamily(email, name, quiet){
+  try { await rest('POST', 'family_members', {email, name}, 'return=minimal'); }
+  catch(e){ toast(e.status===409 ? 'That email is already on the family list.' : offlineError(e) ? 'Adding someone needs a connection. Try again when you’re online.' : 'Couldn’t add them. Try again.'); return false; }
+  await loadFamily().catch(()=>{});
+  if (!quiet) toast(`${name || email} can now sign in`);
+  return true;
+}
+
+/* sign-in screen (cloud mode): email, then the code from the email. Rebuilt only when its step changes. */
+let SI = {step:'email', email:'', busy:false, err:'', key:''};
+function renderSignin(force){
+  const key = [SI.step, SI.busy, SI.err].join('|');
+  if (!force && key === SI.key) return; SI.key = key;
+  const typed = $('siEmail')?.value;
+  const body = SI.step==='email'
+    ? `<div class="field"><label class="label" for="siEmail">Email</label><input id="siEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required value="${esc(typed ?? SI.email)}"></div>
+       <button class="btn primary" type="submit" ${SI.busy?'disabled':''}>${SI.busy?'Sending…':'Send code'}</button>`
+    : `<p class="note">We sent a code to <b>${esc(SI.email)}</b>. It can take a minute to arrive.</p>
+       <div class="field"><label class="label" for="siCode">Code from the email</label><input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></div>
+       <button class="btn primary" type="submit" ${SI.busy?'disabled':''}>${SI.busy?'Signing in…':'Sign in'}</button>
+       <button class="linkbtn" type="button" data-act="siBack">Use a different email</button>`;
+  $('view-signin').innerHTML = `<div class="signin"><div><h1>Nestlog</h1><p class="lead">One shared log for the family. Sign in with your email to start.</p></div>
+    <form class="card" id="signinForm" novalidate>${body}${SI.err?`<p class="err" role="alert">${esc(SI.err)}</p>`:''}</form></div>`;
+  if (SI.step==='code' && !SI.busy) $('siCode')?.focus();
+}
+async function signinSubmit(){
+  if (SI.busy) return;
+  if (SI.step==='email'){
+    const email = $('siEmail').value.trim().toLowerCase(); SI.email = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ SI.err = 'Enter your email address, like name@example.com.'; renderSignin(); return; }
+    SI.busy = true; SI.err = ''; renderSignin();
+    try { await auth.sendCode(email); SI.step = 'code'; }
+    catch(e){ SI.err = e.status===403 || e.status===422 ? 'That email isn’t on the family list. Ask the person who set up Nestlog to add it.'
+      : e.status===429 ? 'A code was sent a moment ago. Wait a minute, then try again.' : 'Couldn’t send the code. Check your connection and try again.'; }
+    SI.busy = false; renderSignin(); return;
+  }
+  const code = $('siCode').value.replace(/\D/g, '');
+  if (code.length < 6){ SI.err = 'Enter the code from the email. It has 6 or more digits.'; renderSignin(true); return; }
+  SI.busy = true; SI.err = ''; renderSignin();
+  try { await auth.verify(SI.email, code); SI = {step:'email', email:'', busy:false, err:'', key:''}; startCloud(); }
+  catch(e){ SI.busy = false; SI.err = e.status >= 400 && e.status < 500 ? 'That code didn’t match or has expired. Check the latest email, or use a different email to get a new code.' : 'Couldn’t sign in. Check your connection and try again.'; renderSignin(true); }
 }
 
 /* ---------- sheets ---------- */
@@ -709,9 +1124,17 @@ function when(id, label, v, quick=true){
   const q = quick ? `<div class="chips">${[['0','Now'],['15','15m ago'],['30','30m ago'],['60','1h ago']].map(([m,l])=>`<button type="button" class="chip press" data-ago="${m}" data-for="${id}">${l}</button>`).join('')}</div>` : '';
   return `<div class="field when"><label class="label" for="${id}">${label}</label>${q}<input id="${id}" type="datetime-local" value="${toLocalInput(v)}"></div>`;
 }
+function amountU(id, label, val, step, unit){ return amount(id, label, val, step).replace(`<span class="u">${volU()}</span>`, `<span class="u">${unit}</span>`); }
 function amount(id, label, val, step){
   return `<div class="field"><span class="label" id="${id}-l">${label}</span><div class="amount"><button type="button" class="press" data-step="${id}" data-d="-${step}" aria-label="Less">−</button><span class="val"><input id="${id}" aria-labelledby="${id}-l" type="number" inputmode="decimal" step="any" min="0" value="${val}"><span class="u">${volU()}</span></span><button type="button" class="press" data-step="${id}" data-d="${step}" aria-label="More">+</button></div></div>`;
 }
+function textField(id, label, val, ph='', max=120){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" value="${esc(val||'')}" placeholder="${esc(ph)}" maxlength="${max}" autocomplete="off"></div>`; }
+const noteField = e => textField('fNote', 'Note', e.note, 'Optional', 200);
+/* chips that fill a text field: recently used names, so a repeat entry is one tap */
+function recentChips(name, target, vals){ return vals.length ? `<div class="chips" role="group">${vals.map(v=>`<button type="button" class="chip press" data-fill="${target}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>` : ''; }
+const recent = (type, key, n=4) => [...new Set(S.logs.filter(l=>l.type===type && l[key]).map(l=>l[key]))].slice(0,n);
+/* multi-select chips: the value is the pressed chips' keys joined by spaces */
+function multiChips(name, vocab, cur){ const on = new Set(String(cur||'').split(' ')); return `<div class="chips" role="group">${Object.entries(vocab).map(([v,l])=>`<button type="button" class="chip press" data-chip="${name}" data-multi="1" data-v="${v}" aria-pressed="${on.has(v)}">${l}</button>`).join('')}</div>`; }
 function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
 function openSheet(type, existing){
@@ -722,28 +1145,43 @@ function openSheet(type, existing){
     body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint" style="text-align:center"></p><div class="row-actions" id="nurseActions"></div>
       <details><summary>Log a past feed instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fTime','Started',now())}<div class="grid2">${numField('fL','Left (min)',0,'numeric')}${numField('fR','Right (min)',0,'numeric')}</div><button class="btn soft" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
   } else if (type==='nurse'){
-    body = `${when('fTime','Started',time,false)}<div class="grid2">${numField('fL','Left (min)',Math.round((e.left||0)/MIN),'numeric')}${numField('fR','Right (min)',Math.round((e.right||0)/MIN),'numeric')}</div><div class="field"><span class="label">Finished on</span>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>`;
+    body = `${when('fTime','Started',time,false)}<div class="grid2">${numField('fL','Left (min)',Math.round((e.left||0)/MIN),'numeric')}${numField('fR','Right (min)',Math.round((e.right||0)/MIN),'numeric')}</div><div class="field"><span class="label">Finished on</span>${chips('last',[['L','Left'],['R','Right']],e.last||'L')}</div>${noteField(e)}`;
   } else if (type==='bottle'){
     const presets = oz() ? [2,3,4,5,6] : [60,90,120,150,180];
     const last = lastOf(l=>l.type==='bottle');
     const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
     body = `${amount('fAmt','Amount', val, oz()?0.5:10)}<div class="presets">${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}</div>
-      <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk']],e.content||last?.content||'formula')}</div>${when('fTime','When',time,!existing)}`;
+      <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk'],['mixed','Both']],e.content||last?.content||'formula')}</div>
+      <div class="field">${textField('fBrand','Formula brand', existing ? e.brand : last?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='solids'){
-    body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}`;
+    body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='sleep' && !existing){
     body = S.active.sleep
       ? `<div class="bigclock num" data-clock="${S.active.sleep.start}">${clock(now()-S.active.sleep.start)}</div>${when('fAdj','Fell asleep at',S.active.sleep.start,false)}<button class="btn primary" type="button" data-act="wake">Woke up · save sleep</button><button class="btn danger" type="button" data-act="cancelSleep">Discard timer</button>`
       : `<button class="btn primary" type="button" data-act="sleepStart">Start sleep timer</button><details><summary>Log a past sleep instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fStart','Fell asleep',now()-HR,false)}${when('fEnd','Woke up',now(),false)}<button class="btn soft" type="button" data-act="sleepManual">Save past sleep</button></div></details>`;
   } else if (type==='sleep'){
-    body = `${when('fStart','Fell asleep',e.t,false)}${when('fEnd','Woke up',e.end||now(),false)}`;
+    body = `${when('fStart','Fell asleep',e.t,false)}${when('fEnd','Woke up',e.end||now(),false)}${noteField(e)}`;
   } else if (type==='diaper'){
-    body = `<div class="field"><span class="label">What was in it</span>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div><div class="field"><label class="label" for="fNote">Note</label><input id="fNote" value="${esc(e.note||'')}" placeholder="Optional · colour, rash, blowout" autocomplete="off"></div>${when('fTime','When',time,!existing)}`;
+    const dirty = e.kind==='dirty' || e.kind==='both';
+    body = `<div class="field"><span class="label">What was in it</span>${chips('kind',[['wet','Wet'],['dirty','Dirty'],['both','Both'],['dry','Dry']],e.kind||'wet')}</div>
+      <div id="dirtyBits" style="display:grid;gap:var(--s5)" ${dirty?'':'hidden'}><div class="field"><span class="label">Colour</span>${multiChips('color',DCOLOR,e.color)}</div><div class="field"><span class="label">Texture</span>${multiChips('texture',DTEXTURE,e.texture)}</div></div>
+      <div class="field"><span class="label">Anything else</span>${multiChips('flags',DFLAGS,e.flags)}</div>${noteField(e)}${when('fTime','When',time,!existing)}`;
   } else if (type==='pump'){
     const st = oz()?0.5:10;
-    body = `${amount('fPL','Left', e.lml?volOut(e.lml):0, st)}${amount('fPR','Right', e.rml?volOut(e.rml):0, st)}${numField('fMin','Duration (min)', e.min||15, 'numeric')}${when('fTime','When',time,!existing)}`;
+    body = `${amount('fPL','Left', e.lml?volOut(e.lml):0, st)}${amount('fPR','Right', e.rml?volOut(e.rml):0, st)}${numField('fMin','Duration (min)', e.min||15, 'numeric')}${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='growth'){
-    body = `<div class="grid3">${numField('fKg',`Weight (${wtU()})`, e.kg?wtOut(e.kg):'')}${numField('fCm','Length (cm)', e.cm||'')}${numField('fHead','Head (cm)', e.head||'')}</div>${when('fTime','Measured on',time,false)}`;
+    body = `<div class="grid3">${numField('fKg',`Weight (${wtU()})`, e.kg?wtOut(e.kg):'')}${numField('fCm','Length (cm)', e.cm||'')}${numField('fHead','Head (cm)', e.head||'')}</div>${when('fTime','Measured on',time,false)}${noteField(e)}`;
+  } else if (type==='medicine'){
+    body = `<div class="field">${textField('fName','Medicine', e.name, 'e.g. Vitamin D drops', 80)}${recentChips('med','fName',recent('medicine','name'))}</div>
+      ${textField('fDose','Dose', e.dose, 'Optional · e.g. 1.25 ml', 40)}${when('fTime','Given',time,!existing)}${noteField(e)}
+      ${existing ? '' : `<button class="linkbtn" type="button" data-act="asVaccine">Log a vaccine instead</button>`}`;
+  } else if (type==='vaccine'){
+    body = `${textField('fName','Vaccines given', e.name, 'e.g. DTaP, HepB', 80)}${when('fTime','Given on',time,false)}${noteField(e)}`;
+  } else if (type==='temp'){
+    const last = lastOf(l=>l.type==='temp');
+    body = `${amountU('fTemp','Temperature', e.c ? tempOut(e.c) : last ? tempOut(last.c) : (fahr()?98.6:37), fahr()?0.2:0.1, tempU())}${when('fTime','Taken',time,!existing)}${noteField(e)}`;
+  } else if (type==='milestone'){
+    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
   }
   const live = !existing && (type==='nurse' || type==='sleep');
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
@@ -762,6 +1200,7 @@ function renderNurse(){
   $('nurseActions').innerHTML = n ? `<button class="btn primary" type="button" data-act="nurseSave">Done · save feed</button><button class="btn soft" type="button" data-act="nurseDiscard">Discard</button>` : '';
   $('nurseHint').textContent = n ? `Started ${tfmt(n.start)} · ${clock(L+R)} total` : 'Tap a side to start. Tap the other side to switch.';
 }
+const multiVal = name => [...$('sheetRoot').querySelectorAll(`[data-chip="${name}"][aria-pressed="true"]`)].map(b=>b.dataset.v).join(' ');
 const chipVal = name => $('sheetRoot').querySelector(`[data-chip="${name}"][aria-pressed="true"]`)?.dataset.v || '';
 const num = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? 0 : v; };
 
@@ -771,17 +1210,46 @@ async function saveSheet(){
   const T = id => fromLocalInput($(id).value);
   let data;
   if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;} data={...base,t:T('fTime'),left:L,right:R,last:chipVal('last')||(R&&!L?'R':'L')}; data.end=data.t+L+R; }
-  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula'}; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:$('fBrand').value.trim().slice(0,40)}; }
   else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate'); $('fFood').focus(); return;} data={...base,t:T('fTime'),food:f.slice(0,120),reaction:chipVal('reaction')}; }
   else if (type==='sleep'){ const a=T('fStart'), b=T('fEnd'); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
-  else if (type==='diaper'){ data={...base,t:T('fTime'),kind:chipVal('kind')||'wet',note:$('fNote').value.trim().slice(0,120)}; }
-  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r){toast('Enter how much you pumped');return;} data={...base,t:T('fTime'),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; }
+  else if (type==='diaper'){ const k=chipVal('kind')||'wet', dirty=k==='dirty'||k==='both'; data={...base,t:T('fTime'),kind:k,color:dirty?multiVal('color'):'',texture:dirty?multiVal('texture'):'',flags:multiVal('flags')}; }
+  else if (type==='pump'){ const l=volIn(num('fPL')), r=volIn(num('fPR')); if(!l&&!r&&!num('fMin')){toast('Enter how much you pumped or for how long');return;} data={...base,t:T('fTime'),lml:Math.round(l),rml:Math.round(r),min:num('fMin')}; if(!l&&!r&&e.tml) data.tml=e.tml; }
   else if (type==='growth'){ const kg=num('fKg'); if(!kg && !num('fCm') && !num('fHead')){toast('Enter at least one measurement');return;} data={...base,t:T('fTime'),kg:kg?+wtIn(kg).toFixed(3):0,cm:num('fCm'),head:num('fHead')}; }
+  else if (type==='medicine'){ const n=$('fName').value.trim(); if(!n){toast('Add the medicine name'); $('fName').focus(); return;} data={...base,t:T('fTime'),name:n.slice(0,80),dose:$('fDose').value.trim().slice(0,40)}; }
+  else if (type==='vaccine'){ const n=$('fName').value.trim(); if(!n){toast('Add which vaccines were given'); $('fName').focus(); return;} data={...base,t:T('fTime'),name:n.slice(0,80)}; }
+  else if (type==='temp'){ const c=tempIn(num('fTemp')); if(c<30||c>45){toast(`Enter a temperature between ${tempOut(30)} and ${tempOut(45)} ${tempU()}`);return;} data={...base,t:T('fTime'),c:+c.toFixed(2)}; }
+  else if (type==='milestone'){ const n=$('fTitle').value.trim(); if(!n){toast('Add what happened'); $('fTitle').focus(); return;} data={...base,t:T('fTime'),title:n.slice(0,80)}; }
+  if ($('fNote')) data.note = $('fNote').value.trim().slice(0,200);
+  if (e.byName) data.byName = e.byName;
   const id = existing?.id || uid();
   if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing ? 'Changes saved' : `${TYPES[type].label} saved`); }
 }
 
 async function act(a, el){
+  if (a==='famRemove'){
+    const email = el.dataset.email;
+    if (famArmed !== email){ famArmed = email; renderFamily(); setTimeout(() => { if (famArmed===email){ famArmed = null; renderFamily(); } }, 4000); return; }
+    famArmed = null; const name = S.names[email] || '';
+    try { await rest('DELETE', 'family_members?email=eq.'+encodeURIComponent(email)); }
+    catch(e){ toast(offlineError(e) ? 'Removing someone needs a connection. Try again when you’re online.' : 'Couldn’t remove them. The family list needs at least one person.'); renderFamily(); return; }
+    await loadFamily().catch(()=>{});
+    toast(`${name || email} removed`, 'Undo', () => addFamily(email, name, true));
+    return;
+  }
+  if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} renderReminders(); checkReminders(); return; }
+  if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
+  if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
+  if (a==='signOut'){ live.stop(); await auth.signOut(); signedOut(''); return; }
+  if (a==='uploadLocal'){
+    const have = new Set(S.logs.map(l => l.id)), d = local.load();
+    const fresh = Object.fromEntries(Object.entries(d.logs || {}).filter(([id]) => !have.has(id)).map(([id, l]) => normalize({...l, id}, false)).filter(Boolean).map(n => [n.id, n.data]));
+    const n = Object.keys(fresh).length;
+    el.disabled = true; el.textContent = 'Uploading…';
+    if (await write(() => store.putMany(fresh, null))) toast(`Uploaded ${n} ${n===1?'entry':'entries'}`);
+    else { el.disabled = false; el.textContent = `Upload ${n} entries from this phone`; }
+    return;
+  }
   if (a==='close') return closeSheet();
   if (a==='delete'){
     if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('armed'); el.textContent='Tap again to delete'; return; }
@@ -822,13 +1290,14 @@ async function tapSide(s){
 }
 
 /* ---------- export ---------- */
-const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','food','reaction','diaper','note','pump_left_ml','pump_right_ml','pump_min','weight_kg','length_cm','head_cm','logged_by'];
+const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','brand','food','reaction','diaper','diaper_color','diaper_texture','diaper_flags','note','pump_left_ml','pump_right_ml','pump_total_ml','pump_min','weight_kg','length_cm','head_cm','medicine','dose','temp_c','title','logged_by','caregiver'];
 const fmtLocal = t => t ? toLocalInput(t).replace('T',' ') : '';
 const r1 = v => v ? +(+v).toFixed(1) : '';
 function toRow(l){
   return {id:l.id, type:l.type, start:fmtLocal(l.t), end:fmtLocal(l.end),
     left_min:r1((l.left||0)/MIN), right_min:r1((l.right||0)/MIN), last_side:l.last||'',
-    amount_ml:l.ml||'', content:l.content||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
+    amount_ml:l.ml||'', content:l.content||'', brand:l.brand||'', diaper_color:l.color||'', diaper_texture:l.texture||'', diaper_flags:l.flags||'',
+    pump_total_ml:l.tml||'', medicine:l.type==='medicine'||l.type==='vaccine' ? l.name||'' : '', dose:l.dose||'', temp_c:l.c||'', title:l.title||'', caregiver:l.byName||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
     pump_left_ml:l.lml||'', pump_right_ml:l.rml||'', pump_min:l.min||'',
     weight_kg:l.kg?+(+l.kg).toFixed(3):'', length_cm:l.cm||'', head_cm:l.head||'',
     logged_by: l.by ? (l.by===S.me ? 'me' : (S.names[l.by]||'partner')) : ''};
@@ -836,6 +1305,7 @@ function toRow(l){
 const csvCell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 /* the live view holds the latest 1000; export and import read the whole history in pages */
 async function allLogs(){
+  if (S.mode==='cloud') return cloudAllLogs();
   if (!db) return S.logs;
   const out = []; let before = null;
   for (let i = 0; i < 40; i++){
@@ -919,14 +1389,60 @@ function normalize(raw, fromCsv){
   const o = {type, t, created: nn(raw.created) || now(), by: (!fromCsv && typeof raw.by==='string' && raw.by.length<80) ? raw.by : null};
   if (type==='nurse'){ o.left = fromCsv ? nn(raw.left_min)*MIN : nn(raw.left); o.right = fromCsv ? nn(raw.right_min)*MIN : nn(raw.right);
     const ls = str(fromCsv?raw.last_side:raw.last,1).toUpperCase(); o.last = ls==='R'?'R':'L'; o.end = isFinite(endRaw) ? endRaw : t+o.left+o.right; }
-  if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); o.content = str(raw.content,12)==='breastmilk'?'breastmilk':'formula'; if (!o.ml) return null; }
+  if (type==='bottle'){ o.ml = Math.round(nn(fromCsv?raw.amount_ml:raw.ml)); const c = str(raw.content,12); o.content = c==='breastmilk'||c==='mixed' ? c : 'formula'; o.brand = str(raw.brand,40); }
   if (type==='solids'){ o.food = str(raw.food); o.reaction = str(raw.reaction,30); if (!o.food) return null; }
   if (type==='sleep'){ if (!isFinite(endRaw) || endRaw <= t) return null; o.end = endRaw; }
-  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = DIAPER[k]?k:'wet'; o.note = str(raw.note); }
-  if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml) return null; }
+  if (type==='diaper'){ const k = str(fromCsv?raw.diaper:raw.kind,6).toLowerCase(); o.kind = DIAPER[k]?k:'wet';
+    o.color = words(fromCsv?raw.diaper_color:raw.color, DCOLOR); o.texture = words(fromCsv?raw.diaper_texture:raw.texture, DTEXTURE); o.flags = words(fromCsv?raw.diaper_flags:raw.flags, DFLAGS); }
+  if (type==='pump'){ o.lml = Math.round(nn(fromCsv?raw.pump_left_ml:raw.lml)); o.rml = Math.round(nn(fromCsv?raw.pump_right_ml:raw.rml)); o.tml = Math.round(nn(fromCsv?raw.pump_total_ml:raw.tml)); o.min = nn(fromCsv?raw.pump_min:raw.min); if (!o.lml && !o.rml && !o.tml && !o.min) return null; }
   if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
+  if (type==='medicine' || type==='vaccine'){ o.name = str(fromCsv?raw.medicine:raw.name, 80); if (type==='medicine') o.dose = str(raw.dose, 40); if (!o.name) return null; }
+  if (type==='temp'){ o.c = nn(fromCsv?raw.temp_c:raw.c); if (o.c < 30 || o.c > 45) return null; }
+  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; }
+  const note = str(raw.note, 200).trim(); if (note) o.note = note;
+  const byName = str(fromCsv?raw.caregiver:raw.byName, 40).trim(); if (byName) o.byName = byName;
   const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;
   return {id, data:o};
+}
+/* Nara Baby export (CSV, one row per activity, "[Kind] Field" columns). Each row becomes raw objects shaped
+   like Nestlog entries; normalize() still decides what gets in. */
+const isNara = rows => rows.length && '_activitykey' in rows[0] && 'start date/time (epoch)' in rows[0];
+const NARA_ML = (v, u) => { const x = parseFloat(v); return isFinite(x) ? (/oz/i.test(u) ? x*ML_PER_OZ : x) : 0; };
+function fromNara(r){
+  const g = k => (r[k] ?? '').trim(), t = +g('start date/time (epoch)');
+  const kind = g('type').toLowerCase(), key = g('_activitykey').replace(/[^A-Za-z0-9_-]/g, '');
+  if (!t || !key) return [];
+  const base = {t, created:t, note:g('note').replace(/\s+/g,' '), byName:g('created by caregiver'), id:'nara-'+key};
+  const by = S.mode==='cloud' ? Object.keys(S.names).find(em => S.names[em].toLowerCase() === base.byName.toLowerCase() || S.names[em].toLowerCase() === base.byName.toLowerCase().split(' ')[0]) : null;
+  if (by) base.by = by;
+  const vol = (pre, k) => NARA_ML(g(`[${pre}] ${k}`), g(`[${pre}] ${k} unit`));
+  const bottle = pre => { const ty = g(`[${pre}] type`).toLowerCase();
+    return {...base, type:'bottle', ml: vol(pre,'formula volume') + vol(pre,'breast milk volume') || vol(pre,'volume'),
+      content: ty==='breast milk' ? 'breastmilk' : ty.includes('breast') && ty.includes('formula') ? 'mixed' : 'formula', brand:g(`[${pre}] formula name`)}; };
+  if (kind==='bottle feed') return [bottle('bottle feed')];
+  if (kind==='combo feed'){
+    const L = +g('[combo feed] left duration (seconds)')*1000 || 0, R = +g('[combo feed] right duration (seconds)')*1000 || 0, out = [];
+    if (L || R) out.push({...base, type:'nurse', left:L, right:R, last:/right/i.test(g('[combo feed] end side'))?'R':'L', end:t+L+R});
+    const b = bottle('combo feed'); if (b.ml) out.push(L||R ? {...b, id:base.id+'-b'} : b);
+    return out;
+  }
+  if (kind==='sleep') return [{...base, type:'sleep', end: +g('[sleep] end date/time (epoch)') || t + (+g('[sleep] duration (seconds)'))*1000}];
+  if (kind==='diaper'){ const ty = g('[diaper] type').toLowerCase();
+    return [{...base, type:'diaper', kind: ty.includes('dirty') && ty.includes('wet') ? 'both' : ty.includes('dirty') ? 'dirty' : ty.includes('dry') ? 'dry' : 'wet',
+      color:g('[diaper] dirty color'), texture:g('[diaper] dirty texture').toLowerCase().replace(/\brun\b/g,'runny'), flags:g('[diaper] detail')}]; }
+  if (kind==='growth'){ const w = parseFloat(g('[growth] weight')), wu = g('[growth] weight unit'), h = parseFloat(g('[growth] height')), hd = parseFloat(g('[growth] head size'));
+    const cm = (v, u) => isFinite(v) ? +(/in/i.test(u) ? v*2.54 : v).toFixed(1) : 0;
+    return [{...base, type:'growth', kg: isFinite(w) ? +(/lb/i.test(wu) ? w*KG_PER_LB : /oz/i.test(wu) ? w*KG_PER_LB/16 : /^g$/i.test(wu) ? w/1000 : w).toFixed(3) : 0,
+      cm: cm(h, g('[growth] height unit')), head: cm(hd, g('[growth] head size unit'))}]; }
+  if (kind==='pump') return [{...base, type:'pump', lml:vol('pump','left volume'), rml:vol('pump','right volume'), tml:vol('pump','total volume'), min: Math.round(+g('[pump] duration (seconds)')/60) || 0}];
+  if (kind==='routine') return [{...base, type:'medicine', name:g('[routine] routine')}];
+  if (kind==='medical'){ const out = [], m = g('[medical] medication'), tc = parseFloat(g('[medical] temperature'));
+    if (m){ const x = m.match(/^(.*?),\s*([\d.]+)\s*\((\w+)\)\s*$/); out.push({...base, type:'medicine', name: x ? x[1] : m, dose: x ? `${x[2]} ${x[3].toLowerCase()}` : ''}); }
+    if (isFinite(tc)) out.push({...base, type:'temp', c: /f/i.test(g('[medical] temperature unit')) ? (tc-32)*5/9 : tc, id: m ? base.id+'-t' : base.id});
+    return out; }
+  if (kind==='vaccine') return [{...base, type:'vaccine', name:g('[vaccine] vaccine').split(/\s*\n\s*/).filter(Boolean).join(', ')}];
+  if (kind==='baby first') return [{...base, type:'milestone', title:g('[baby first] baby first')}];
+  return [];
 }
 let pending = null;
 async function readImport(file){
@@ -934,17 +1450,26 @@ async function readImport(file){
   if (file.size > 20*1024*1024){ panel.innerHTML = `<p class="err">That file is over 20 MB, larger than any Nestlog export. Check you picked the right file.</p>`; return; }
   let text; try { text = await file.text(); } catch { panel.innerHTML = `<p class="err">Couldn’t read that file. Try choosing it again.</p>`; return; }
   const isJson = /\.json$/i.test(file.name) || text.trim().startsWith('{');
-  let raws = [], settings = null; const fromCsv = !isJson;
+  let raws = [], settings = null, nara = false;
   try {
     if (isJson){ const j = JSON.parse(text); raws = Array.isArray(j.logs) ? j.logs : []; settings = j.settings && typeof j.settings==='object' ? j.settings : null; }
-    else raws = parseCsv(text);
+    else {
+      raws = parseCsv(text);
+      if (isNara(raws)){ /* the Profile row carries the baby's name and birth date */
+        const prof = raws.find(r => (r.type||'').toLowerCase()==='profile');
+        if (prof) settings = {...S.settings, name:prof['profile name']||'', birth:prof['[profile] birth date']||''};
+        raws = raws.filter(r => r !== prof).flatMap(r => { const out = fromNara(r); return out.length ? out : [{}]; });
+        nara = true;
+      }
+    }
   } catch { panel.innerHTML = `<p class="err">This file isn’t valid ${isJson?'JSON':'CSV'}. Use a file downloaded from Nestlog’s Export section.</p>`; return; }
   panel.innerHTML = `<p class="hint">Checking ${esc(file.name)}…</p>`;
   let existing; try { existing = await allLogs(); } catch { existing = S.logs; }
   const have = new Set(existing.map(l=>l.id)); const seen = new Set();
   const fresh = []; let dupes = 0, bad = 0;
+  const fromCsv = !isJson && !nara;
   for (const r of raws){ const n = normalize(r, fromCsv); if (!n){ bad++; continue; } if (have.has(n.id) || seen.has(n.id)){ dupes++; continue; } seen.add(n.id); fresh.push(n); }
-  if (settings){ settings = {name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg'}; }
+  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C'}; }
   pending = {fresh, settings};
   const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
   const fdt = t => new Date(t).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
@@ -953,7 +1478,7 @@ async function readImport(file){
     <b>${esc(file.name)}</b>
     ${fresh.length ? `<span>${fresh.length} new ${fresh.length===1?'entry':'entries'} · ${span}</span><ul>${Object.entries(counts).map(([k,v])=>`<li>${v} ${TYPES[k].label.toLowerCase()}</li>`).join('')}</ul>` : `<span>No new entries in this file.</span>`}
     ${dupes ? `<span class="hint">${dupes} already in Nestlog, will be skipped.</span>` : ''}
-    ${bad ? `<span class="hint">${bad} row${bad>1?'s':''} couldn’t be read and will be skipped.</span>` : ''}
+    ${bad ? `<span class="hint">${bad} row${bad>1?'s are':' is'} empty or couldn’t be read and will be skipped.</span>` : ''}
     ${settings && (settings.name||settings.birth) ? `<label class="check"><input type="checkbox" id="impSettings" ${!S.settings.name?'checked':''}> Also use baby details from the backup (${esc(settings.name||'no name')}${settings.birth?', born '+esc(settings.birth):''})</label>` : ''}
     <div class="bar" id="impBar" hidden><i></i></div>
     <div class="row-actions">${fresh.length ? `<button class="btn primary" type="button" data-io="import" id="impGo">Import ${fresh.length} ${fresh.length===1?'entry':'entries'}</button>` : ''}<button class="btn soft" type="button" data-io="cancel">${fresh.length?'Cancel':'Close'}</button></div>
@@ -967,7 +1492,9 @@ async function runImport(){
   const bar = $('impBar'); bar.hidden = false; const fill = bar.firstElementChild;
   let done = 0, failed = 0, stop = null;
   if (!db){
-    const d = local.load(); d.logs = d.logs || {}; fresh.forEach(f => d.logs[f.id] = f.data); if (useSettings) d.settings = pending.settings; local.save(d); done = fresh.length; applyLocal();
+    try { await store.putMany(Object.fromEntries(fresh.map(f => [f.id, f.data])), useSettings ? pending.settings : null); done = fresh.length; }
+    catch {}
+    fill.style.width = '100%';
   } else {
     let i = 0;
     const worker = async () => {
@@ -1008,7 +1535,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1023,7 +1550,10 @@ document.addEventListener('click', e => {
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
   if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
+  if (d.fill){ $(d.fill).value = d.v; return; }
+  if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
+    if (d.chip==='kind') $('dirtyBits').hidden = !(d.v==='dirty' || d.v==='both');
     const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true';
     grp.forEach(b=>b.setAttribute('aria-pressed','false'));
     if (!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true');
@@ -1048,6 +1578,8 @@ document.addEventListener('input', e => {
   if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset?.gap){ const key = e.target.dataset.gap, v = +e.target.value;
+    write(()=>store.setSettings({...S.settings, [key]:v})).then(ok => { if (ok){ toast(v ? `${key==='feedGap'?'Feed':'Diaper'} reminder after ${GAPS.find(g=>g[0]===v)[1]}` : 'Reminder off'); e.target.blur(); renderReminders(); } }); }
   if (e.target.id==='fAdj' && S.active.sleep){
     const v = fromLocalInput(e.target.value);
     if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
@@ -1057,8 +1589,14 @@ document.addEventListener('change', e => {
 document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id==='sheetForm') saveSheet();
+  if (e.target.id==='signinForm') signinSubmit();
+  if (e.target.id==='familyForm'){
+    const email = $('famEmail').value.trim().toLowerCase(), name = $('famName').value.trim().slice(0,40);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter their email address, like name@example.com.'); $('famEmail').focus(); return; }
+    addFamily(email, name).then(ok => { if (ok){ $('famEmail').value = ''; $('famName').value = ''; document.activeElement?.blur(); } });
+  }
   if (e.target.id==='settingsForm'){
-    const data = {name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value};
+    const data = {...S.settings, name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value, temp:$('setTemp').value};
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
   }
 });
@@ -1088,11 +1626,51 @@ setInterval(() => {
   document.querySelectorAll('[data-clock]').forEach(el => el.textContent = clock(now() - +el.dataset.clock));
   if (S.tab==='home'){ if (S.active.nurse) renderLive(); if (tick%30===0) renderHome(); }
   if (sheetState?.type==='nurse' && !sheetState.existing) renderNurse();
+  if (S.mode==='cloud' && auth.s && tick%60===0) auth.token().catch(()=>{});
+  if (tick%30===1) checkReminders();
 }, 1000);
 
 /* ---------- boot ---------- */
-applyLocal();
+/* served by server.js on a home laptop: sync through it, and never fall back to a per-phone copy */
+function bootHome(){
+  S.mode='home'; S.loaded=false; S.online=false; render(); cache.restore();
+  const es = new EventSource('api/events');
+  es.onopen = () => { outbox.flush().then(loadHome).then(() => { S.online = true; render(); }).catch(() => { S.online = false; render(); }); };
+  es.onmessage = e => { try { applyChange(JSON.parse(e.data)); } catch {} };
+  es.onerror = () => { S.online = false; render(); };
+}
+/* GitHub Pages (or ?cloud): the family log in Supabase. localhost stays local so development and tests are unchanged. */
+function bootCloud(){
+  S.mode = 'cloud'; S.loaded = false; S.online = false;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('access_token')){ /* someone tapped the link in the email instead of typing the code */
+    auth.keep({access_token:h.get('access_token'), refresh_token:h.get('refresh_token'), expires_in:+h.get('expires_in') || 3600});
+    history.replaceState(null, '', location.pathname + location.search);
+  } else auth.load();
+  if (h.get('error_description')){ SI.err = 'That sign-in link has expired. Get a new code below.'; history.replaceState(null, '', location.pathname + location.search); }
+  if (auth.s) startCloud(); else render();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !auth.s) return;
+    if (!live.ws || live.ws.readyState > 1) live.start(); else loadCloud().catch(cloudFail);
+  });
+}
+window.addEventListener('online', () => {
+  if (S.mode!=='home' && S.mode!=='cloud') return;
+  outbox.flush();
+  if (S.mode==='cloud' && auth.s && (!live.ws || live.ws.readyState > 1)) live.start();
+});
+/* offline app shell: not on localhost (stale files while developing) unless ?sw, and not inside claude.ai */
+if ('serviceWorker' in navigator && isSecureContext && !window.claude
+    && (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || new URLSearchParams(location.search).has('sw'))){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+const wantCloud = !window.claude && CLOUD.url && location.protocol !== 'file:'
+  && (new URLSearchParams(location.search).has('cloud') || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
+if (document.querySelector('meta[name="nestlog-server"][content="home"]')) bootHome();
+else if (wantCloud) bootCloud();
+else applyLocal();
 (async () => {
+  if (S.mode==='home' || S.mode==='cloud') return;
   if (!window.claude?.use) { S.mode='local'; render(); return; }
   try {
     const [d, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);

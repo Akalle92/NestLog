@@ -4,6 +4,7 @@
   "private": true,
   "description": "Baby tracker for feeds, sleep, diapers, pumping and growth.",
   "scripts": {
+    "home": "node server.js",
     "start": "node tests/serve.js 8080",
     "test": "node tests/e2e.js"
   },
