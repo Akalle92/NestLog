@@ -17,10 +17,11 @@ Baby tracker web app for one family (two caregivers). Single file, no framework,
 | `index.html` | The whole app: CSS tokens + styles, markup, one IIFE script |
 | `manifest.webmanifest`, `icons/` | Home-screen install (PWA manifest, SVG + PNG icons) |
 | `.nojekyll` | Tells GitHub Pages to serve files as-is |
-| `sw.js` | Service worker: offline app shell (network-first page, cache-first icons), notification taps. Not registered on localhost (unless `?sw`) or in claude.ai |
+| `sw.js` | Service worker: offline app shell (network-first page, cache-first icons), push reminders, notification taps. Not registered on localhost (unless `?sw`) or in claude.ai |
 | `tests/fixtures/nara-sample.csv` | Made-up Nara export (real header, one row per kind) for the import test. Never commit a real export |
 | `server.js` | Home server (`npm run home`): serves the app on the LAN and stores one shared log in `data/` |
-| `supabase/nestlog_init.sql` | Cloud database: tables, row-level security, family allowlist, sign-up hook |
+| `supabase/nestlog_init.sql` | Cloud database: tables, row-level security, family allowlist, sign-up hook, photo bucket, push tables, keys and cron job |
+| `supabase/functions/nestlog-remind/` | Edge Function that sends Web Push reminders (`index.ts`); `due.js` holds the due rules, mirrored from `dueState()` and unit-tested in `tests/e2e.js` |
 | `tests/serve.js` | Dependency-free static server (`npm start`) |
 | `tests/e2e.js` | Playwright checks + screenshots (`npm test`) |
 
@@ -40,15 +41,19 @@ The same `index.html` runs in four places. The boot code at the bottom of the sc
 
 4. **Cloud (GitHub Pages).** When not on localhost/file:// and not inside claude.ai (or with `?cloud` in the URL, which the tests use), `S.mode = 'cloud'` and data lives in the Supabase project in `CLOUD` (url + publishable key, public by design). No SDK: `auth` (email code via `/auth/v1/otp` + `/verify`, refresh, session in `localStorage['nestlog-session']`), `rest()` (PostgREST, retries once after a refresh on 401), and `live` (realtime WebSocket, protocol 1.0.0, `postgres_changes` on `logs`/`active`/`settings`, heartbeat, backoff, refetch on reconnect and when the page becomes visible). Changes go through the same `applyChange()` as home mode. Tables: `logs(id, t, data jsonb)`, `active(kind, data)`, `settings(id='baby', data)`, `family_members(email, name)`. Row-level security allows only emails in `family_members` (`private.is_family()`); family members can add/rename/remove people (Baby → Family, `renderFamily`), and the `family_keep_one` trigger keeps at least one. Also the `public.hook_family_only` Before User Created hook stops strangers getting accounts. `S.me` is the user's email and `S.names` comes from `family_members`, so entries show who logged them. Schema: `supabase/nestlog_init.sql`; change it with a new migration (Supabase MCP) and update that file.
 
+   Cloud-only extras:
+   - **Milestone photos:** private Storage bucket `photos` (JPEG, 5 MB, family-only policies), one object `<entry id>.jpg` per milestone, read and written with `storage()`. `showPhotos()` fills every `img[data-photo]` from an in-memory cache of blob URLs.
+   - **Web Push:** `pushSetup()` subscribes the phone with the key from `rpc/push_public_key` and upserts `push_subs`; `pushForget()` removes it on sign-out; `localStorage['nestlog-push']` marks it on, and then `checkReminders()` stays quiet. pg_cron calls the `nestlog-remind` function every 5 minutes with the Vault cron secret; it sends one push per overdue entry per phone (de-duplicated in `push_sent`) to family members only. The VAPID keys and the cron secret live in Vault (`push_config`, service role only) and never leave the server. If you change what's due, change `dueState()` and `due.js` together.
+
 In home and cloud mode every write is one op `{op:'log'|'active'|'settings', ...}` (`sendOp`). When there's no connection (`offlineError`), `sendShared` puts it in `outbox` (`localStorage['nestlog-outbox']`), applies it locally, and `outbox.flush()` replays in order on `online`, socket rejoin and home reconnect. `cache` keeps the last synced log in `localStorage['nestlog-cache']` so the app opens offline; `applyHome` lays pending outbox ops over each snapshot. Sign out clears both.
 
 All reads and writes go through the `store` object (`putLog`, `delLog`, `setActive`, `setSettings`, `putMany` for import), which handles all four. New persistence code goes through `store` too, never straight to `localStorage` or `db`.
 
 ## Script layout (top to bottom)
 
-icons `I` → `TYPES` (log kinds) → state `S` → `local` / `store` / `write()` (errors, haptics) → time helpers → units → `describe()` / `dayStats()` / `nurseTotals()` → `render()` and per-tab renderers (`renderHome`, `renderStatus`, `ribbon`, `renderLive`, `renderTimeline`, `renderTrends` + `barChart` / `growthChart` / `pastAvg`, `renderBaby`) → sheets (`openSheet`, `saveSheet`, `act`, `tapSide`) → export / import (`buildCsv`, `buildJson`, `normalize`, `readImport`, `runImport`) → delegated event listeners → 1-second clock tick → boot.
+icons `I` → `TYPES` (log kinds) → state `S` → `local` / `store` / `write()` (errors, haptics) → time helpers → units → `describe()` / `dayStats()` / `nurseTotals()` → `render()` and per-tab renderers (`renderHome`, `renderStatus`, `ribbon`, `renderLive`, `renderTimeline`, `renderTrends` + `barChart` / `lineChart` / `growthChart` (WHO percentiles: `WHO_LMS`, `percentile()`) / `pastAvg`, `renderBaby`) → photos (`storage`, `shrinkPhoto`, `showPhotos`) → doctor report (`reportHtml`, `openReport`) → sheets (`openSheet`, `saveSheet`, `act`, `tapSide`) → export / import (`buildCsv`, `buildJson`, `normalize`, `readImport`, `runImport`) → delegated event listeners → 1-second clock tick → boot.
 
-UI is rebuilt with template strings. Clicks are handled by one delegated listener keyed on `data-*` attributes: `data-open`, `data-tab`, `data-edit`, `data-act`, `data-chip`, `data-side`, `data-io`, `data-ago`, `data-step`, `data-filter`, `data-range`. Live clocks are any element with `data-clock="<start ms>"`; the tick updates them.
+UI is rebuilt with template strings. Clicks are handled by one delegated listener keyed on `data-*` attributes: `data-open`, `data-tab`, `data-edit`, `data-act`, `data-chip`, `data-side`, `data-io`, `data-ago`, `data-step`, `data-filter`, `data-range`, `data-gm` (growth measure), `data-rw` (report weeks). Live clocks are any element with `data-clock="<start ms>"`; the tick updates them.
 
 ## Data model
 
@@ -66,9 +71,9 @@ Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on
 | `medicine` | `name`, `dose` |
 | `vaccine` | `name` |
 | `temp` | `c` (stored °C; shown in `S.settings.temp` `'C'`/`'F'` via `tempOut`/`tempIn`) |
-| `milestone` | `title` |
+| `milestone` | `title`, `photo` (`<id>.jpg` in the `photos` bucket, cloud only) |
 
-Settings: `name`, `birth`, `vol`, `wt`, `temp`, and reminder gaps `feedGap` / `diaperGap` (minutes, 0 = off). `dueState()` decides what's due; `checkReminders()` runs on the tick and notifies once per last-entry id per phone (`localStorage['nestlog-reminded']`).
+Settings: `name`, `birth`, `sex` (`'M'`/`'F'`/`''`, picks the WHO growth curves: `WHO_LMS`, `percentile()`), `vol`, `wt`, `temp`, and reminder gaps `feedGap` / `diaperGap` (minutes, 0 = off). `dueState()` decides what's due; `checkReminders()` runs on the tick and notifies once per last-entry id per phone (`localStorage['nestlog-reminded']`).
 
 Imports: `readImport` handles Nestlog JSON/CSV and Nara Baby CSV (`isNara` + `fromNara`, ids `nara-<_activityKey>`). Every path ends in `normalize()`.
 
@@ -100,6 +105,5 @@ Plain and short; it gets read at 3am. Buttons start with a verb ("Save bottle", 
 
 ## Ideas not built yet
 
-- Server-pushed reminders (Web Push from Supabase) so notifications arrive when the app is closed
 - Medicine schedules ("next dose due at 7:30")
-- A photo on milestones
+- Quiet hours for push reminders
