@@ -661,6 +661,7 @@ async function loadCloud(){
   if (!fam.some(f => f.email === auth.s?.email)){ signedOut('That email isn’t on the family list. Ask the person who set up Nestlog to add it.'); live.stop(); auth.signOut(); return; }
   S.names = Object.fromEntries(fam.map(f => [f.email, f.name || f.email.split('@')[0]]));
   applyHome({logs:Object.fromEntries(logs.map(({id,...l}) => [id, l])), active:Object.fromEntries(act.map(a => [a.kind, a.data])), settings:set[0]?.data || {}});
+  pushSetup();
 }
 function cloudChange(d){
   if (!d || !d.table) return;
@@ -707,7 +708,7 @@ function startCloud(){
   live.start();
 }
 function signedOut(msg){
-  live.stop(); auth.save(null); cache.clear();
+  live.stop(); auth.save(null); cache.clear(); try { localStorage.removeItem('nestlog-push'); } catch {}
   S.logs = []; S.active = {}; S.names = {}; S.loaded = false; S.tab = 'home'; S.me = null;
   SI = {step:'email', email:'', busy:false, err:msg || '', key:''};
   closeSheet(); render();
@@ -847,6 +848,29 @@ function dueState(){
   return { feed: !S.active.nurse && due(+st.feedGap, feed) ? feed : null, diaper: due(+st.diaperGap, diaper) ? diaper : null };
 }
 const canNotify = () => 'Notification' in window;
+/* Web Push (cloud): the nestlog-remind function sends reminders even when the app is closed. This phone's
+   subscription is saved in push_subs; localStorage['nestlog-push'] remembers that it's on. */
+const pushOn = () => { try { return S.mode==='cloud' && !!localStorage.getItem('nestlog-push'); } catch { return false; } };
+const b64uBytes = s => Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+async function pushSetup(){
+  try {
+    if (S.mode!=='cloud' || !auth.s || !('PushManager' in window) || !canNotify() || Notification.permission!=='granted') return;
+    const reg = await navigator.serviceWorker?.getRegistration(); if (!reg) return;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){ const key = await rest('POST', 'rpc/push_public_key', {}); if (!key) return;
+      sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uBytes(key)}); }
+    const j = sub.toJSON();
+    await rest('POST', 'push_subs', {endpoint:j.endpoint, email:S.me, p256dh:j.keys.p256dh, auth:j.keys.auth}, 'resolution=merge-duplicates');
+    localStorage.setItem('nestlog-push', j.endpoint); renderReminders();
+  } catch {} /* reminders still work while the app is open */
+}
+async function pushForget(){
+  try {
+    const ep = localStorage.getItem('nestlog-push'); localStorage.removeItem('nestlog-push'); if (!ep) return;
+    await rest('DELETE', 'push_subs?endpoint=eq.'+encodeURIComponent(ep));
+    const sub = await (await navigator.serviceWorker?.getRegistration())?.pushManager.getSubscription(); await sub?.unsubscribe();
+  } catch {}
+}
 /* through the service worker when there is one (needed on Android), else a page notification */
 function notify(title, opts){
   const plain = () => { try { new Notification(title, opts); } catch {} };
@@ -855,7 +879,7 @@ function notify(title, opts){
 }
 /* one notification per gap: remembered per phone by the id of the last entry it was about */
 function checkReminders(){
-  if (!canNotify() || Notification.permission !== 'granted' || !S.loaded) return;
+  if (!canNotify() || Notification.permission !== 'granted' || !S.loaded || pushOn()) return; /* with push, the server sends them */
   let seen = {}; try { seen = JSON.parse(localStorage.getItem('nestlog-reminded')) || {}; } catch {}
   const d = dueState(), name = S.settings.name || 'Baby'; let changed = false;
   for (const [kind, last] of Object.entries(d)){
@@ -876,6 +900,7 @@ function renderReminders(){
   }
   const on = +st.feedGap || +st.diaperGap, perm = canNotify() ? Notification.permission : 'unsupported';
   $('remindNote').textContent = !on ? 'Pick a gap and Today shows when a feed or diaper change is due. Shared with everyone who logs.'
+    : perm==='granted' && pushOn() ? 'Today shows when one is due, and this phone gets a notification even when Nestlog is closed.'
     : perm==='granted' ? 'Today shows when one is due, and this phone gets a notification while Nestlog is open or running in the background.'
     : perm==='denied' ? 'Today shows when one is due. Notifications are blocked for this site; turn them on in the browser’s site settings.'
     : perm==='unsupported' ? 'Today shows when one is due. This browser can’t show notifications; on iPhone, add Nestlog to the Home Screen first.'
@@ -1454,10 +1479,10 @@ async function act(a, el){
   if (a==='report'){ openReport(); return; }
   if (a==='reportClose'){ closeReport(); return; }
   if (a==='reportPrint'){ window.print(); return; }
-  if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} renderReminders(); checkReminders(); return; }
+  if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} await pushSetup(); renderReminders(); checkReminders(); return; }
   if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
   if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
-  if (a==='signOut'){ live.stop(); await auth.signOut(); signedOut(''); return; }
+  if (a==='signOut'){ live.stop(); await pushForget(); await auth.signOut(); signedOut(''); return; }
   if (a==='uploadLocal'){
     const have = new Set(S.logs.map(l => l.id)), d = local.load();
     const fresh = Object.fromEntries(Object.entries(d.logs || {}).filter(([id]) => !have.has(id)).map(([id, l]) => normalize({...l, id}, false)).filter(Boolean).map(n => [n.id, n.data]));

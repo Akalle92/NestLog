@@ -363,6 +363,28 @@ function paletteAudit() {
     await ctx.setOffline(false); await ctx.close();
   }
 
+  /* push: a message pushed by the server reaches the service worker, which shows it as a notification.
+     Headless Chromium blocks notifications outright, so a blocked showNotification() call from sw.js counts as shown. */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p = await ctx.newPage();
+    await p.goto(URL + '?sw'); await p.evaluate(() => navigator.serviceWorker.ready);
+    const cdp = await ctx.newCDPSession(p); let regId = null; const swErrors = [];
+    cdp.on('ServiceWorker.workerRegistrationUpdated', e => { const r = e.registrations.find(x => !x.isDeleted); if (r) regId = r.registrationId; });
+    cdp.on('ServiceWorker.workerErrorReported', e => swErrors.push(e.errorMessage));
+    await cdp.send('ServiceWorker.enable'); await p.waitForTimeout(300);
+    if (regId) await cdp.send('ServiceWorker.deliverPushMessage', { origin: URL.slice(0, -1), registrationId: regId, data: JSON.stringify({ title: 'Mira may be hungry', body: '3h 5m since the last feed.', tag: 'nestlog-feed' }) });
+    await p.waitForTimeout(600);
+    const shown = await p.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map(n => n.title));
+    check('push: service worker shows the pushed reminder', shown.includes('Mira may be hungry') || swErrors.some(e => /showNotification/.test(e.errorMessage) && /sw\.js/.test(e.sourceURL)), JSON.stringify({ shown, swErrors }));
+    await ctx.close();
+    const { dueFor } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const n = Date.now(), H = 36e5, set = { name: 'Mira', feedGap: 180, diaperGap: 0 };
+    const d1 = dueFor(set, { id: 'f1', t: n - 3.1 * H }, { id: 'd1', t: n - 9 * H }, false, n);
+    check('push: server reminds about an overdue feed, in the app’s words', d1.length === 1 && d1[0].kind === 'feed' && d1[0].entry === 'f1' && d1[0].title === 'Mira may be hungry' && d1[0].body === '3h 6m since the last feed.', JSON.stringify(d1));
+    check('push: nothing due within the gap, while nursing, or with reminders off', !dueFor(set, { id: 'f1', t: n - 2 * H }, null, false, n).length && !dueFor(set, { id: 'f1', t: n - 4 * H }, null, true, n).length && !dueFor({ feedGap: 0, diaperGap: 0 }, { id: 'f', t: 0 }, { id: 'd', t: 0 }, false, n).length);
+  }
+
   /* home server: two phones on the same Wi-Fi share one log through server.js */
   {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nestlog-'));
@@ -418,7 +440,7 @@ function paletteAudit() {
 
   /* cloud mode: GitHub Pages + Supabase, faked here (auth, REST, realtime socket) so no network is needed */
   {
-    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, photos: {}, sockets: new Set() };
+    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, photos: {}, pushSubs: {}, sockets: new Set() };
     const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
     const reply = (route, status, body) => route.fulfill({ status, headers: { ...CORS, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
     const push = (table, type, record, old) => { const msg = JSON.stringify({ topic: 'realtime:nestlog', event: 'postgres_changes', payload: { ids: [1], data: { schema: 'public', table, type, record, old_record: old || {} } }, ref: null });
@@ -444,6 +466,11 @@ function paletteAudit() {
           if (m === 'GET') return reply(route, 200, fake.family);
           if (m === 'POST') { const r = req.postDataJSON(); if (fake.family.some(f => f.email === r.email)) return reply(route, 409, { code: '23505' }); fake.family.push({ email: r.email, name: r.name || '' }); return reply(route, 201); }
           if (m === 'DELETE') { const e = decodeURIComponent(eq('email')); if (fake.family.length <= 1) return reply(route, 400, { message: 'The family list needs at least one person.' }); fake.family = fake.family.filter(f => f.email !== e); return reply(route, 204); }
+        }
+        if (table === 'push_public_key') return reply(route, 200, 'BOXUU2s0wvox2kwCejyqHvfbB87Ha-giBLysxZLfOH7nYO4EFlT1CwE_sqaM8uoFeQO8Vc4RTLU_iZuv0Chs4x4');
+        if (table === 'push_subs') {
+          if (m === 'POST') { const r = req.postDataJSON(); if (r.email !== who(req)) return reply(route, 403, {}); fake.pushSubs[r.endpoint] = r; return reply(route, 201); }
+          if (m === 'DELETE') { delete fake.pushSubs[decodeURIComponent(eq('endpoint'))]; return reply(route, 204); }
         }
         if (table === 'logs') {
           if (m === 'GET') { const off = +q.get('offset') || 0, lim = +q.get('limit') || 1000;
@@ -488,6 +515,7 @@ function paletteAudit() {
       p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of (40[1349]|504)/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
       await p.goto(URL + '?cloud'); await p.waitForTimeout(500); return p;
     };
+    let errorsFromPush = [];
     const session = { fn: email => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-' + email, refresh: 'r-' + email, exp: Date.now() + 36e5, email })); } }, arg: 'b@x.com' };
 
     const a = await phone('light');
@@ -587,10 +615,35 @@ function paletteAudit() {
     const tasteFam = await a.evaluate(tasteAudit);
     check('family: taste house rules', !tasteFam.length, tasteFam.join(' | '));
 
+    /* push: allowing notifications subscribes this phone with the server's key; sign-out removes it */
+    const pushPhone = await phone('light', { fn: () => {
+      if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-b@x.com', refresh: 'r-b@x.com', exp: Date.now() + 36e5, email: 'b@x.com' })); }
+      window.__notes = []; window.__key = null;
+      window.Notification = class { constructor(t) { window.__notes.push(t); } static get permission() { return localStorage.getItem('fake-perm') || 'default'; } static async requestPermission() { localStorage.setItem('fake-perm', 'granted'); return 'granted'; } };
+      window.PushManager = class {};
+      const sub = { toJSON: () => ({ endpoint: 'https://push.example/phone-b', keys: { p256dh: 'pk-b', auth: 'au-b' } }), unsubscribe: async () => true };
+      const reg = { pushManager: { getSubscription: async () => window.__subscribed ? sub : null, subscribe: async o => { window.__key = Array.from(o.applicationServerKey).length; window.__subscribed = true; return sub; } }, showNotification: t => window.__notes.push(t) };
+      Object.defineProperty(navigator, 'serviceWorker', { value: { getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) } });
+    } });
+    const ago = Date.now() - 4 * 36e5;
+    fake.logs.pushfeed = { type: 'bottle', t: ago, ml: 90, content: 'formula' };
+    fake.settings = { id: 'baby', data: { name: 'Mira', feedGap: 180, diaperGap: 0 } };
+    await pushPhone.reload(); await pushPhone.waitForTimeout(600);
+    await pushPhone.click('.tabs [data-tab="baby"]'); await pushPhone.click('[data-act="allowNotify"]'); await pushPhone.waitForTimeout(500);
+    check('push: phone subscribes with the 65-byte server key and is saved for its owner', fake.pushSubs['https://push.example/phone-b']?.email === 'b@x.com' && (await pushPhone.evaluate(() => window.__key)) === 65, JSON.stringify(fake.pushSubs));
+    check('push: settings say reminders arrive with the app closed', /even when Nestlog is closed/.test(await text(pushPhone, '#remindNote')));
+    await pushPhone.waitForTimeout(1200);
+    check('push: no second, local notification while push is on', !(await pushPhone.evaluate(() => window.__notes.length)));
+    await pushPhone.screenshot({ path: `${SHOTS}/14-push-on.png`, fullPage: true });
+    await pushPhone.click('[data-act="signOut"]'); await pushPhone.waitForTimeout(400);
+    check('push: sign-out removes this phone from reminders', !fake.pushSubs['https://push.example/phone-b']);
+    errorsFromPush = pushPhone.errors; await pushPhone.context().close();
+    delete fake.logs.pushfeed;
+
     await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
     check('cloud: sign out returns to the sign-in screen', await a.isVisible('#signinForm'));
     check('cloud: sign out removes the copy kept for offline use', await a.evaluate(() => !localStorage.getItem('nestlog-cache') && !localStorage.getItem('nestlog-session')));
-    check('cloud: no script errors', ![a, b, c].some(p => p.errors.length), [a, b, c].flatMap(p => p.errors).join(' | '));
+    check('cloud: no script errors', ![a, b, c].some(p => p.errors.length) && !errorsFromPush.length, [a, b, c].flatMap(p => p.errors).concat(errorsFromPush).join(' | '));
     for (const p of [a, b, c]) await p.context().close();
   }
 
