@@ -297,6 +297,34 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 .signin form{display:grid;gap:var(--s4);padding:var(--s5)}
 .linkbtn{justify-self:start;min-height:44px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .note{font-size:var(--fs-s);color:var(--ink-2);margin:0}
+/* doctor report: a full-screen page over the app that prints cleanly */
+body.reporting .app,body.reporting #tabbar{display:none}
+.report{max-width:720px;margin:0 auto;padding:var(--s5) var(--s4) var(--s8)}
+.report .rbar{display:flex;gap:var(--s2);margin-bottom:var(--s5)}
+.report .rbar .btn{flex:1}
+.report h1{margin:0;font-family:var(--f-display);font-size:var(--fs-xl);font-weight:600;letter-spacing:-.02em}
+.report .meta{margin:var(--s1) 0 0;color:var(--ink-2)}
+.report h2{margin:var(--s6) 0 var(--s3);font-family:var(--f-display);font-size:var(--fs-l);font-weight:600}
+.report .stats+table{margin-top:var(--s2)}
+.report .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--s2)}
+.report .stat{background:var(--surface);border-radius:var(--r-md);padding:var(--s3) var(--s4)}
+.report .stat b{display:block;font-family:var(--f-display);font-size:var(--fs-l);font-weight:600}
+.report .stat span{font-size:var(--fs-s);color:var(--ink-2)}
+.report table{width:100%;border-collapse:collapse;font-size:var(--fs-s)}
+.report td{padding:var(--s2) var(--s3) var(--s2) 0;vertical-align:top}
+.report tr:nth-child(odd) td{background:var(--surface)}
+.report td:first-child{width:1%;padding-left:var(--s3);white-space:nowrap;color:var(--ink-2);border-radius:var(--r-sm) 0 0 var(--r-sm)}
+.report td:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+.report .none{color:var(--muted);font-size:var(--fs-s);margin:0}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;color:#000}
+  .report{padding:0;max-width:none}
+  .report .rbar,.toast{display:none!important}
+  .report .stat,.report tr:nth-child(odd) td{background:#f2f2f0}
+  .report h2{break-after:avoid}
+  .report tr{break-inside:avoid}
+}
 </style>
 </head>
 <body>
@@ -380,6 +408,13 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
       </div>
     </div>
 
+    <h2 class="sec">Doctor visit</h2>
+    <div class="card group"><div class="item">
+      <p class="note">A one-page summary of feeds, sleep, diapers, growth, medicine and notes to show the pediatrician. Print it or save it as a PDF.</p>
+      <div class="seg" id="reportRange" role="group" aria-label="Report covers"></div>
+      <button class="btn primary" type="button" data-act="report">Make doctor report</button>
+    </div></div>
+
     <h2 class="sec">Export</h2>
     <div class="card group"><div class="item">
       <p class="note">A backup restores everything into Nestlog. The spreadsheet opens in Excel, Numbers or Google Sheets.</p>
@@ -405,6 +440,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 </div>
 
 <nav class="tabs" id="tabbar" aria-label="Sections"><div id="tabs"></div></nav>
+<div class="report" id="report" hidden></div>
 <div id="sheetRoot"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -452,7 +488,7 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -1094,6 +1130,7 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setSex').value = st.sex||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
+  $('reportRange').innerHTML = [1,2,4].map(w => `<button type="button" data-rw="${w}" aria-pressed="${S.rw===w}">${w} week${w>1?'s':''}</button>`).join('');
   renderReminders();
   renderFamily();
   const acts = $('shareActions');
@@ -1171,6 +1208,65 @@ async function signinSubmit(){
   try { await auth.verify(SI.email, code); SI = {step:'email', email:'', busy:false, err:'', key:''}; startCloud(); }
   catch(e){ SI.busy = false; SI.err = e.status >= 400 && e.status < 500 ? 'That code didn’t match or has expired. Check the latest email, or use a different email to get a new code.' : 'Couldn’t sign in. Check your connection and try again.'; renderSignin(true); }
 }
+
+/* ---------- doctor report ---------- */
+function reportHtml(weeks){
+  const n = weeks*7, to = startOfDay(now()) + DAY, from = to - n*DAY, st = S.settings;
+  const inRange = l => l.t >= from && l.t < to;
+  const fd = t => new Date(t).toLocaleDateString([], {day:'numeric', month:'short'});
+  const fdt = t => `${new Date(t).toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'})} ${tfmt(t)}`;
+  /* days before the first entry don't count toward averages */
+  const firstT = Math.min(...S.logs.map(l => l.t));
+  const days = [...Array(n)].map((_,i) => from + i*DAY).filter(d => d + DAY > firstT);
+  const ds = days.map(dayStats);
+  /* average, with the lowest and highest day */
+  const avgRange = (vals, f) => vals.length ? [f(vals.reduce((x,y)=>x+y,0)/vals.length), `${f(Math.min(...vals))}–${f(Math.max(...vals))}`] : ['—', ''];
+  const one = v => (+v).toFixed(1), whole = v => Math.round(v);
+  const stat = (label, [main, range]) => `<div class="stat"><b class="num">${main}</b><span>${label}${range ? ` · range ${range}` : ''}</span></div>`;
+  const logs = S.logs.filter(inRange);
+  const sleeps = logs.filter(l => l.type==='sleep' && l.end);
+  const longest = sleeps.reduce((m,l) => Math.max(m, l.end - l.t), 0);
+  const nurseDays = ds.filter(d => d.nurseMs);
+  const diapers = logs.filter(l => l.type==='diaper');
+  const tally = field => { const c = {}; diapers.forEach(d => String(d[field]||'').split(' ').filter(Boolean).forEach(w => c[w] = (c[w]||0)+1)); return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([w,k]) => `${esc(w)} ${k}`).join(', '); };
+  const colours = tally('color'), textures = tally('texture'), flags = tally('flags');
+  /* growth: the latest of each measure, any date */
+  const lastG = k => S.logs.filter(l => l.type==='growth' && l[k]).sort((a,b)=>b.t-a.t)[0];
+  const gRows = [['kg','Weight', v => `${wtOut(v)} ${wtU()}`], ['cm','Length', v => `${v} cm`], ['head','Head', v => `${v} cm`]].map(([k, label, f]) => {
+    const g = lastG(k); if (!g) return ''; const pc = percentile(k, g[k], g.t);
+    const prev = S.logs.filter(l => l.type==='growth' && l[k] && l.t < g.t - 7*DAY).sort((a,b)=>b.t-a.t)[0];
+    const diff = g[k] - prev?.[k], change = prev ? ` · ${diff >= 0 ? '+' : '−'}${k==='kg' ? `${wtOut(Math.abs(diff))} ${wtU()}` : `${Math.abs(diff).toFixed(1)} cm`} since ${fd(prev.t)}` : '';
+    return `<tr><td>${label}</td><td><b>${f(g[k])}</b>${pc ? ` · WHO ${pc.text}` : ''}${change} <span class="hint">(measured ${fd(g.t)})</span></td></tr>`;
+  }).join('');
+  const rows = list => list.sort((a,b)=>a.t-b.t).map(l => `<tr><td>${fdt(l.t)}</td><td>${esc(describe(l))}</td></tr>`).join('');
+  const health = logs.filter(l => ['medicine','vaccine','temp'].includes(l.type));
+  const moments = logs.filter(l => l.type==='milestone');
+  const notes = logs.filter(l => l.note && !['medicine','vaccine','temp','milestone'].includes(l.type));
+  const table = (list, empty) => list.length ? `<table>${rows(list)}</table>` : `<p class="none">${empty}</p>`;
+  return `<div class="rbar"><button class="btn soft" type="button" data-act="reportClose">Back</button><button class="btn primary" type="button" data-act="reportPrint">Print or save as PDF</button></div>
+    <h1>${esc(st.name || 'Baby')}</h1>
+    <p class="meta">${st.birth ? `Born ${new Date(st.birth+'T00:00').toLocaleDateString([], {day:'numeric', month:'long', year:'numeric'})} · ${esc(ageText(st.birth))} · ` : ''}${fd(from)} to ${fd(to - DAY)} (${weeks} week${weeks>1?'s':''}) · from Nestlog</p>
+    <h2>Feeding</h2>
+    <div class="stats">${stat('feeds per day', avgRange(ds.map(d=>d.feeds), one))}${ds.some(d=>d.bottleMl) ? stat(`${volU()} by bottle per day`, avgRange(ds.map(d=>volOut(d.bottleMl)), whole)) : ''}${nurseDays.length ? stat('nursing per day', avgRange(nurseDays.map(d=>d.nurseMs/MIN), v => dur(v*MIN))) : ''}</div>
+    <h2>Sleep</h2>
+    <div class="stats">${stat('hours per day', avgRange(ds.map(d=>d.sleepMs/HR), one))}${stat('longest stretch', [longest ? dur(longest) : '—', ''])}</div>
+    <h2>Diapers</h2>
+    <div class="stats">${stat('wet per day', avgRange(ds.map(d=>d.wet), one))}${stat('dirty per day', avgRange(ds.map(d=>d.dirty), one))}</div>
+    ${colours || textures || flags ? `<table>${colours ? `<tr><td>Colour</td><td>${colours}</td></tr>` : ''}${textures ? `<tr><td>Texture</td><td>${textures}</td></tr>` : ''}${flags ? `<tr><td>Noted</td><td>${flags}</td></tr>` : ''}</table>` : ''}
+    <h2>Growth</h2>
+    ${gRows ? `<table>${gRows}</table>` : '<p class="none">No measurements logged yet.</p>'}
+    <h2>Medicine, vaccines and temperature</h2>
+    ${table(health, 'None in this period.')}
+    <h2>Milestones</h2>
+    ${table(moments, 'None in this period.')}
+    <h2>Notes</h2>
+    ${table(notes, 'No notes in this period.')}`;
+}
+function openReport(){
+  const r = $('report'); r.innerHTML = reportHtml(S.rw); r.hidden = false;
+  document.body.classList.add('reporting'); window.scrollTo(0,0); r.querySelector('[data-act="reportPrint"]').focus();
+}
+function closeReport(){ $('report').hidden = true; $('report').innerHTML = ''; document.body.classList.remove('reporting'); render(); }
 
 /* ---------- sheets ---------- */
 let sheetState = null, lastFocus = null;
@@ -1293,6 +1389,9 @@ async function act(a, el){
     toast(`${name || email} removed`, 'Undo', () => addFamily(email, name, true));
     return;
   }
+  if (a==='report'){ openReport(); return; }
+  if (a==='reportClose'){ closeReport(); return; }
+  if (a==='reportPrint'){ window.print(); return; }
   if (a==='allowNotify'){ try { await Notification.requestPermission(); } catch {} renderReminders(); checkReminders(); return; }
   if (a==='asVaccine'){ closeSheet(); openSheet('vaccine'); return; }
   if (a==='siBack'){ SI.step = 'email'; SI.err = ''; renderSignin(true); return; }
@@ -1592,7 +1691,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-rw],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1608,6 +1707,7 @@ document.addEventListener('click', e => {
   if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
   if (d.gm){ S.gm=d.gm; renderTrends(); return; }
+  if (d.rw){ S.rw=+d.rw; renderBaby(); return; }
   if (d.fill){ $(d.fill).value = d.v; return; }
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
@@ -1660,7 +1760,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('keydown', e => {
   if (!sheetState) return;
-  if (e.key==='Escape') closeSheet();
+  if (e.key==='Escape'){ if (!$('report').hidden && !sheetState) closeReport(); else closeSheet(); }
   if (e.key==='Tab'){ /* keep focus inside the sheet */
     const f = [...$('sheetRoot').querySelectorAll('.sheet button, .sheet input, .sheet summary, .sheet select')].filter(x=>!x.disabled && x.offsetParent);
     if (!f.length) return; const first=f[0], last=f.at(-1);

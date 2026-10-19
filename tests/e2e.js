@@ -274,6 +274,41 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* doctor report: summary of the last weeks, prints without the app around it */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed);
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('nestlog-v1')), n = Date.now();
+      d.settings.sex = 'M';
+      d.logs.m1 = { type: 'medicine', t: n - 3 * 864e5, name: 'Vitamin D', dose: '1 drop' };
+      d.logs.v1 = { type: 'vaccine', t: n - 5 * 864e5, name: 'DTaP' };
+      d.logs.x1 = { type: 'diaper', t: n - 2 * 864e5, kind: 'dirty', color: 'green', flags: 'rash', note: '<b>check</b> at visit' };
+      d.logs.ms = { type: 'milestone', t: n - 4 * 864e5, title: 'First smile' };
+      localStorage.setItem('nestlog-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-rw="1"]'); await p.click('[data-act="report"]'); await p.waitForTimeout(300);
+    const r = await text(p, '#report');
+    check('report: opens over the app with the baby and the range', await p.isVisible('#report') && !(await p.isVisible('#tabbar')) && /Aarav/.test(r) && /1 week/.test(r));
+    check('report: feeds, sleep and diapers per day', /feeds per day/.test(r) && /hours per day/.test(r) && /wet per day/.test(r) && /longest stretch/.test(r));
+    check('report: growth with WHO percentile', /4.45 kg/.test(r) && /WHO \w+ percentile/.test(r), (r.match(/Weight.{0,80}/) || [''])[0]);
+    check('report: medicine, vaccine, milestone and diaper flags listed', /Vitamin D/.test(r) && /DTaP/.test(r) && /First smile/.test(r) && /green 1/.test(r) && /rash 1/.test(r));
+    check('report: notes are shown as text, not HTML', /<b>check<\/b> at visit/.test(r) && !(await p.locator('#report b:text("check")').count()));
+    check('report: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('report: taste house rules', !taste.length, taste.join(' | '));
+    await p.screenshot({ path: `${SHOTS}/12-report.png`, fullPage: true });
+    await p.emulateMedia({ media: 'print' });
+    check('report: printing hides the buttons and the app', !(await p.isVisible('#report .rbar')) && !(await p.isVisible('#top')));
+    await p.pdf({ path: `${SHOTS}/12-report.pdf`, format: 'A4' }).catch(() => {});
+    await p.emulateMedia({ media: 'screen' });
+    await p.click('[data-act="reportClose"]'); await p.waitForTimeout(200);
+    check('report: Back returns to the app', !(await p.isVisible('#report')) && await p.isVisible('#tabbar'));
+    check('report: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* reminders: due state on Today, one notification per gap */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
