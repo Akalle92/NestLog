@@ -159,7 +159,11 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 .entry .body{display:flex;gap:var(--s3);align-items:center;min-width:0}
 .entry .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .entry .ic svg{width:17px;height:17px}
-.entry .txt{min-width:0}
+.entry .txt{min-width:0;flex:1}
+.entry .thumb{width:44px;height:44px;flex:none;border-radius:var(--r-sm);object-fit:cover;background:var(--sunk)}
+.photo{display:grid;gap:var(--s2)}
+.photo img{width:100%;max-height:60vh;object-fit:contain;border-radius:var(--r-md);background:var(--sunk)}
+.photo .row-actions .btn{cursor:pointer}
 .entry b{display:block;font-weight:600;font-size:var(--fs-m)}
 .entry .by{font-weight:500;color:var(--muted);font-size:var(--fs-s)}
 .entry .txt>span{display:block;font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -902,6 +906,7 @@ function render(){
   if (S.tab==='timeline') renderTimeline();
   if (S.tab==='trends') renderTrends();
   if (S.tab==='baby') renderBaby();
+  showPhotos();
 }
 
 function ribbon(){
@@ -978,7 +983,7 @@ function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
   const name = l.by && l.by !== S.me && S.names[l.by] ? S.names[l.by] : !l.by || l.by !== S.me ? l.byName : '';
   const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
-  return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span></span></button>`;
+  return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
 }
 let namesPending = false;
 async function resolveNames(){
@@ -1004,6 +1009,7 @@ function renderTimeline(){
     const s = dayStats(startOfDay(g.t));
     return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
   }).join('');
+  showPhotos();
 }
 
 /* ---------- trends ---------- */
@@ -1209,6 +1215,48 @@ async function signinSubmit(){
   catch(e){ SI.busy = false; SI.err = e.status >= 400 && e.status < 500 ? 'That code didn’t match or has expired. Check the latest email, or use a different email to get a new code.' : 'Couldn’t sign in. Check your connection and try again.'; renderSignin(true); }
 }
 
+/* ---------- milestone photos (cloud only): private Supabase Storage bucket "photos", one JPEG per entry ---------- */
+async function storage(method, name, body){
+  const go = async () => fetch(`${CLOUD.url}/storage/v1/object/${method==='GET' ? 'authenticated/' : ''}photos/${encodeURIComponent(name)}`, {method,
+    headers:{apikey:CLOUD.key, Authorization:'Bearer '+(await auth.token()), ...(body ? {'Content-Type':'image/jpeg', 'x-upsert':'true'} : {})}, body});
+  let r = await go();
+  if (r.status===401){ await auth.refresh(); r = await go(); }
+  if (!r.ok) throw Object.assign(new Error('storage '+r.status), {status:r.status});
+  return r;
+}
+/* phone photos are large; keep the longest side at 1600px, as JPEG */
+function shrinkPhoto(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { const k = Math.min(1, 1600/Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth*k); c.height = Math.round(img.naturalHeight*k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', .85); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode')); };
+    img.src = url;
+  });
+}
+const photoCache = new Map(), photoLoading = new Set();
+/* fill every <img data-photo> on screen from the cache, fetching what's missing */
+function showPhotos(){
+  if (S.mode!=='cloud') return;
+  document.querySelectorAll('img[data-photo]').forEach(img => {
+    const name = img.dataset.photo, url = photoCache.get(name);
+    if (url){ if (img.getAttribute('src') !== url) img.src = url; return; }
+    if (photoLoading.has(name)) return; photoLoading.add(name);
+    storage('GET', name).then(r => r.blob()).then(b => { photoCache.set(name, URL.createObjectURL(b)); showPhotos(); }).catch(()=>{}).finally(() => photoLoading.delete(name));
+  });
+}
+function renderPhotoBox(){
+  const box = $('photoBox'); if (!box) return;
+  if (S.mode!=='cloud'){ box.innerHTML = `<p class="hint">Photos are kept in the family cloud. Sign in at akalle92.github.io/NestLog to add one.</p>`; return; }
+  const {photo, photoBlob} = sheetState, has = photoBlob || photo;
+  const src = photoBlob ? (sheetState.previewUrl = URL.createObjectURL(photoBlob)) : '';
+  box.innerHTML = `<span class="label">Photo</span>${has ? `<img ${photoBlob ? `src="${src}"` : `data-photo="${esc(photo)}"`} alt="Milestone photo">` : ''}
+    <div class="row-actions"><label class="btn soft" for="fPhoto">${has ? 'Change photo' : 'Add photo'}</label>${has ? `<button class="btn soft" type="button" data-act="photoRemove">Remove photo</button>` : ''}</div>
+    <input id="fPhoto" type="file" accept="image/*" hidden>`;
+  showPhotos();
+}
+
 /* ---------- doctor report ---------- */
 function reportHtml(weeks){
   const n = weeks*7, to = startOfDay(now()) + DAY, from = to - n*DAY, st = S.settings;
@@ -1333,12 +1381,14 @@ function openSheet(type, existing){
     const last = lastOf(l=>l.type==='temp');
     body = `${amountU('fTemp','Temperature', e.c ? tempOut(e.c) : last ? tempOut(last.c) : (fahr()?98.6:37), fahr()?0.2:0.1, tempU())}${when('fTime','Taken',time,!existing)}${noteField(e)}`;
   } else if (type==='milestone'){
-    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
+    sheetState.photo = e.photo || ''; sheetState.photoBlob = null;
+    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}<div class="photo" id="photoBox"></div>${noteField(e)}`;
   }
   const live = !existing && (type==='nurse' || type==='sleep');
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
   const del = existing ? `<button class="btn danger" type="button" data-act="delete">Delete entry</button>` : '';
   $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}${save}${del}</form></div>`;
+  if ($('photoBox')) renderPhotoBox();
   document.body.style.overflow='hidden';
   if (type==='nurse' && !existing) renderNurse();
   $('sheetRoot').querySelector('.side, .btn.primary, input, .chip')?.focus({preventScroll:true});
@@ -1375,7 +1425,18 @@ async function saveSheet(){
   if ($('fNote')) data.note = $('fNote').value.trim().slice(0,200);
   if (e.byName) data.byName = e.byName;
   const id = existing?.id || uid();
-  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast(existing ? 'Changes saved' : `${TYPES[type].label} saved`); }
+  let photoNote = '';
+  if (type==='milestone'){
+    const {photoBlob, photo} = sheetState;
+    if (photoBlob){
+      const btn = $('sheetForm').querySelector('button[type=submit]'), label = btn.textContent; btn.disabled = true; btn.textContent = 'Adding photo…';
+      try { await storage('POST', id+'.jpg', photoBlob); data.photo = id+'.jpg'; photoCache.set(data.photo, URL.createObjectURL(photoBlob)); }
+      catch(err){ photoNote = offlineError(err) ? ' The photo needs a connection. Add it again when you’re online.' : ' The photo couldn’t be added. Try again from the milestone.'; if (e.photo) data.photo = e.photo; }
+      if (btn.isConnected){ btn.disabled = false; btn.textContent = label; }
+    } else if (photo) data.photo = photo;
+    if (e.photo && !data.photo) storage('DELETE', e.photo).catch(()=>{});
+  }
+  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast((existing ? 'Changes saved.' : `${TYPES[type].label} saved.`) + photoNote); }
 }
 
 async function act(a, el){
@@ -1389,6 +1450,7 @@ async function act(a, el){
     toast(`${name || email} removed`, 'Undo', () => addFamily(email, name, true));
     return;
   }
+  if (a==='photoRemove'){ sheetState.photo = ''; sheetState.photoBlob = null; renderPhotoBox(); return; }
   if (a==='report'){ openReport(); return; }
   if (a==='reportClose'){ closeReport(); return; }
   if (a==='reportPrint'){ window.print(); return; }
@@ -1409,7 +1471,9 @@ async function act(a, el){
   if (a==='delete'){
     if (!sheetState.confirmDel){ sheetState.confirmDel=true; el.classList.add('armed'); el.textContent='Tap again to delete'; return; }
     const {id, ...rest} = sheetState.existing;
-    if (await write(()=>store.delLog(id))){ closeSheet(); toast('Entry deleted', 'Undo', () => write(()=>store.putLog(id, rest)).then(ok => ok && toast('Entry restored'))); }
+    if (await write(()=>store.delLog(id))){ closeSheet(); toast('Entry deleted', 'Undo', () => write(()=>store.putLog(id, rest)).then(ok => ok && toast('Entry restored')));
+      /* the photo stays until Undo can no longer bring the entry back */
+      if (rest.photo) setTimeout(() => { if (!S.logs.some(l => l.id===id)) storage('DELETE', rest.photo).catch(()=>{}); }, 7000); }
     return;
   }
   if (a==='sleepStart'){ if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))){ closeSheet(); toast('Sleep timer started'); } return; }
@@ -1445,14 +1509,14 @@ async function tapSide(s){
 }
 
 /* ---------- export ---------- */
-const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','brand','food','reaction','diaper','diaper_color','diaper_texture','diaper_flags','note','pump_left_ml','pump_right_ml','pump_total_ml','pump_min','weight_kg','length_cm','head_cm','medicine','dose','temp_c','title','logged_by','caregiver'];
+const CSV_COLS = ['id','type','start','end','left_min','right_min','last_side','amount_ml','content','brand','food','reaction','diaper','diaper_color','diaper_texture','diaper_flags','note','pump_left_ml','pump_right_ml','pump_total_ml','pump_min','weight_kg','length_cm','head_cm','medicine','dose','temp_c','title','photo','logged_by','caregiver'];
 const fmtLocal = t => t ? toLocalInput(t).replace('T',' ') : '';
 const r1 = v => v ? +(+v).toFixed(1) : '';
 function toRow(l){
   return {id:l.id, type:l.type, start:fmtLocal(l.t), end:fmtLocal(l.end),
     left_min:r1((l.left||0)/MIN), right_min:r1((l.right||0)/MIN), last_side:l.last||'',
     amount_ml:l.ml||'', content:l.content||'', brand:l.brand||'', diaper_color:l.color||'', diaper_texture:l.texture||'', diaper_flags:l.flags||'',
-    pump_total_ml:l.tml||'', medicine:l.type==='medicine'||l.type==='vaccine' ? l.name||'' : '', dose:l.dose||'', temp_c:l.c||'', title:l.title||'', caregiver:l.byName||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
+    pump_total_ml:l.tml||'', medicine:l.type==='medicine'||l.type==='vaccine' ? l.name||'' : '', dose:l.dose||'', temp_c:l.c||'', title:l.title||'', photo:l.photo||'', caregiver:l.byName||'', food:l.food||'', reaction:l.reaction||'', diaper:l.kind||'', note:l.note||'',
     pump_left_ml:l.lml||'', pump_right_ml:l.rml||'', pump_min:l.min||'',
     weight_kg:l.kg?+(+l.kg).toFixed(3):'', length_cm:l.cm||'', head_cm:l.head||'',
     logged_by: l.by ? (l.by===S.me ? 'me' : (S.names[l.by]||'partner')) : ''};
@@ -1536,6 +1600,7 @@ const parseTime = v => { if (v==null || v==='') return NaN; if (typeof v==='numb
 const nn = v => { const x = Number(v); return isFinite(x) && x > 0 ? x : 0; };
 const str = (v, n=120) => String(v ?? '').slice(0, n);
 const SAFE_ID = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
+const PHOTO_NAME = /^[A-Za-z0-9_-]{1,120}\.jpg$/;
 /* every imported entry passes through here: known types and fields only */
 function normalize(raw, fromCsv){
   const type = str(raw.type, 12).toLowerCase(); if (!TYPES[type]) return null;
@@ -1553,7 +1618,7 @@ function normalize(raw, fromCsv){
   if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
   if (type==='medicine' || type==='vaccine'){ o.name = str(fromCsv?raw.medicine:raw.name, 80); if (type==='medicine') o.dose = str(raw.dose, 40); if (!o.name) return null; }
   if (type==='temp'){ o.c = nn(fromCsv?raw.temp_c:raw.c); if (o.c < 30 || o.c > 45) return null; }
-  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; }
+  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; if (PHOTO_NAME.test(raw.photo||'')) o.photo = raw.photo; }
   const note = str(raw.note, 200).trim(); if (note) o.note = note;
   const byName = str(fromCsv?raw.caregiver:raw.byName, 40).trim(); if (byName) o.byName = byName;
   const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;
@@ -1741,6 +1806,11 @@ document.addEventListener('change', e => {
   if (e.target.id==='fAdj' && S.active.sleep){
     const v = fromLocalInput(e.target.value);
     if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
+  }
+  if (e.target.id==='fPhoto' && e.target.files[0] && sheetState){
+    shrinkPhoto(e.target.files[0]).then(b => { if (!sheetState) return; sheetState.photoBlob = b; renderPhotoBox(); })
+      .catch(() => toast('That file couldn’t be opened as a photo. Choose a JPEG, PNG or HEIC picture.'));
+    e.target.value='';
   }
   if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
 });

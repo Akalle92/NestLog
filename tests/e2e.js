@@ -221,6 +221,7 @@ function paletteAudit() {
     await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
     await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
+    check('photos: on this device the milestone sheet explains photos need the family cloud', /family cloud/.test(await text(p, '#photoBox')));
     await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
     await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
@@ -417,7 +418,7 @@ function paletteAudit() {
 
   /* cloud mode: GitHub Pages + Supabase, faked here (auth, REST, realtime socket) so no network is needed */
   {
-    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, sockets: new Set() };
+    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, photos: {}, sockets: new Set() };
     const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
     const reply = (route, status, body) => route.fulfill({ status, headers: { ...CORS, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
     const push = (table, type, record, old) => { const msg = JSON.stringify({ topic: 'realtime:nestlog', event: 'postgres_changes', payload: { ids: [1], data: { schema: 'public', table, type, record, old_record: old || {} } }, ref: null });
@@ -459,6 +460,16 @@ function paletteAudit() {
           if (m === 'GET') return reply(route, 200, fake.settings.data ? [{ data: fake.settings.data }] : []);
           if (m === 'POST') { const r = req.postDataJSON(); fake.settings = r; push('settings', 'UPDATE', r); return reply(route, 201); }
         }
+        return reply(route, 404, {});
+      });
+      await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/storage/v1/**', async route => {
+        const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
+        if (fake.offline) return route.abort('internetdisconnected');
+        if (!fake.family.some(f => f.email === who(req))) return reply(route, 403, { message: 'row-level security' });
+        const m = req.method(), name = decodeURIComponent(new globalThis.URL(req.url()).pathname.split('/').pop());
+        if (m === 'POST') { fake.photos[name] = req.postDataBuffer(); return reply(route, 200, { Key: 'photos/' + name }); }
+        if (m === 'GET') return fake.photos[name] ? route.fulfill({ status: 200, headers: { ...CORS, 'Content-Type': 'image/jpeg' }, body: fake.photos[name] }) : reply(route, 404, {});
+        if (m === 'DELETE') { delete fake.photos[name]; return reply(route, 200, {}); }
         return reply(route, 404, {});
       });
       await ctx.routeWebSocket(/realtime\/v1\/websocket/, ws => {
@@ -538,6 +549,24 @@ function paletteAudit() {
     await a.evaluate(() => window.dispatchEvent(new Event('online'))); await a.waitForTimeout(800);
     check('offline: syncs when back online', Object.values(fake.logs).some(l => l.ml === 150) && !/waiting/.test(await text(a, '#syncText')), await text(a, '#syncText'));
     check('offline: other phone gets it after the sync', /150 ml/.test(await text(b, '#recent')));
+
+    /* milestone photos: shrunk, uploaded to private storage, shown on the other phone, removed with the entry's photo */
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAG0lEQVR4nGP4z8DwnwEZMDEwMDCiCzAwMDAAAG0QAwVfNk2nAAAAAElFTkSuQmCC', 'base64');
+    await a.click('.tabs [data-tab="home"]'); await a.click('[data-open="milestone"]'); await a.waitForTimeout(200);
+    await a.fill('#fTitle', 'First bath');
+    await a.setInputFiles('#fPhoto', { name: 'bath.png', mimeType: 'image/png', buffer: png }); await a.waitForTimeout(400);
+    check('photos: preview shows in the milestone sheet', await a.locator('#photoBox img').count() === 1);
+    await a.screenshot({ path: `${SHOTS}/13-photo-sheet.png` });
+    await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(600);
+    const ms = Object.entries(fake.logs).find(([, l]) => l.title === 'First bath') || [];
+    check('photos: uploaded as a JPEG named after the entry', ms[1] && ms[1].photo === ms[0] + '.jpg' && fake.photos[ms[1].photo] && fake.photos[ms[1].photo][0] === 0xff, JSON.stringify(ms[1] || {}));
+    await b.waitForTimeout(400);
+    check('photos: the other phone shows the thumbnail', await b.evaluate(() => [...document.querySelectorAll('#recent img.thumb')].some(i => i.src.startsWith('blob:') && i.complete)));
+    await b.screenshot({ path: `${SHOTS}/13-photo-recent.png` });
+    await a.click(`#recent [data-edit="${ms[0]}"]`); await a.waitForTimeout(300);
+    check('photos: editing the milestone shows the photo', await a.evaluate(() => !!document.querySelector('#photoBox img')?.src));
+    await a.click('[data-act="photoRemove"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
+    check('photos: removing the photo deletes it from storage', !fake.photos[ms[0] + '.jpg'] && !fake.logs[ms[0]].photo);
 
     /* family list: add someone, remove them with a second tap, undo */
     await a.click('.tabs [data-tab="baby"]'); await a.waitForTimeout(200);

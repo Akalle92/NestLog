@@ -38,7 +38,7 @@ const FIELDS = {
   medicine: { name: v => str(v, 80), dose: v => str(v, 40) },
   vaccine: { name: v => str(v, 80) },
   temp: { c: num },
-  milestone: { title: v => str(v, 80) },
+  milestone: { title: v => str(v, 80), photo: v => (/^[A-Za-z0-9_-]{1,120}\.jpg$/.test(v || '') ? v : '') },
 };
 const COMMON = { note: v => str(v, 200), byName: v => str(v, 40) };
 function cleanLog(raw) {

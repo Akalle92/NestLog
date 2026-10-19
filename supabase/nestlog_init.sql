@@ -92,3 +92,17 @@ grant execute on function public.hook_family_only(jsonb) to supabase_auth_admin;
 grant usage on schema public to supabase_auth_admin;
 grant select on public.family_members to supabase_auth_admin;
 create policy "auth hook reads the list" on public.family_members for select to supabase_auth_admin using (true);
+
+-- Milestone photos: a private bucket, one JPEG per entry (<entry id>.jpg), family only.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('photos', 'photos', false, 5242880, array['image/jpeg'])
+on conflict (id) do update set public = false, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg'];
+create policy "photos: family can read" on storage.objects for select to authenticated
+  using (bucket_id = 'photos' and (select private.is_family()));
+create policy "photos: family can add" on storage.objects for insert to authenticated
+  with check (bucket_id = 'photos' and (select private.is_family()));
+create policy "photos: family can replace" on storage.objects for update to authenticated
+  using (bucket_id = 'photos' and (select private.is_family()))
+  with check (bucket_id = 'photos' and (select private.is_family()));
+create policy "photos: family can delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'photos' and (select private.is_family()));
