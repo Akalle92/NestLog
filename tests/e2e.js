@@ -187,6 +187,7 @@ function paletteAudit() {
     await p.click('#impGo'); await p.waitForTimeout(400);
     const L = await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')));
     const g = id => L.logs[id] || {};
+    check('nara: baby details include the sex for growth curves', L.settings.name === 'Test Baby' && L.settings.sex === 'M', JSON.stringify(L.settings));
     const close = (a, b) => Math.abs(a - b) < 0.02;
     check('nara: formula bottle with brand, note and caregiver', g('nara-t-fx-bottle1').ml === 120 && g('nara-t-fx-bottle1').brand === 'Brand A' && g('nara-t-fx-bottle1').note === 'Leftover 20 ml' && g('nara-t-fx-bottle1').byName === 'Parent One');
     check('nara: ounces become ml', g('nara-t-fx-bottle2').ml === 59 && g('nara-t-fx-bottle2').content === 'breastmilk');
@@ -238,6 +239,38 @@ function paletteAudit() {
     await p.screenshot({ path: `${SHOTS}/8-home-new-types.png`, fullPage: true });
     check('new types: home has no horizontal overflow', await noOverflow(p));
     check('new types: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* WHO growth percentiles on Trends */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.evaluate(() => { const D = 864e5, birth = new Date(Date.now() - 120 * D); birth.setHours(12, 0, 0, 0);
+      const b = birth.getTime(), iso = `${birth.getFullYear()}-${String(birth.getMonth() + 1).padStart(2, '0')}-${String(birth.getDate()).padStart(2, '0')}`;
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir', birth: iso, vol: 'ml', wt: 'kg' }, active: {}, logs: {
+        g1: { type: 'growth', t: b + 2 * 3600e3, kg: 3.3, cm: 50, head: 34.5 }, g2: { type: 'growth', t: b + 60 * D, kg: 5.0, cm: 58 }, g3: { type: 'growth', t: Date.now() - 3600e3, kg: 6.0, cm: 62, head: 41 } } })); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    check('who: asks for boy or girl before showing percentiles', /Choose boy or girl/.test(await text(p, '#trends')));
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setSex', 'M'); await p.click('#settingsForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    const t1 = await text(p, '#trends');
+    check('who: 6.0 kg at 120 days for a boy is about the 10th percentile', /(9th|10th|11th) percentile/.test(t1), (t1.match(/\w+ percentile/) || [''])[0]);
+    check('who: draws the five WHO reference curves', (await p.locator('.chart.k-growth svg path[stroke="var(--line-strong)"]').count()) === 5);
+    await p.screenshot({ path: `${SHOTS}/11-who-weight.png`, fullPage: true });
+    await p.click('[data-gm="head"]'); await p.waitForTimeout(150);
+    const t2 = await text(p, '#trends');
+    check('who: head size switch shows a head percentile', /Head/.test(t2) && /41 cm/.test(t2) && /percentile/.test(t2));
+    await p.click('[data-gm="cm"]'); await p.waitForTimeout(150);
+    check('who: length switch shows length', /62 cm/.test(await text(p, '#trends')));
+    await p.screenshot({ path: `${SHOTS}/11-who-length.png`, fullPage: true });
+    check('who: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('who: taste house rules', !taste.length, taste.join(' | '));
+    check('who: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
   }
 

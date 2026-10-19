@@ -339,6 +339,7 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
       <div class="item">
         <div class="field"><label class="label" for="setName">Name</label><input id="setName" autocomplete="off" placeholder="e.g. Aarav"></div>
         <div class="field"><label class="label" for="setBirth">Birth date</label><input id="setBirth" type="date"></div>
+        <div class="field"><label class="label" for="setSex">Growth curves for</label><select id="setSex"><option value="">Not set</option><option value="M">Boy</option><option value="F">Girl</option></select></div>
       </div>
       <div class="item">
         <div class="grid2">
@@ -451,7 +452,7 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -987,29 +988,83 @@ function barChart(k, title, headline, sub, vals, labels, fmt){
 /* mean of the days before today that have any entries; null when there are none */
 function pastAvg(vals){ const p = vals.slice(0,-1).filter(v => v > 0); return p.length ? p.reduce((a,b)=>a+b,0)/p.length : null; }
 /* line over time: weight, temperature */
-function lineChart(k, title, pts, fmt, unit, sub){
-  const W=320,H=150,pl=32,pr=8,pt=12,pb=20;
+/* bands: optional reference curves [{label, pts:[{t,v}]}] drawn faintly behind the data (WHO percentiles) */
+function lineChart(k, title, pts, fmt, unit, sub, bands=[], extra=''){
+  const W=320,H=150,pl=32,pr=bands.length?30:8,pt=12,pb=20;
   const xs = pts.map(p=>p.t), ys = pts.map(p=>p.v);
   let x0=Math.min(...xs), x1=Math.max(...xs); if (x1===x0){ x0-=DAY*7; x1+=DAY*7; }
-  let y0=Math.min(...ys), y1=Math.max(...ys); const padY=Math.max(.2,(y1-y0)*.18); y0=Math.max(0,y0-padY); y1+=padY;
+  if (bands.length){ x0 = Math.min(x0, ...bands[0].pts.map(p=>p.t)); x1 = Math.max(x1, ...bands[0].pts.map(p=>p.t)); }
+  const all = ys.concat(...bands.map(b=>b.pts.map(p=>p.v)));
+  let y0=Math.min(...all), y1=Math.max(...all); const padY=Math.max(.2,(y1-y0)*.18); y0=Math.max(0,y0-padY); y1+=padY;
   const X=t=>pl+(t-x0)/(x1-x0)*(W-pl-pr), Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pt-pb);
   let g='';
   for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3, y=Y(v); g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`; }
+  let labelY = Infinity; /* bands run low to high; labels are pushed up so they never overlap */
+  bands.forEach(b => { const d = b.pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+    labelY = Math.min(Y(b.pts.at(-1).v)+4, labelY-13);
+    g += `<path d="${d}" fill="none" stroke="var(--line-strong)" stroke-width="${b.label==='50th'?1.5:1}" ${b.label==='50th'?'':'stroke-dasharray="3 3"'}/><text x="${W-pr+3}" y="${labelY.toFixed(1)}">${b.label.replace(/\D/g,'')}</text>`; });
   const line = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
-  if (pts.length>1) g += `<path d="${line} L${X(pts.at(-1).t).toFixed(1)} ${H-pb} L${X(pts[0].t).toFixed(1)} ${H-pb}Z" fill="var(--c)" opacity=".12"/>`;
+  if (pts.length>1 && !bands.length) g += `<path d="${line} L${X(pts.at(-1).t).toFixed(1)} ${H-pb} L${X(pts[0].t).toFixed(1)} ${H-pb}Z" fill="var(--c)" opacity=".12"/>`;
   g += `<path d="${line}" fill="none" stroke="var(--c)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
   pts.forEach((p,i)=>{ const last=i===pts.length-1; g+=`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${last?5:3}" fill="${last?'var(--c)':'var(--surface)'}" stroke="var(--c)" stroke-width="2"/>`; });
   const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
   g += `<text x="${pl}" y="${H-4}">${fd(x0)}</text><text x="${W-pr}" y="${H-4}" text-anchor="end">${fd(x1)}</text>`;
-  return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${fmt(pts.at(-1).v)} ${unit}</span></header><p>${sub}</p><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} over time">${g}</svg></div>`;
+  return `<div class="card chart k-${k}"><header><h3>${title}</h3><span class="big num">${fmt(pts.at(-1).v)} ${unit}</span></header><p>${sub}</p>${extra}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} over time">${g}</svg></div>`;
 }
+/* WHO Child Growth Standards (2006), L,M,S every 14 days from birth to 728 days, boys (M) and girls (F) */
+const WHO_LMS = {
+  kg:{M:'0.3487,3.3464,0.14602;0.2581,3.7529,0.14142;0.2331,4.3671,0.13497;0.2155,4.9303,0.1296;0.2014,5.4149,0.1252;0.1894,5.8346,0.12157;0.1789,6.2019,0.1186;0.1694,6.5265,0.11618;0.1609,6.8168,0.11425;0.1529,7.0794,0.11274;0.1456,7.3187,0.11158;0.1387,7.5379,0.1107;0.1322,7.7394,0.11005;0.126,7.926,0.10959;0.1201,8.1,0.10927;0.1145,8.2627,0.10906;0.1092,8.4157,0.10892;0.104,8.5603,0.10884;0.0991,8.6978,0.1088;0.0943,8.8292,0.1088;0.0897,8.9555,0.10882;0.0852,9.0772,0.10887;0.0809,9.1951,0.10892;0.0767,9.3097,0.10899;0.0726,9.4215,0.10907;0.0686,9.531,0.10915;0.0648,9.6384,0.10925;0.061,9.7439,0.10935;0.0573,9.8478,0.10946;0.0537,9.9502,0.10958;0.0502,10.0514,0.10971;0.0467,10.1515,0.10984;0.0433,10.2506,0.10998;0.04,10.3489,0.11013;0.0368,10.4465,0.11029;0.0336,10.5435,0.11045;0.0305,10.6399,0.11062;0.0274,10.7357,0.11079;0.0244,10.831,0.11098;0.0214,10.9258,0.11117;0.0185,11.0202,0.11137;0.0157,11.1141,0.11157;0.0128,11.2077,0.11178;0.0101,11.3012,0.112;0.0073,11.3945,0.11223;0.0046,11.4876,0.11246;0.002,11.5806,0.1127;-0.0006,11.6734,0.11294;-0.0032,11.7661,0.11318;-0.0058,11.8586,0.11344;-0.0083,11.951,0.11369;-0.0108,12.0431,0.11395;-0.0132,12.1351,0.11421',F:'0.3809,3.2322,0.14171;0.2304,3.5693,0.14339;0.1789,4.0987,0.13805;0.1395,4.5793,0.13392;0.1065,4.9959,0.13087;0.0779,5.3618,0.12861;0.0525,5.6883,0.12691;0.0295,5.9831,0.12561;0.0086,6.2511,0.12459;-0.0107,6.4956,0.1238;-0.0285,6.7192,0.12317;-0.045,6.9241,0.12268;-0.0605,7.1133,0.12231;-0.0749,7.2894,0.12205;-0.0885,7.4543,0.12188;-0.1012,7.6094,0.12179;-0.1132,7.7562,0.12176;-0.1245,7.8957,0.12179;-0.1352,8.0286,0.12185;-0.1452,8.1557,0.12193;-0.1547,8.2776,0.12203;-0.1637,8.3952,0.12214;-0.1722,8.5092,0.12226;-0.1802,8.6201,0.12237;-0.1878,8.7283,0.12248;-0.195,8.8344,0.12258;-0.2018,8.9388,0.12267;-0.2082,9.0417,0.12275;-0.2143,9.1434,0.12282;-0.22,9.2439,0.12287;-0.2255,9.3436,0.12292;-0.2307,9.4426,0.12295;-0.2355,9.5409,0.12298;-0.2402,9.6387,0.123;-0.2446,9.7361,0.12302;-0.2487,9.8331,0.12303;-0.2526,9.9299,0.12304;-0.2564,10.0265,0.12306;-0.2599,10.1227,0.12307;-0.2632,10.2187,0.12309;-0.2664,10.3144,0.12311;-0.2694,10.41,0.12314;-0.2723,10.5053,0.12317;-0.275,10.6005,0.12321;-0.2775,10.6957,0.12326;-0.2799,10.7909,0.12331;-0.2822,10.8861,0.12337;-0.2844,10.9815,0.12344;-0.2865,11.077,0.12352;-0.2885,11.1726,0.1236;-0.2903,11.2684,0.12369;-0.2921,11.3643,0.12378;-0.2938,11.4603,0.12388'},
+  cm:{M:'1,49.8842,0.03795;1,52.3461,0.03652;1,54.3881,0.0357;1,56.2357,0.03501;1,57.8889,0.03442;1,59.3872,0.03392;1,60.7605,0.03348;1,62.013,0.03311;1,63.1533,0.03278;1,64.1906,0.03249;1,65.138,0.03223;1,66.0121,0.03201;1,66.8254,0.03182;1,67.5904,0.03166;1,68.3177,0.03152;1,69.0152,0.03141;1,69.6896,0.03133;1,70.3457,0.03126;1,70.9876,0.03121;1,71.6171,0.03118;1,72.2347,0.03117;1,72.8402,0.03117;1,73.4337,0.03119;1,74.0157,0.03122;1,74.5868,0.03126;1,75.1479,0.03131;1,75.6999,0.03137;1,76.2437,0.03144;1,76.779,0.03152;1,77.306,0.0316;1,77.8251,0.0317;1,78.3364,0.0318;1,78.8407,0.0319;1,79.3383,0.03201;1,79.8296,0.03213;1,80.3148,0.03225;1,80.7942,0.03237;1,81.2677,0.0325;1,81.7353,0.03263;1,82.1973,0.03277;1,82.6535,0.03291;1,83.1041,0.03305;1,83.5492,0.0332;1,83.9892,0.03335;1,84.4245,0.0335;1,84.8549,0.03365;1,85.2805,0.03381;1,85.7015,0.03397;1,86.1181,0.03413;1,86.5306,0.03429;1,86.9392,0.03445;1,87.3439,0.03461;1,87.7449,0.03477',F:'1,49.1477,0.0379;1,51.512,0.03694;1,53.3809,0.03647;1,55.0642,0.03609;1,56.5767,0.03578;1,57.9436,0.03552;1,59.1922,0.0353;1,60.3393,0.03511;1,61.3991,0.03495;1,62.3795,0.03482;1,63.2884,0.03471;1,64.137,0.03461;1,64.9366,0.03454;1,65.6978,0.03448;1,66.429,0.03444;1,67.1355,0.03441;1,67.8219,0.0344;1,68.4911,0.0344;1,69.1452,0.03441;1,69.7858,0.03443;1,70.4142,0.03445;1,71.0314,0.03449;1,71.6378,0.03454;1,72.234,0.03459;1,72.8203,0.03465;1,73.3971,0.03471;1,73.9647,0.03478;1,74.5236,0.03486;1,75.074,0.03494;1,75.6162,0.03502;1,76.1504,0.03511;1,76.6769,0.03519;1,77.1959,0.03529;1,77.7079,0.03538;1,78.2131,0.03547;1,78.7118,0.03557;1,79.2042,0.03567;1,79.6904,0.03577;1,80.1706,0.03587;1,80.6448,0.03597;1,81.1134,0.03607;1,81.5766,0.03617;1,82.0345,0.03627;1,82.4872,0.03638;1,82.9348,0.03648;1,83.3775,0.03659;1,83.8153,0.03669;1,84.2482,0.0368;1,84.6763,0.0369;1,85.0996,0.03701;1,85.5184,0.03711;1,85.9326,0.03721;1,86.3426,0.03732'},
+  head:{M:'1,34.4618,0.03686;1,35.8649,0.03258;1,37.0926,0.03148;1,38.0609,0.03072;1,38.8724,0.03014;1,39.5797,0.02969;1,40.2096,0.02933;1,40.7785,0.02905;1,41.297,0.02882;1,41.7715,0.02863;1,42.2071,0.02848;1,42.6076,0.02835;1,42.9762,0.02825;1,43.316,0.02817;1,43.6298,0.0281;1,43.9198,0.02805;1,44.1883,0.02801;1,44.4372,0.02798;1,44.6685,0.02795;1,44.884,0.02793;1,45.0853,0.02791;1,45.2734,0.0279;1,45.4496,0.02789;1,45.6149,0.02789;1,45.7701,0.02789;1,45.9163,0.02788;1,46.0541,0.02789;1,46.1845,0.02789;1,46.308,0.02789;1,46.4254,0.0279;1,46.5371,0.0279;1,46.6438,0.02791;1,46.7457,0.02792;1,46.8435,0.02793;1,46.9374,0.02794;1,47.0279,0.02795;1,47.1152,0.02796;1,47.1995,0.02797;1,47.2813,0.02798;1,47.3606,0.028;1,47.4378,0.02801;1,47.513,0.02802;1,47.5863,0.02804;1,47.6579,0.02805;1,47.728,0.02807;1,47.7965,0.02809;1,47.8637,0.0281;1,47.9296,0.02812;1,47.9942,0.02814;1,48.0576,0.02816;1,48.1198,0.02817;1,48.1809,0.02819;1,48.2409,0.02821',F:'1,33.8787,0.03496;1,35.2272,0.03251;1,36.3761,0.03215;1,37.2711,0.03191;1,38.0167,0.03173;1,38.6673,0.03158;1,39.2501,0.03146;1,39.7802,0.03135;1,40.2664,0.03125;1,40.7136,0.03117;1,41.1259,0.03108;1,41.5066,0.03101;1,41.8589,0.03094;1,42.1855,0.03088;1,42.4885,0.03082;1,42.7701,0.03076;1,43.032,0.0307;1,43.2759,0.03065;1,43.5033,0.0306;1,43.7157,0.03056;1,43.9145,0.03051;1,44.101,0.03047;1,44.2763,0.03043;1,44.4414,0.03038;1,44.5973,0.03035;1,44.7447,0.03031;1,44.8844,0.03027;1,45.0169,0.03024;1,45.143,0.0302;1,45.2632,0.03017;1,45.3779,0.03014;1,45.4876,0.0301;1,45.5928,0.03007;1,45.6938,0.03004;1,45.791,0.03001;1,45.8848,0.02999;1,45.9755,0.02996;1,46.0633,0.02993;1,46.1485,0.0299;1,46.2315,0.02988;1,46.3123,0.02985;1,46.3912,0.02983;1,46.4685,0.0298;1,46.5441,0.02978;1,46.6183,0.02975;1,46.6913,0.02973;1,46.763,0.02971;1,46.8335,0.02969;1,46.903,0.02966;1,46.9714,0.02964;1,47.0388,0.02962;1,47.1052,0.0296;1,47.1706,0.02958'}
+};
+const WHO_ROWS = {};
+const whoRows = (key, sex) => WHO_ROWS[key+sex] ||= WHO_LMS[key][sex].split(';').map(r => r.split(',').map(Number));
+const WHO_STEP = 14, WHO_MAX = 728;
+/* L, M, S for an age in days, interpolated between the 14-day rows; null outside 0–2 years or without a sex */
+function whoLms(key, sex, days){
+  if (!WHO_LMS[key] || !WHO_LMS[key][sex] || !(days >= 0 && days <= WHO_MAX)) return null;
+  const rows = whoRows(key, sex), i = Math.min(Math.floor(days/WHO_STEP), rows.length-2), f = (days - i*WHO_STEP)/WHO_STEP;
+  return rows[i].map((v,j) => v + (rows[i+1][j]-v)*f);
+}
+const whoZ = ([L,M,S], x) => L ? ((x/M)**L - 1)/(L*S) : Math.log(x/M)/S;
+const whoAt = ([L,M,S], z) => L ? M*(1+L*S*z)**(1/L) : M*Math.exp(S*z);
+/* standard normal CDF (Abramowitz & Stegun 7.1.26, error < 1.5e-7) */
+function phi(z){ const t = 1/(1+.3275911*Math.abs(z)/Math.SQRT2), y = 1 - (((((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - .284496736)*t + .254829592)*t*Math.exp(-z*z/2); return z >= 0 ? (1+y)/2 : (1-y)/2; }
+const ordinal = n => n + (n%100>=11 && n%100<=13 ? 'th' : ['th','st','nd','rd'][n%10] || 'th');
+const ageDays = t => S.settings.birth ? Math.floor((startOfDay(t) - new Date(S.settings.birth+'T00:00').getTime())/DAY) : NaN;
+/* percentile of one measurement, as {p (0–100), text}; null when WHO curves don't apply */
+function percentile(key, value, t){
+  const lms = whoLms(key, S.settings.sex, ageDays(t)); if (!lms || !(value > 0)) return null;
+  const p = phi(whoZ(lms, value))*100;
+  return { p, text: p < 1 ? 'below the 1st percentile' : p > 99 ? 'above the 99th percentile' : `${ordinal(Math.round(p))} percentile` };
+}
+const GROWTH = { kg:['Weight','weight'], cm:['Length','length'], head:['Head','head size'] };
+const WHO_BANDS = [[-1.881,'3rd'],[-1.036,'15th'],[0,'50th'],[1.036,'85th'],[1.881,'97th']];
 function growthChart(){
-  const pts = S.logs.filter(l=>l.type==='growth' && l.kg).sort((a,b)=>a.t-b.t);
-  if (!pts.length) return `<div class="card chart k-growth"><header><h3>Weight</h3></header><p>Log a weight under Growth to start the curve.</p></div>`;
+  const m = GROWTH[S.gm] ? S.gm : 'kg', [title, word] = GROWTH[m];
+  const out = m==='kg' ? wtOut : v => +(+v).toFixed(1), unit = m==='kg' ? wtU() : 'cm';
+  const pick = Object.keys(GROWTH).filter(k => S.logs.some(l=>l.type==='growth' && l[k]));
+  const seg = pick.length > 1 ? `<div class="seg" role="group" aria-label="Growth measure">${pick.map(k=>`<button type="button" data-gm="${k}" aria-pressed="${k===m}">${GROWTH[k][0]}</button>`).join('')}</div>` : '';
+  const pts = S.logs.filter(l=>l.type==='growth' && l[m]).sort((a,b)=>a.t-b.t);
+  if (!pts.length) return `<div class="card chart k-growth"><header><h3>${title}</h3></header>${seg}<p>Log a ${word} under Growth to start the curve.</p></div>`;
   const fd = t=>new Date(t).toLocaleDateString([], {day:'numeric',month:'short'});
-  const last = pts.at(-1), first = pts[0], gain = last.kg - first.kg;
-  const sub = pts.length > 1 ? `${gain>=0?'+':''}${wtOut(Math.abs(gain)) * (gain<0?-1:1)} ${wtU()} since ${fd(first.t)}` : `Measured ${fd(last.t)}`;
-  return lineChart('growth', 'Weight', pts.map(p=>({t:p.t, v:wtOut(p.kg)})), v=>v, wtU(), sub);
+  const last = pts.at(-1), first = pts[0], gain = last[m] - first[m];
+  let sub = pts.length > 1 ? `${gain>=0?'+':''}${out(Math.abs(gain)) * (gain<0?-1:1)} ${unit} since ${fd(first.t)}` : `Measured ${fd(last.t)}`;
+  const pc = percentile(m, last[m], last.t);
+  if (pc) sub = `${pc.text[0].toUpperCase()+pc.text.slice(1)} · ${sub}`;
+  else if (S.settings.birth && !S.settings.sex) sub += ' · Choose boy or girl on the Baby tab to compare with the WHO curves';
+  else if (S.settings.birth && ageDays(last.t) > WHO_MAX) sub += ' · WHO curves cover 0–2 years';
+  /* WHO reference curves across the measured span (at least 8 weeks so they read as curves) */
+  let bands = [];
+  const birth = S.settings.birth ? new Date(S.settings.birth+'T00:00').getTime() : 0;
+  if (S.settings.sex && birth){
+    const a0 = Math.max(0, Math.min(ageDays(first.t), ageDays(last.t) - 56)), a1 = Math.min(WHO_MAX, Math.max(ageDays(last.t), a0 + 56));
+    if (a0 < a1 && whoLms(m, S.settings.sex, a0)){
+      const ages = []; for (let a=a0; a<a1; a+=7) ages.push(a); ages.push(a1);
+      bands = WHO_BANDS.map(([z,label]) => ({label, pts: ages.map(a => ({t: birth + a*DAY, v: out(whoAt(whoLms(m, S.settings.sex, a), z))}))}));
+    }
+  }
+  return lineChart('growth', title, pts.map(p=>({t:p.t, v:out(p[m])})), v=>v, unit, sub + (bands.length ? ' · Grey lines are the WHO 3rd to 97th percentiles' : ''), bands, seg);
 }
 function tempChart(){
   const pts = S.logs.filter(l=>l.type==='temp' && l.c).sort((a,b)=>a.t-b.t).slice(-30);
@@ -1037,7 +1092,7 @@ function renderTrends(){
 function renderBaby(){
   const st = S.settings;
   if (!document.activeElement?.closest?.('#settingsForm')){
-    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
+    $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setSex').value = st.sex||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
   renderReminders();
   renderFamily();
@@ -1458,7 +1513,8 @@ async function readImport(file){
       raws = parseCsv(text);
       if (isNara(raws)){ /* the Profile row carries the baby's name and birth date */
         const prof = raws.find(r => (r.type||'').toLowerCase()==='profile');
-        if (prof) settings = {...S.settings, name:prof['profile name']||'', birth:prof['[profile] birth date']||''};
+        if (prof){ const sx = (prof['[profile] sex']||'').toLowerCase();
+          settings = {...S.settings, name:prof['profile name']||'', birth:prof['[profile] birth date']||'', sex: /^(m|male|boy)$/.test(sx) ? 'M' : /^(f|female|girl)$/.test(sx) ? 'F' : S.settings.sex||''}; }
         raws = raws.filter(r => r !== prof).flatMap(r => { const out = fromNara(r); return out.length ? out : [{}]; });
         nara = true;
       }
@@ -1470,7 +1526,7 @@ async function readImport(file){
   const fresh = []; let dupes = 0, bad = 0;
   const fromCsv = !isJson && !nara;
   for (const r of raws){ const n = normalize(r, fromCsv); if (!n){ bad++; continue; } if (have.has(n.id) || seen.has(n.id)){ dupes++; continue; } seen.add(n.id); fresh.push(n); }
-  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C'}; }
+  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', sex:['M','F'].includes(settings.sex)?settings.sex:S.settings.sex||'', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C'}; }
   pending = {fresh, settings};
   const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
   const fdt = t => new Date(t).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
@@ -1536,7 +1592,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1551,6 +1607,7 @@ document.addEventListener('click', e => {
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
   if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
+  if (d.gm){ S.gm=d.gm; renderTrends(); return; }
   if (d.fill){ $(d.fill).value = d.v; return; }
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
@@ -1597,7 +1654,7 @@ document.addEventListener('submit', e => {
     addFamily(email, name).then(ok => { if (ok){ $('famEmail').value = ''; $('famName').value = ''; document.activeElement?.blur(); } });
   }
   if (e.target.id==='settingsForm'){
-    const data = {...S.settings, name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, vol:$('setVol').value, wt:$('setWt').value, temp:$('setTemp').value};
+    const data = {...S.settings, name:$('setName').value.trim().slice(0,40), birth:$('setBirth').value, sex:$('setSex').value, vol:$('setVol').value, wt:$('setWt').value, temp:$('setTemp').value};
     write(()=>store.setSettings(data)).then(ok => ok && (document.activeElement?.blur(), toast('Baby details saved')));
   }
 });
