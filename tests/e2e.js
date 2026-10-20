@@ -325,6 +325,33 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* appearance: each phone picks Match phone / Light / Dark for itself */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'light', hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed); await p.reload(); await p.waitForTimeout(300);
+    const bg = () => p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
+    const light = await bg();
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-theme-pick="dark"]'); await p.waitForTimeout(150);
+    check('appearance: Dark turns this phone dark while the phone is in light mode', (await bg()) === '#121413' && (await p.getAttribute('meta[name="theme-color"]', 'content')) === '#121413', await bg());
+    await p.reload(); await p.waitForTimeout(300);
+    check('appearance: the choice stays after reopening', (await bg()) === '#121413' && await p.evaluate(() => localStorage.getItem('nestlog-theme')) === 'dark');
+    await p.click('.tabs [data-tab="baby"]'); await p.waitForTimeout(150);
+    await p.screenshot({ path: `${SHOTS}/15-this-phone-dark.png`, fullPage: true });
+    for (const tab of ['home', 'trends', 'baby']) {
+      await p.click(`.tabs [data-tab="${tab}"]`); await p.waitForTimeout(150);
+      const t = await p.evaluate(tasteAudit), pal = await p.evaluate(paletteAudit);
+      check(`appearance: forced dark ${tab} keeps the house rules`, !t.length && !pal.length, t.concat(pal).join(' | '));
+    }
+    await p.click('[data-theme-pick="auto"]'); await p.waitForTimeout(150);
+    check('appearance: Match phone follows the phone again', (await bg()) === light && !(await p.evaluate(() => localStorage.getItem('nestlog-theme'))));
+    await p.emulateMedia({ colorScheme: 'dark' }); await p.click('[data-theme-pick="light"]'); await p.waitForTimeout(150);
+    check('appearance: Light stays light when the phone is in dark mode', (await bg()) === light);
+    check('appearance: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* reminders: due state on Today, one notification per gap */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });

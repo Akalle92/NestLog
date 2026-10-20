@@ -7,6 +7,7 @@
 <meta name="description" content="Baby tracker for feeds, sleep, diapers, pumping and growth.">
 <meta name="theme-color" content="#f2f1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121413" media="(prefers-color-scheme: dark)">
+<script>/* this phone's Appearance choice, before first paint */try{var t=localStorage.getItem('nestlog-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nestlog">
@@ -19,7 +20,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Onest:wght@400;500;600&display=swap">
 <style>
 /* base reset: phone safe areas, [hidden] always wins */
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root,:root[data-theme="light"]{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
@@ -384,6 +386,13 @@ body.reporting .app,body.reporting #tabbar{display:none}
       </div>
     </form>
 
+    <h2 class="sec">This phone</h2>
+    <div class="card group"><div class="item">
+      <div class="field"><span class="label" id="themeLabel">Appearance</span><div class="seg" id="themeSeg" role="group" aria-labelledby="themeLabel"></div></div>
+      <div id="notifyPrefs" class="stack"></div>
+      <p class="note">These are just for this phone, so everyone can pick their own.</p>
+    </div></div>
+
     <h2 class="sec">Reminders</h2>
     <div class="card group"><div class="item">
       <div class="grid2">
@@ -495,6 +504,23 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
+/* Appearance is per phone (localStorage['nestlog-theme']), not shared: 'auto' follows the phone */
+const theme = {
+  get(){ try { const t = localStorage.getItem('nestlog-theme'); return t==='light' || t==='dark' ? t : 'auto'; } catch { return 'auto'; } },
+  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {} this.apply(); },
+  apply(){
+    const t = this.get(), root = document.documentElement;
+    if (t==='auto') delete root.dataset.theme; else root.dataset.theme = t;
+    /* the status bar colour follows too */
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+      m.dataset.media ??= m.getAttribute('media') || '';
+      const dark = t==='auto' ? m.dataset.media.includes('dark') : t==='dark';
+      if (t==='auto') m.setAttribute('media', m.dataset.media); else m.removeAttribute('media');
+      m.content = dark ? '#121413' : '#f2f1ee';
+    });
+  }
+};
+theme.apply();
 const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
@@ -1196,6 +1222,8 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setSex').value = st.sex||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
+  const th = theme.get();
+  $('themeSeg').innerHTML = [['auto','Match phone'],['light','Light'],['dark','Dark']].map(([k,l]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${th===k}">${l}</button>`).join('');
   $('reportRange').innerHTML = [1,2,4].map(w => `<button type="button" data-rw="${w}" aria-pressed="${S.rw===w}">${w} week${w>1?'s':''}</button>`).join('');
   renderReminders();
   renderFamily();
@@ -1818,7 +1846,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-theme-pick],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1836,6 +1864,7 @@ document.addEventListener('click', e => {
   if (d.gm){ S.gm=d.gm; renderTrends(); return; }
   if (d.std){ write(()=>store.setSettings({...S.settings, chart:d.std})).then(ok => ok && renderTrends()); return; }
   if (d.rw){ S.rw=+d.rw; renderBaby(); return; }
+  if (d.themePick){ theme.set(d.themePick); renderBaby(); toast(d.themePick==='auto' ? 'Following this phone’s setting' : `${d.themePick==='dark'?'Dark':'Light'} on this phone`); return; }
   if (d.fill){ $(d.fill).value = d.v; return; }
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
