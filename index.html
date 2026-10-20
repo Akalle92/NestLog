@@ -1273,7 +1273,7 @@ function showPhotos(){
 }
 function renderPhotoBox(){
   const box = $('photoBox'); if (!box) return;
-  if (S.mode!=='cloud'){ box.innerHTML = `<p class="hint">Photos are kept in the family cloud. Sign in at akalle92.github.io/NestLog to add one.</p>`; return; }
+  if (S.mode!=='cloud'){ box.innerHTML = `<p class="hint">Photos are kept in the family cloud. Sign in at akalle92.github.io/NestLog to add one to an entry.</p>`; return; }
   const {photo, photoBlob} = sheetState, has = photoBlob || photo;
   const src = photoBlob ? (sheetState.previewUrl = URL.createObjectURL(photoBlob)) : '';
   box.innerHTML = `<span class="label">Photo</span>${has ? `<img ${photoBlob ? `src="${src}"` : `data-photo="${esc(photo)}"`} alt="Milestone photo">` : ''}
@@ -1311,7 +1311,7 @@ function reportHtml(weeks){
     const diff = g[k] - prev?.[k], change = prev ? ` · ${diff >= 0 ? '+' : '−'}${k==='kg' ? `${wtOut(Math.abs(diff))} ${wtU()}` : `${Math.abs(diff).toFixed(1)} cm`} since ${fd(prev.t)}` : '';
     return `<tr><td>${label}</td><td><b>${f(g[k])}</b>${pc ? ` · WHO ${pc.text}` : ''}${change} <span class="hint">(measured ${fd(g.t)})</span></td></tr>`;
   }).join('');
-  const rows = list => list.sort((a,b)=>a.t-b.t).map(l => `<tr><td>${fdt(l.t)}</td><td>${esc(describe(l))}</td></tr>`).join('');
+  const rows = list => list.sort((a,b)=>a.t-b.t).map(l => `<tr><td>${fdt(l.t)}</td><td>${esc(describe(l))}${l.photo ? ' · photo' : ''}</td></tr>`).join('');
   const health = logs.filter(l => ['medicine','vaccine','temp'].includes(l.type));
   const moments = logs.filter(l => l.type==='milestone');
   const notes = logs.filter(l => l.note && !['medicine','vaccine','temp','milestone'].includes(l.type));
@@ -1406,10 +1406,11 @@ function openSheet(type, existing){
     const last = lastOf(l=>l.type==='temp');
     body = `${amountU('fTemp','Temperature', e.c ? tempOut(e.c) : last ? tempOut(last.c) : (fahr()?98.6:37), fahr()?0.2:0.1, tempU())}${when('fTime','Taken',time,!existing)}${noteField(e)}`;
   } else if (type==='milestone'){
-    sheetState.photo = e.photo || ''; sheetState.photoBlob = null;
-    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}<div class="photo" id="photoBox"></div>${noteField(e)}`;
+    body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
   }
   const live = !existing && (type==='nurse' || type==='sleep');
+  /* any saved entry can carry one photo (cloud only; renderPhotoBox explains otherwise) */
+  if (!live){ sheetState.photo = e.photo || ''; sheetState.photoBlob = null; body += `<div class="photo" id="photoBox"></div>`; }
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
   const del = existing ? `<button class="btn danger" type="button" data-act="delete">Delete entry</button>` : '';
   $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}${save}${del}</form></div>`;
@@ -1451,7 +1452,7 @@ async function saveSheet(){
   if (e.byName) data.byName = e.byName;
   const id = existing?.id || uid();
   let photoNote = '';
-  if (type==='milestone'){
+  {
     const {photoBlob, photo} = sheetState;
     if (photoBlob){
       const btn = $('sheetForm').querySelector('button[type=submit]'), label = btn.textContent; btn.disabled = true; btn.textContent = 'Adding photo…';
@@ -1643,7 +1644,8 @@ function normalize(raw, fromCsv){
   if (type==='growth'){ o.kg = nn(fromCsv?raw.weight_kg:raw.kg); o.cm = nn(fromCsv?raw.length_cm:raw.cm); o.head = nn(fromCsv?raw.head_cm:raw.head); if (!o.kg && !o.cm && !o.head) return null; }
   if (type==='medicine' || type==='vaccine'){ o.name = str(fromCsv?raw.medicine:raw.name, 80); if (type==='medicine') o.dose = str(raw.dose, 40); if (!o.name) return null; }
   if (type==='temp'){ o.c = nn(fromCsv?raw.temp_c:raw.c); if (o.c < 30 || o.c > 45) return null; }
-  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; if (PHOTO_NAME.test(raw.photo||'')) o.photo = raw.photo; }
+  if (type==='milestone'){ o.title = str(raw.title, 80); if (!o.title) return null; }
+  if (PHOTO_NAME.test(raw.photo||'')) o.photo = raw.photo;
   const note = str(raw.note, 200).trim(); if (note) o.note = note;
   const byName = str(fromCsv?raw.caregiver:raw.byName, 40).trim(); if (byName) o.byName = byName;
   const id = typeof raw.id==='string' && SAFE_ID.test(raw.id) ? raw.id : `imp-${type}-${t}`;

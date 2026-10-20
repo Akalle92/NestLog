@@ -595,6 +595,17 @@ function paletteAudit() {
     check('photos: editing the milestone shows the photo', await a.evaluate(() => !!document.querySelector('#photoBox img')?.src));
     await a.click('[data-act="photoRemove"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
     check('photos: removing the photo deletes it from storage', !fake.photos[ms[0] + '.jpg'] && !fake.logs[ms[0]].photo);
+    await a.click('[data-open="diaper"]'); await a.waitForTimeout(200);
+    check('photos: every kind of entry offers a photo', await a.isVisible('#photoBox label[for="fPhoto"]'));
+    await a.setInputFiles('#fPhoto', { name: 'diaper.png', mimeType: 'image/png', buffer: png }); await a.waitForTimeout(400);
+    await a.click('[data-chip="kind"][data-v="dirty"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(600);
+    const dp = Object.entries(fake.logs).find(([, l]) => l.type === 'diaper' && l.photo) || [];
+    check('photos: a diaper photo is uploaded and shown on the other phone', dp[1] && fake.photos[dp[1].photo] && await b.evaluate(id => !!document.querySelector(`[data-edit="${id}"] img.thumb`), dp[0]));
+    await a.click(`#recent [data-edit="${dp[0]}"]`); await a.waitForTimeout(300);
+    await a.click('[data-act="delete"]'); await a.click('[data-act="delete"]'); await a.waitForTimeout(300);
+    check('photos: the photo stays while Undo is possible', !!fake.photos[dp[0] + '.jpg']);
+    await a.waitForTimeout(7500);
+    check('photos: deleting the entry removes its photo once Undo has passed', !fake.photos[dp[0] + '.jpg']);
 
     /* family list: add someone, remove them with a second tap, undo */
     await a.click('.tabs [data-tab="baby"]'); await a.waitForTimeout(200);
