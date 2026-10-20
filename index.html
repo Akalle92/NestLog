@@ -1017,7 +1017,8 @@ function renderHome(){
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
-  const name = l.by && l.by !== S.me && S.names[l.by] ? S.names[l.by] : !l.by || l.by !== S.me ? l.byName : '';
+  /* who logged it, yourself included: a family member's name, else the caregiver name from an import */
+  const name = (l.by && S.names[l.by]) || l.byName || '';
   const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
   return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
 }

@@ -572,6 +572,7 @@ function paletteAudit() {
     await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
     check('cloud: bottle from phone A shows on phone B live', /120 ml/.test(await text(b, '#recent')));
     check('cloud: phone B shows who logged it', /Ankur/.test(await text(b, '#recent')));
+    check('cloud: your own entries show your name too', /Ankur/.test(await text(a, '#recent')));
     check('cloud: entry stored with the right shape', Object.values(fake.logs).some(l => l.type === 'bottle' && l.ml === 120 && l.by === 'a@x.com'));
     await b.screenshot({ path: `${SHOTS}/6-cloud-today-dark.png`, fullPage: true });
     check('cloud: today has no horizontal overflow', await noOverflow(b));
