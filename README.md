@@ -43,17 +43,24 @@ On the family website (akalle92.github.io/NestLog), allowing notifications also 
 
 Opened from `localhost` or on the home server, notifications only come while Nestlog is open or recently used.
 
+**Sleep news.** In the family cloud, when someone starts the sleep timer the other family phones get "Shiv fell asleep", and when they tap **Woke up** the others get "Shiv woke up · slept 1h 40m". Turn it off under **Baby → Reminders → Sleep news to family**. **Check sleep timer after** (2 to 6 hours) nudges whoever started a timer that's still running, so a forgotten timer doesn't ruin the sleep totals.
+
+The lock-screen timer that some iPhone apps show (Live Activities) only exists for apps installed from the App Store, so a web app like Nestlog can't show one.
+
 ## Growth percentiles
 
-**Trends → Weight / Length / Head** compares each measurement with the WHO Child Growth Standards (birth to 2 years) and shows the percentile, with the 3rd to 97th percentile curves in grey behind the line. Pick **Boy** or **Girl** under **Baby → Growth curves for**; importing from Nara fills it in.
+**Trends → Weight / Length / Head** shows each measurement's percentile, with the 3rd to 97th percentile curves in grey behind the line. Pick **Boy** or **Girl** under **Baby → Growth curves for**; importing from Nara fills it in. Choose the chart on the growth card (shared by the family):
+- **WHO:** the WHO Child Growth Standards, birth to 5 years. Most doctors use these for babies.
+- **CDC (US):** the CDC 2000 infant charts (weight and length to 2 years, head to 3). US doctors also use WHO under 2; this is for comparison.
+- **India (IAP):** the Indian Academy of Pediatrics uses the WHO charts from birth to 5 years, so this shows the WHO numbers. IAP's own charts start at 5.
 
 ## Doctor visit report
 
 **Baby → Doctor visit** makes a one-page summary of the last 1, 2 or 4 weeks: feeds and bottle volume per day, nursing time, sleep and the longest stretch, wet and dirty diapers with colours and anything noted (rash, blowout), the latest growth with percentiles, every medicine, vaccine and temperature, milestones and notes. Tap **Print or save as PDF** to share it.
 
-## Milestone photos
+## Photos
 
-In the family cloud, a milestone can have one photo. It's shrunk on the phone, stored privately in your Supabase project (only people on the family list can see it) and shown as a thumbnail in the timeline.
+In the family cloud, any entry (a milestone, a diaper to show the doctor, a bottle, a rash) can have one photo. It's shrunk on the phone, stored privately in your Supabase project (only people on the family list can see it) and shown as a thumbnail in the timeline.
 
 ## Works offline
 
