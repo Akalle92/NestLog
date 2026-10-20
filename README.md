@@ -47,6 +47,19 @@ Opened from `localhost` or on the home server, notifications only come while Nes
 
 The lock-screen timer that some iPhone apps show (Live Activities) only exists for apps installed from the App Store, so a web app like Nestlog can't show one.
 
+## This phone
+
+**Baby → This phone** holds settings that are just for the phone you're holding, so everyone can choose their own:
+- **Appearance:** Match phone, Light or Dark.
+- **Notify me about:** Feeds, Diapers, Sleep news and Sleep timer check. Turn off the ones this phone doesn't need.
+- **Quiet hours** (for example 11 pm – 7 am): nothing arrives on this phone during them. A feed or diaper that's still overdue when they end arrives then.
+
+The reminder gaps under **Reminders** are shared by the family.
+
+## Timeline
+
+The Timeline shows the last two weeks; tap **Show older entries** for more. The search box finds any entry in the whole history: a medicine name, a formula brand, a word from a note, or who logged it.
+
 ## Growth percentiles
 
 **Trends → Weight / Length / Head** shows each measurement's percentile, with the 3rd to 97th percentile curves in grey behind the line. Pick **Boy** or **Girl** under **Baby → Growth curves for**; importing from Nara fills it in. Choose the chart on the growth card (shared by the family):
