@@ -187,6 +187,7 @@ function paletteAudit() {
     await p.click('#impGo'); await p.waitForTimeout(400);
     const L = await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')));
     const g = id => L.logs[id] || {};
+    check('nara: baby details include the sex for growth curves', L.settings.name === 'Test Baby' && L.settings.sex === 'M', JSON.stringify(L.settings));
     const close = (a, b) => Math.abs(a - b) < 0.02;
     check('nara: formula bottle with brand, note and caregiver', g('nara-t-fx-bottle1').ml === 120 && g('nara-t-fx-bottle1').brand === 'Brand A' && g('nara-t-fx-bottle1').note === 'Leftover 20 ml' && g('nara-t-fx-bottle1').byName === 'Parent One');
     check('nara: ounces become ml', g('nara-t-fx-bottle2').ml === 59 && g('nara-t-fx-bottle2').content === 'breastmilk');
@@ -220,6 +221,7 @@ function paletteAudit() {
     await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
     await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
+    check('photos: on this device the milestone sheet explains photos need the family cloud', /family cloud/.test(await text(p, '#photoBox')));
     await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
     await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
@@ -238,6 +240,88 @@ function paletteAudit() {
     await p.screenshot({ path: `${SHOTS}/8-home-new-types.png`, fullPage: true });
     check('new types: home has no horizontal overflow', await noOverflow(p));
     check('new types: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* WHO growth percentiles on Trends */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.evaluate(() => { const D = 864e5, birth = new Date(Date.now() - 120 * D); birth.setHours(12, 0, 0, 0);
+      const b = birth.getTime(), iso = `${birth.getFullYear()}-${String(birth.getMonth() + 1).padStart(2, '0')}-${String(birth.getDate()).padStart(2, '0')}`;
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir', birth: iso, vol: 'ml', wt: 'kg' }, active: {}, logs: {
+        g1: { type: 'growth', t: b + 2 * 3600e3, kg: 3.3, cm: 50, head: 34.5 }, g2: { type: 'growth', t: b + 60 * D, kg: 5.0, cm: 58 }, g3: { type: 'growth', t: Date.now() - 3600e3, kg: 6.0, cm: 62, head: 41 } } })); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    check('who: asks for boy or girl before showing percentiles', /Choose boy or girl/.test(await text(p, '#trends')));
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setSex', 'M'); await p.click('#settingsForm button[type=submit]'); await p.waitForTimeout(200);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    const t1 = await text(p, '#trends');
+    check('who: 6.0 kg at 120 days for a boy is about the 10th percentile', /(9th|10th|11th) percentile/.test(t1), (t1.match(/\w+ percentile/) || [''])[0]);
+    check('who: draws the five WHO reference curves', (await p.locator('.chart.k-growth svg path[stroke="var(--line-strong)"]').count()) === 5);
+    await p.screenshot({ path: `${SHOTS}/11-who-weight.png`, fullPage: true });
+    await p.click('[data-gm="head"]'); await p.waitForTimeout(150);
+    const t2 = await text(p, '#trends');
+    check('who: head size switch shows a head percentile', /Head/.test(t2) && /41 cm/.test(t2) && /percentile/.test(t2));
+    await p.click('[data-gm="cm"]'); await p.waitForTimeout(150);
+    check('who: length switch shows length', /62 cm/.test(await text(p, '#trends')));
+    await p.click('[data-gm="kg"]'); await p.click('[data-std="cdc"]'); await p.waitForTimeout(200);
+    const tc = await text(p, '#trends');
+    check('charts: CDC puts 6.0 kg at 120 days for a boy at about the 20th percentile', /(19th|20th|21st) percentile/.test(tc) && /US doctors use the WHO charts under 2/.test(tc), (tc.match(/\w+ percentile/) || [''])[0]);
+    check('charts: the chart choice is saved for everyone', await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')).settings.chart) === 'cdc');
+    await p.screenshot({ path: `${SHOTS}/11-cdc.png`, fullPage: true });
+    await p.click('[data-std="iap"]'); await p.waitForTimeout(200);
+    const ti = await text(p, '#trends');
+    check('charts: India (IAP) uses the WHO curves and says so', /(9th|10th|11th) percentile/.test(ti) && /IAP uses the WHO charts from birth to 5 years/.test(ti));
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('nestlog-v1')), b = new Date(Date.now() - 1100 * 864e5);
+      d.settings.birth = `${b.getFullYear()}-${String(b.getMonth() + 1).padStart(2, '0')}-${String(b.getDate()).padStart(2, '0')}`; d.settings.chart = 'who';
+      d.logs = { g9: { type: 'growth', t: Date.now() - 36e5, kg: 14.3 } }; localStorage.setItem('nestlog-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(300); await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(200);
+    check('charts: WHO now covers 3-year-olds', /\d+(st|nd|rd|th) percentile/.test(await text(p, '#trends')));
+    await p.click('[data-std="cdc"]'); await p.waitForTimeout(200);
+    check('charts: past the CDC infant charts it says what they cover', /These curves cover 0–2 years/.test(await text(p, '#trends')));
+    await p.screenshot({ path: `${SHOTS}/11-who-length.png`, fullPage: true });
+    check('who: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('who: taste house rules', !taste.length, taste.join(' | '));
+    check('who: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* doctor report: summary of the last weeks, prints without the app around it */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed);
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('nestlog-v1')), n = Date.now();
+      d.settings.sex = 'M';
+      d.logs.m1 = { type: 'medicine', t: n - 3 * 864e5, name: 'Vitamin D', dose: '1 drop' };
+      d.logs.v1 = { type: 'vaccine', t: n - 5 * 864e5, name: 'DTaP' };
+      d.logs.x1 = { type: 'diaper', t: n - 2 * 864e5, kind: 'dirty', color: 'green', flags: 'rash', note: '<b>check</b> at visit' };
+      d.logs.ms = { type: 'milestone', t: n - 4 * 864e5, title: 'First smile' };
+      localStorage.setItem('nestlog-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-rw="1"]'); await p.click('[data-act="report"]'); await p.waitForTimeout(300);
+    const r = await text(p, '#report');
+    check('report: opens over the app with the baby and the range', await p.isVisible('#report') && !(await p.isVisible('#tabbar')) && /Aarav/.test(r) && /1 week/.test(r));
+    check('report: feeds, sleep and diapers per day', /feeds per day/.test(r) && /hours per day/.test(r) && /wet per day/.test(r) && /longest stretch/.test(r));
+    check('report: growth with WHO percentile', /4.45 kg/.test(r) && /WHO \w+ percentile/.test(r), (r.match(/Weight.{0,80}/) || [''])[0]);
+    check('report: medicine, vaccine, milestone and diaper flags listed', /Vitamin D/.test(r) && /DTaP/.test(r) && /First smile/.test(r) && /green 1/.test(r) && /rash 1/.test(r));
+    check('report: notes are shown as text, not HTML', /<b>check<\/b> at visit/.test(r) && !(await p.locator('#report b:text("check")').count()));
+    check('report: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('report: taste house rules', !taste.length, taste.join(' | '));
+    await p.screenshot({ path: `${SHOTS}/12-report.png`, fullPage: true });
+    await p.emulateMedia({ media: 'print' });
+    check('report: printing hides the buttons and the app', !(await p.isVisible('#report .rbar')) && !(await p.isVisible('#top')));
+    await p.pdf({ path: `${SHOTS}/12-report.pdf`, format: 'A4' }).catch(() => {});
+    await p.emulateMedia({ media: 'screen' });
+    await p.click('[data-act="reportClose"]'); await p.waitForTimeout(200);
+    check('report: Back returns to the app', !(await p.isVisible('#report')) && await p.isVisible('#tabbar'));
+    check('report: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
   }
 
@@ -275,6 +359,16 @@ function paletteAudit() {
     check('reminders: not repeated for the same feed after reopening', notes.length === 0, JSON.stringify(notes));
     await p.click('[data-open="bottle"]'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(300);
     check('reminders: logging a feed clears the due state', !(await p.locator('.fact.k-feed.due').count()));
+    /* a sleep timer left running past "Check sleep timer after" gives one nudge */
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('nestlog-v1')); d.active = { sleep: { start: Date.now() - 2.5 * 36e5, by: null } }; localStorage.setItem('nestlog-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setSleepCheck', '120'); await p.waitForTimeout(1300);
+    notes = await p.evaluate(() => window.__notes);
+    check('reminders: a forgotten sleep timer gives one nudge', notes.filter(n => n === 'Sleep timer still running').length === 1, JSON.stringify(notes));
+    check('reminders: the sleep check setting is saved', await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')).settings.sleepCheck) === 120);
+    check('reminders: sleep news is a family-cloud setting', !(await p.isVisible('#sleepNotifyField')));
+    await p.reload(); await p.waitForTimeout(1500);
+    check('reminders: the sleep nudge is not repeated', !(await p.evaluate(() => window.__notes.length)));
     const taste = await p.evaluate(tasteAudit);
     check('reminders: taste house rules', !taste.length, taste.join(' | '));
     check('reminders: no script errors', !errors.length, errors.join(' | '));
@@ -292,6 +386,33 @@ function paletteAudit() {
     await p.reload(); await p.waitForTimeout(500);
     check('offline: app opens with no connection', (await p.locator('#tabs button').count()) === 4);
     await ctx.setOffline(false); await ctx.close();
+  }
+
+  /* push: a message pushed by the server reaches the service worker, which shows it as a notification.
+     Headless Chromium blocks notifications outright, so a blocked showNotification() call from sw.js counts as shown. */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p = await ctx.newPage();
+    await p.goto(URL + '?sw'); await p.evaluate(() => navigator.serviceWorker.ready);
+    const cdp = await ctx.newCDPSession(p); let regId = null; const swErrors = [];
+    cdp.on('ServiceWorker.workerRegistrationUpdated', e => { const r = e.registrations.find(x => !x.isDeleted); if (r) regId = r.registrationId; });
+    cdp.on('ServiceWorker.workerErrorReported', e => swErrors.push(e.errorMessage));
+    await cdp.send('ServiceWorker.enable'); await p.waitForTimeout(300);
+    if (regId) await cdp.send('ServiceWorker.deliverPushMessage', { origin: URL.slice(0, -1), registrationId: regId, data: JSON.stringify({ title: 'Mira may be hungry', body: '3h 5m since the last feed.', tag: 'nestlog-feed' }) });
+    await p.waitForTimeout(600);
+    const shown = await p.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map(n => n.title));
+    check('push: service worker shows the pushed reminder', shown.includes('Mira may be hungry') || swErrors.some(e => /showNotification/.test(e.errorMessage) && /sw\.js/.test(e.sourceURL)), JSON.stringify({ shown, swErrors }));
+    await ctx.close();
+    const { dueFor } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const n = Date.now(), H = 36e5, set = { name: 'Mira', feedGap: 180, diaperGap: 0 };
+    const d1 = dueFor(set, { id: 'f1', t: n - 3.1 * H }, { id: 'd1', t: n - 9 * H }, false, n);
+    check('push: server reminds about an overdue feed, in the app’s words', d1.length === 1 && d1[0].kind === 'feed' && d1[0].entry === 'f1' && d1[0].title === 'Mira may be hungry' && d1[0].body === '3h 6m since the last feed.', JSON.stringify(d1));
+    const { sleepCheckFor, sleepNews } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const sc = sleepCheckFor({ name: 'Mira', sleepCheck: 180 }, { start: n - 3.25 * H, by: 'a@x.com' }, n);
+    check('push: a sleep timer past its check reminds whoever started it', sc && sc.to === 'a@x.com' && sc.entry === `sleep-${n - 3.25 * H}` && sc.body === 'Started 3h 15m ago. Did Mira wake up?', JSON.stringify(sc));
+    check('push: no sleep check before the gap or when off', !sleepCheckFor({ sleepCheck: 180 }, { start: n - 2 * H }, n) && !sleepCheckFor({ sleepCheck: 0 }, { start: 0 }, n));
+    check('push: family hears sleep start and end', sleepNews({ name: 'Mira' }, 'sleep_start', 'Bhuvana').title === 'Mira fell asleep' && sleepNews({ name: 'Mira' }, 'sleep_end', 'Ankur', 100 * 6e4).body === 'Slept 1h 40m. Logged by Ankur.');
+    check('push: nothing due within the gap, while nursing, or with reminders off', !dueFor(set, { id: 'f1', t: n - 2 * H }, null, false, n).length && !dueFor(set, { id: 'f1', t: n - 4 * H }, null, true, n).length && !dueFor({ feedGap: 0, diaperGap: 0 }, { id: 'f', t: 0 }, { id: 'd', t: 0 }, false, n).length);
   }
 
   /* home server: two phones on the same Wi-Fi share one log through server.js */
@@ -349,7 +470,7 @@ function paletteAudit() {
 
   /* cloud mode: GitHub Pages + Supabase, faked here (auth, REST, realtime socket) so no network is needed */
   {
-    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, sockets: new Set() };
+    const fake = { family: [{ email: 'a@x.com', name: 'Ankur' }, { email: 'b@x.com', name: 'Priya' }], logs: {}, active: {}, settings: {}, photos: {}, pushSubs: {}, sockets: new Set() };
     const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
     const reply = (route, status, body) => route.fulfill({ status, headers: { ...CORS, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
     const push = (table, type, record, old) => { const msg = JSON.stringify({ topic: 'realtime:nestlog', event: 'postgres_changes', payload: { ids: [1], data: { schema: 'public', table, type, record, old_record: old || {} } }, ref: null });
@@ -359,6 +480,7 @@ function paletteAudit() {
       await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/auth/v1/**', async route => {
         const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
         const path = new globalThis.URL(req.url()).pathname.replace('/auth/v1/', ''), body = req.postDataJSON() || {};
+        if (path === 'otp' && body.email === 'slow@x.com') return reply(route, 504, { msg: 'context deadline exceeded' });
         if (path === 'otp') return fake.family.some(f => f.email === body.email) ? reply(route, 200, {}) : reply(route, 403, { msg: "This email isn't on the family list." });
         if (path === 'verify') return body.token === '123456' ? reply(route, 200, { access_token: 'tok-' + body.email, refresh_token: 'r-' + body.email, expires_in: 3600, user: { email: body.email } }) : reply(route, 403, { msg: 'Token has expired or is invalid', error_code: 'otp_expired' });
         if (path === 'token') { const e = String(body.refresh_token).slice(2); return reply(route, 200, { access_token: 'tok-' + e, refresh_token: 'r-' + e, expires_in: 3600, user: { email: e } }); }
@@ -374,6 +496,11 @@ function paletteAudit() {
           if (m === 'GET') return reply(route, 200, fake.family);
           if (m === 'POST') { const r = req.postDataJSON(); if (fake.family.some(f => f.email === r.email)) return reply(route, 409, { code: '23505' }); fake.family.push({ email: r.email, name: r.name || '' }); return reply(route, 201); }
           if (m === 'DELETE') { const e = decodeURIComponent(eq('email')); if (fake.family.length <= 1) return reply(route, 400, { message: 'The family list needs at least one person.' }); fake.family = fake.family.filter(f => f.email !== e); return reply(route, 204); }
+        }
+        if (table === 'push_public_key') return reply(route, 200, 'BOXUU2s0wvox2kwCejyqHvfbB87Ha-giBLysxZLfOH7nYO4EFlT1CwE_sqaM8uoFeQO8Vc4RTLU_iZuv0Chs4x4');
+        if (table === 'push_subs') {
+          if (m === 'POST') { const r = req.postDataJSON(); if (r.email !== who(req)) return reply(route, 403, {}); fake.pushSubs[r.endpoint] = r; return reply(route, 201); }
+          if (m === 'DELETE') { delete fake.pushSubs[decodeURIComponent(eq('endpoint'))]; return reply(route, 204); }
         }
         if (table === 'logs') {
           if (m === 'GET') { const off = +q.get('offset') || 0, lim = +q.get('limit') || 1000;
@@ -392,6 +519,16 @@ function paletteAudit() {
         }
         return reply(route, 404, {});
       });
+      await ctx.route('https://fcthxmkmkqthhkyeymjc.supabase.co/storage/v1/**', async route => {
+        const req = route.request(); if (req.method() === 'OPTIONS') return reply(route, 204);
+        if (fake.offline) return route.abort('internetdisconnected');
+        if (!fake.family.some(f => f.email === who(req))) return reply(route, 403, { message: 'row-level security' });
+        const m = req.method(), name = decodeURIComponent(new globalThis.URL(req.url()).pathname.split('/').pop());
+        if (m === 'POST') { fake.photos[name] = req.postDataBuffer(); return reply(route, 200, { Key: 'photos/' + name }); }
+        if (m === 'GET') return fake.photos[name] ? route.fulfill({ status: 200, headers: { ...CORS, 'Content-Type': 'image/jpeg' }, body: fake.photos[name] }) : reply(route, 404, {});
+        if (m === 'DELETE') { delete fake.photos[name]; return reply(route, 200, {}); }
+        return reply(route, 404, {});
+      });
       await ctx.routeWebSocket(/realtime\/v1\/websocket/, ws => {
         fake.sockets.add(ws);
         ws.onMessage(raw => { const m = JSON.parse(String(raw));
@@ -405,9 +542,10 @@ function paletteAudit() {
       if (init) await ctx.addInitScript(init.fn, init.arg);
       const p = await ctx.newPage(); p.errors = [];
       p.on('pageerror', e => p.errors.push(e.message));
-      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of 40[1349]/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
+      p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_(TUNNEL|NAME|INTERNET)|status of (40[1349]|504)/.test(m.text() + (m.location()?.url || ''))) p.errors.push(m.text()); });
       await p.goto(URL + '?cloud'); await p.waitForTimeout(500); return p;
     };
+    let errorsFromPush = [];
     const session = { fn: email => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-' + email, refresh: 'r-' + email, exp: Date.now() + 36e5, email })); } }, arg: 'b@x.com' };
 
     const a = await phone('light');
@@ -418,6 +556,8 @@ function paletteAudit() {
     await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
     await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
+    await a.fill('#siEmail', 'slow@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
+    check('cloud: a slow email service says to wait, not to check the connection', /didn’t send in time/.test(await text(a, '#signinForm')));
     await a.fill('#siEmail', 'a@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: code step shows', await a.isVisible('#siCode'));
     await a.fill('#siCode', '000000'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
@@ -468,6 +608,35 @@ function paletteAudit() {
     check('offline: syncs when back online', Object.values(fake.logs).some(l => l.ml === 150) && !/waiting/.test(await text(a, '#syncText')), await text(a, '#syncText'));
     check('offline: other phone gets it after the sync', /150 ml/.test(await text(b, '#recent')));
 
+    /* milestone photos: shrunk, uploaded to private storage, shown on the other phone, removed with the entry's photo */
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAG0lEQVR4nGP4z8DwnwEZMDEwMDCiCzAwMDAAAG0QAwVfNk2nAAAAAElFTkSuQmCC', 'base64');
+    await a.click('.tabs [data-tab="home"]'); await a.click('[data-open="milestone"]'); await a.waitForTimeout(200);
+    await a.fill('#fTitle', 'First bath');
+    await a.setInputFiles('#fPhoto', { name: 'bath.png', mimeType: 'image/png', buffer: png }); await a.waitForTimeout(400);
+    check('photos: preview shows in the milestone sheet', await a.locator('#photoBox img').count() === 1);
+    await a.screenshot({ path: `${SHOTS}/13-photo-sheet.png` });
+    await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(600);
+    const ms = Object.entries(fake.logs).find(([, l]) => l.title === 'First bath') || [];
+    check('photos: uploaded as a JPEG named after the entry', ms[1] && ms[1].photo === ms[0] + '.jpg' && fake.photos[ms[1].photo] && fake.photos[ms[1].photo][0] === 0xff, JSON.stringify(ms[1] || {}));
+    await b.waitForTimeout(400);
+    check('photos: the other phone shows the thumbnail', await b.evaluate(() => [...document.querySelectorAll('#recent img.thumb')].some(i => i.src.startsWith('blob:') && i.complete)));
+    await b.screenshot({ path: `${SHOTS}/13-photo-recent.png` });
+    await a.click(`#recent [data-edit="${ms[0]}"]`); await a.waitForTimeout(300);
+    check('photos: editing the milestone shows the photo', await a.evaluate(() => !!document.querySelector('#photoBox img')?.src));
+    await a.click('[data-act="photoRemove"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
+    check('photos: removing the photo deletes it from storage', !fake.photos[ms[0] + '.jpg'] && !fake.logs[ms[0]].photo);
+    await a.click('[data-open="diaper"]'); await a.waitForTimeout(200);
+    check('photos: every kind of entry offers a photo', await a.isVisible('#photoBox label[for="fPhoto"]'));
+    await a.setInputFiles('#fPhoto', { name: 'diaper.png', mimeType: 'image/png', buffer: png }); await a.waitForTimeout(400);
+    await a.click('[data-chip="kind"][data-v="dirty"]'); await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(600);
+    const dp = Object.entries(fake.logs).find(([, l]) => l.type === 'diaper' && l.photo) || [];
+    check('photos: a diaper photo is uploaded and shown on the other phone', dp[1] && fake.photos[dp[1].photo] && await b.evaluate(id => !!document.querySelector(`[data-edit="${id}"] img.thumb`), dp[0]));
+    await a.click(`#recent [data-edit="${dp[0]}"]`); await a.waitForTimeout(300);
+    await a.click('[data-act="delete"]'); await a.click('[data-act="delete"]'); await a.waitForTimeout(300);
+    check('photos: the photo stays while Undo is possible', !!fake.photos[dp[0] + '.jpg']);
+    await a.waitForTimeout(7500);
+    check('photos: deleting the entry removes its photo once Undo has passed', !fake.photos[dp[0] + '.jpg']);
+
     /* family list: add someone, remove them with a second tap, undo */
     await a.click('.tabs [data-tab="baby"]'); await a.waitForTimeout(200);
     check('family: list shows both members', /Ankur \(you\)/.test(await text(a, '#familyList')) && /Priya/.test(await text(a, '#familyList')));
@@ -487,10 +656,36 @@ function paletteAudit() {
     const tasteFam = await a.evaluate(tasteAudit);
     check('family: taste house rules', !tasteFam.length, tasteFam.join(' | '));
 
+    /* push: allowing notifications subscribes this phone with the server's key; sign-out removes it */
+    const pushPhone = await phone('light', { fn: () => {
+      if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('nestlog-session', JSON.stringify({ access: 'tok-b@x.com', refresh: 'r-b@x.com', exp: Date.now() + 36e5, email: 'b@x.com' })); }
+      window.__notes = []; window.__key = null;
+      window.Notification = class { constructor(t) { window.__notes.push(t); } static get permission() { return localStorage.getItem('fake-perm') || 'default'; } static async requestPermission() { localStorage.setItem('fake-perm', 'granted'); return 'granted'; } };
+      window.PushManager = class {};
+      const sub = { toJSON: () => ({ endpoint: 'https://push.example/phone-b', keys: { p256dh: 'pk-b', auth: 'au-b' } }), unsubscribe: async () => true };
+      const reg = { pushManager: { getSubscription: async () => window.__subscribed ? sub : null, subscribe: async o => { window.__key = Array.from(o.applicationServerKey).length; window.__subscribed = true; return sub; } }, showNotification: t => window.__notes.push(t) };
+      Object.defineProperty(navigator, 'serviceWorker', { value: { getRegistration: async () => reg, register: async () => reg, ready: Promise.resolve(reg) } });
+    } });
+    const ago = Date.now() - 4 * 36e5;
+    fake.logs.pushfeed = { type: 'bottle', t: ago, ml: 90, content: 'formula' };
+    fake.settings = { id: 'baby', data: { name: 'Mira', feedGap: 180, diaperGap: 0 } };
+    await pushPhone.reload(); await pushPhone.waitForTimeout(600);
+    await pushPhone.click('.tabs [data-tab="baby"]'); await pushPhone.click('[data-act="allowNotify"]'); await pushPhone.waitForTimeout(500);
+    check('push: phone subscribes with the 65-byte server key and is saved for its owner', fake.pushSubs['https://push.example/phone-b']?.email === 'b@x.com' && (await pushPhone.evaluate(() => window.__key)) === 65, JSON.stringify(fake.pushSubs));
+    check('push: settings say reminders arrive with the app closed', /even when Nestlog is closed/.test(await text(pushPhone, '#remindNote')));
+    check('push: the family cloud offers sleep news, on by default', await pushPhone.isVisible('#sleepNotifyField') && (await pushPhone.inputValue('#setSleepNotify')) === '1');
+    await pushPhone.waitForTimeout(1200);
+    check('push: no second, local notification while push is on', !(await pushPhone.evaluate(() => window.__notes.length)));
+    await pushPhone.screenshot({ path: `${SHOTS}/14-push-on.png`, fullPage: true });
+    await pushPhone.click('[data-act="signOut"]'); await pushPhone.waitForTimeout(400);
+    check('push: sign-out removes this phone from reminders', !fake.pushSubs['https://push.example/phone-b']);
+    errorsFromPush = pushPhone.errors; await pushPhone.context().close();
+    delete fake.logs.pushfeed;
+
     await a.click('[data-act="signOut"]'); await a.waitForTimeout(300);
     check('cloud: sign out returns to the sign-in screen', await a.isVisible('#signinForm'));
     check('cloud: sign out removes the copy kept for offline use', await a.evaluate(() => !localStorage.getItem('nestlog-cache') && !localStorage.getItem('nestlog-session')));
-    check('cloud: no script errors', ![a, b, c].some(p => p.errors.length), [a, b, c].flatMap(p => p.errors).join(' | '));
+    check('cloud: no script errors', ![a, b, c].some(p => p.errors.length) && !errorsFromPush.length, [a, b, c].flatMap(p => p.errors).concat(errorsFromPush).join(' | '));
     for (const p of [a, b, c]) await p.context().close();
   }
 

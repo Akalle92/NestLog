@@ -37,9 +37,30 @@ The preview shows what will be added before anything is saved. Importing the sam
 
 **Baby → Reminders** sets when a feed or diaper change is due (off, or 2 to 5 hours after the last one). The setting is shared by everyone. Once one is due, Today shows it tinted. Tap **Allow notifications** to also get a notification on that phone.
 
-Phones limit notifications from web apps:
-- **Android and computers:** they arrive while Nestlog is open or recently used in the background.
-- **iPhone:** you need iOS 16.4 or newer and Nestlog added to the Home Screen, and they only arrive while iOS keeps the app running. Don't rely on them as an alarm.
+On the family website (akalle92.github.io/NestLog), allowing notifications also signs that phone up for reminders from the server. They arrive even when Nestlog is closed, once per overdue feed or diaper, within about 5 minutes of it becoming due. Reminders show **"…even when Nestlog is closed"** under the settings when this is on.
+- **Android and computers:** tap **Allow notifications** in Chrome, Edge or Firefox.
+- **iPhone:** you need iOS 16.4 or newer. Add Nestlog to the Home Screen first (Share → Add to Home Screen), open it from there, sign in, then tap **Allow notifications**. In Safari itself, iPhones don't offer notifications to websites.
+
+Opened from `localhost` or on the home server, notifications only come while Nestlog is open or recently used.
+
+**Sleep news.** In the family cloud, when someone starts the sleep timer the other family phones get "Shiv fell asleep", and when they tap **Woke up** the others get "Shiv woke up · slept 1h 40m". Turn it off under **Baby → Reminders → Sleep news to family**. **Check sleep timer after** (2 to 6 hours) nudges whoever started a timer that's still running, so a forgotten timer doesn't ruin the sleep totals.
+
+The lock-screen timer that some iPhone apps show (Live Activities) only exists for apps installed from the App Store, so a web app like Nestlog can't show one.
+
+## Growth percentiles
+
+**Trends → Weight / Length / Head** shows each measurement's percentile, with the 3rd to 97th percentile curves in grey behind the line. Pick **Boy** or **Girl** under **Baby → Growth curves for**; importing from Nara fills it in. Choose the chart on the growth card (shared by the family):
+- **WHO:** the WHO Child Growth Standards, birth to 5 years. Most doctors use these for babies.
+- **CDC (US):** the CDC 2000 infant charts (weight and length to 2 years, head to 3). US doctors also use WHO under 2; this is for comparison.
+- **India (IAP):** the Indian Academy of Pediatrics uses the WHO charts from birth to 5 years, so this shows the WHO numbers. IAP's own charts start at 5.
+
+## Doctor visit report
+
+**Baby → Doctor visit** makes a one-page summary of the last 1, 2 or 4 weeks: feeds and bottle volume per day, nursing time, sleep and the longest stretch, wet and dirty diapers with colours and anything noted (rash, blowout), the latest growth with percentiles, every medicine, vaccine and temperature, milestones and notes. Tap **Print or save as PDF** to share it.
+
+## Photos
+
+In the family cloud, any entry (a milestone, a diaper to show the doctor, a bottle, a rash) can have one photo. It's shrunk on the phone, stored privately in your Supabase project (only people on the family list can see it) and shown as a thumbnail in the timeline.
 
 ## Works offline
 

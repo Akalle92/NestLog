@@ -40,7 +40,7 @@ const FIELDS = {
   temp: { c: num },
   milestone: { title: v => str(v, 80) },
 };
-const COMMON = { note: v => str(v, 200), byName: v => str(v, 40) };
+const COMMON = { note: v => str(v, 200), byName: v => str(v, 40), photo: v => (/^[A-Za-z0-9_-]{1,120}\.jpg$/.test(v || '') ? v : '') };
 function cleanLog(raw) {
   if (!raw || typeof raw !== 'object' || !FIELDS[raw.type]) return null;
   const t = num(raw.t); if (!t) return null;
@@ -61,7 +61,7 @@ function cleanActive(kind, raw) {
 }
 function cleanSettings(raw) {
   raw = raw && typeof raw === 'object' ? raw : {};
-  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg', temp: raw.temp === 'F' ? 'F' : 'C', feedGap: Math.min(720, num(raw.feedGap)), diaperGap: Math.min(720, num(raw.diaperGap)) };
+  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', sex: ['M', 'F'].includes(raw.sex) ? raw.sex : '', chart: ['who', 'cdc', 'iap'].includes(raw.chart) ? raw.chart : 'who', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg', temp: raw.temp === 'F' ? 'F' : 'C', feedGap: Math.min(720, num(raw.feedGap)), diaperGap: Math.min(720, num(raw.diaperGap)), sleepCheck: Math.min(720, num(raw.sleepCheck)), sleepNotify: raw.sleepNotify !== false };
 }
 
 /* ---------- storage: one JSON file, written atomically ---------- */
