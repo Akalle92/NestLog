@@ -35,3 +35,22 @@ export function sleepNews(settings, event, who, slept) {
   if (event === 'sleep_start') return { title: `${name} fell asleep`, body: who ? `Sleep timer started by ${who}.` : 'Sleep timer started.' };
   return { title: `${name} woke up`, body: `Slept ${dur(slept)}${who ? `. Logged by ${who}` : ''}.` };
 }
+
+// Does this phone want this kind of notification now? prefs is the phone's own choice (push_subs.prefs, or
+// localStorage['nestlog-notify'] in the app): {feed, diaper, sleepNews, sleepCheck: bool (missing = yes),
+// quiet: [startMin, endMin] in the phone's tz, or null}. Quiet hours may wrap past midnight.
+const PREF = { feed: 'feed', diaper: 'diaper', sleep_start: 'sleepNews', sleep_end: 'sleepNews', sleep_check: 'sleepCheck' };
+export function localMinutes(now, tz) {
+  try {
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz || undefined, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
+    return +p.find(x => x.type === 'hour').value * 60 + +p.find(x => x.type === 'minute').value;
+  } catch { const d = new Date(now); return d.getHours() * 60 + d.getMinutes(); }
+}
+export function wants(prefs, kind, now) {
+  prefs = prefs || {};
+  if (prefs[PREF[kind] || kind] === false) return false;
+  const q = prefs.quiet;
+  if (!Array.isArray(q) || q.length !== 2 || q[0] === q[1]) return true;
+  const m = localMinutes(now, prefs.tz), [a, b] = q;
+  return a < b ? !(m >= a && m < b) : !(m >= a || m < b);
+}

@@ -402,6 +402,44 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* this phone's notification choices: kinds it hears and quiet hours */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.addInitScript(() => {
+      window.__notes = [];
+      window.Notification = class { constructor(t) { window.__notes.push(t); } static get permission() { return 'granted'; } static async requestPermission() { return 'granted'; } };
+    });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(200);
+    await p.evaluate(() => { const n = Date.now(), H = 36e5;
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Mira', birth: '', vol: 'ml', wt: 'kg', feedGap: 120 }, active: {},
+        logs: { b1: { type: 'bottle', t: n - 3 * H, ml: 90, content: 'formula' } } }));
+      localStorage.setItem('nestlog-notify', JSON.stringify({ feed: false })); });
+    await p.reload(); await p.waitForTimeout(1500);
+    check('notify: with Feeds off on this phone, an overdue feed stays quiet', !(await p.evaluate(() => window.__notes.length)));
+    await p.click('.tabs [data-tab="baby"]'); await p.waitForTimeout(150);
+    check('notify: the chip shows Feeds off', (await p.getAttribute('[data-npref="feed"]', 'aria-pressed')) === 'false');
+    await p.evaluate(() => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); localStorage.setItem('nestlog-notify', JSON.stringify({ quiet: [(m + 1430) % 1440, (m + 10) % 1440] })); });
+    await p.reload(); await p.waitForTimeout(1500);
+    check('notify: during quiet hours nothing fires', !(await p.evaluate(() => window.__notes.length)));
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setQuiet', 'null'); await p.waitForTimeout(100);
+    await p.click('.tabs [data-tab="home"]'); await p.evaluate(() => localStorage.removeItem('nestlog-reminded')); await p.reload(); await p.waitForTimeout(1500);
+    check('notify: once quiet hours are off, the overdue feed is announced', (await p.evaluate(() => window.__notes)).some(n => /Mira may be hungry/.test(n)));
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-npref="diaper"]'); await p.waitForTimeout(100);
+    check('notify: tapping a chip saves it for this phone', await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-notify')).diaper === false));
+    await p.screenshot({ path: `${SHOTS}/16-notify-prefs.png`, fullPage: true });
+    const taste = await p.evaluate(tasteAudit);
+    check('notify: taste house rules', !taste.length, taste.join(' | '));
+    check('notify: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+    const { wants } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const at = (h, m) => Date.UTC(2026, 9, 20, h, m); // times in UTC
+    check('push: a phone can turn a kind off', !wants({ feed: false }, 'feed', at(12, 0)) && wants({ feed: false }, 'diaper', at(12, 0)) && !wants({ sleepNews: false }, 'sleep_end', at(12, 0)) && wants(null, 'sleep_check', at(12, 0)));
+    check('push: quiet hours wrap past midnight', !wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(23, 30)) && !wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(6, 59)) && wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(7, 0)));
+    check('push: quiet hours use the phone’s time zone', !wants({ quiet: [1320, 420], tz: 'Asia/Kolkata' }, 'feed', at(17, 0)) && wants({ quiet: [1320, 420], tz: 'Asia/Kolkata' }, 'feed', at(12, 0)));
+  }
+
   /* service worker: after one visit the app opens with no connection */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -700,6 +738,7 @@ function paletteAudit() {
     await pushPhone.reload(); await pushPhone.waitForTimeout(600);
     await pushPhone.click('.tabs [data-tab="baby"]'); await pushPhone.click('[data-act="allowNotify"]'); await pushPhone.waitForTimeout(500);
     check('push: phone subscribes with the 65-byte server key and is saved for its owner', fake.pushSubs['https://push.example/phone-b']?.email === 'b@x.com' && (await pushPhone.evaluate(() => window.__key)) === 65, JSON.stringify(fake.pushSubs));
+    check('push: the phone’s notification choices go with its subscription', !!fake.pushSubs['https://push.example/phone-b']?.prefs?.tz);
     check('push: settings say reminders arrive with the app closed', /even when Nestlog is closed/.test(await text(pushPhone, '#remindNote')));
     check('push: the family cloud offers sleep news, on by default', await pushPhone.isVisible('#sleepNotifyField') && (await pushPhone.inputValue('#setSleepNotify')) === '1');
     await pushPhone.waitForTimeout(1200);

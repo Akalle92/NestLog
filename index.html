@@ -892,7 +892,7 @@ async function pushSetup(){
     if (!sub){ const key = await rest('POST', 'rpc/push_public_key', {}); if (!key) return;
       sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uBytes(key)}); }
     const j = sub.toJSON();
-    await rest('POST', 'push_subs', {endpoint:j.endpoint, email:S.me, p256dh:j.keys.p256dh, auth:j.keys.auth}, 'resolution=merge-duplicates');
+    await rest('POST', 'push_subs', {endpoint:j.endpoint, email:S.me, p256dh:j.keys.p256dh, auth:j.keys.auth, prefs:notifyPrefs.get()}, 'resolution=merge-duplicates');
     localStorage.setItem('nestlog-push', j.endpoint); renderReminders();
   } catch {} /* reminders still work while the app is open */
 }
@@ -910,6 +910,26 @@ function notify(title, opts){
   if (sw?.getRegistration) sw.getRegistration().then(r => r ? r.showNotification(title, opts) : plain()).catch(plain); else plain();
 }
 /* one notification per gap: remembered per phone by the id of the last entry it was about */
+/* What this phone wants to hear (localStorage['nestlog-notify'], also sent with its push subscription).
+   wantsNow() mirrors wants() in supabase/functions/nestlog-remind/due.js: keep the two in step. */
+const QUIET = [[null,'Off'],[[1260,360],'9 pm – 6 am'],[[1320,360],'10 pm – 6 am'],[[1320,420],'10 pm – 7 am'],[[1380,420],'11 pm – 7 am'],[[0,420],'Midnight – 7 am']];
+const NOTIFY = [['feed','Feeds'],['diaper','Diapers'],['sleepNews','Sleep news'],['sleepCheck','Sleep timer check']];
+const notifyPrefs = {
+  get(){ let p = {}; try { p = JSON.parse(localStorage.getItem('nestlog-notify')) || {}; } catch {} return {...p, tz: Intl.DateTimeFormat().resolvedOptions().timeZone}; },
+  set(p){ try { localStorage.setItem('nestlog-notify', JSON.stringify(p)); } catch {} if (pushOn()) pushSetup(); }
+};
+function wantsNow(kind){
+  const p = notifyPrefs.get(), key = {sleep:'sleepCheck', sleep_check:'sleepCheck'}[kind] || kind;
+  if (p[key] === false) return false;
+  const q = p.quiet; if (!Array.isArray(q) || q[0] === q[1]) return true;
+  const d = new Date(), m = d.getHours()*60 + d.getMinutes(), [a, b] = q;
+  return a < b ? !(m >= a && m < b) : !(m >= a || m < b);
+}
+function renderNotifyPrefs(){
+  const p = notifyPrefs.get(), q = JSON.stringify(p.quiet || null);
+  $('notifyPrefs').innerHTML = `<div class="field"><span class="label" id="npLabel">Notify me about</span><div class="chips" role="group" aria-labelledby="npLabel">${NOTIFY.map(([k,l]) => `<button type="button" class="chip" data-npref="${k}" aria-pressed="${p[k] !== false}">${l}</button>`).join('')}</div></div>
+    <div class="field"><label class="label" for="setQuiet">Quiet hours</label><select id="setQuiet">${QUIET.map(([v,l]) => `<option value='${JSON.stringify(v)}' ${JSON.stringify(v)===q?'selected':''}>${l}</option>`).join('')}</select></div>`;
+}
 function checkReminders(){
   if (!canNotify() || Notification.permission !== 'granted' || !S.loaded || pushOn()) return; /* with push, the server sends them */
   let seen = {}; try { seen = JSON.parse(localStorage.getItem('nestlog-reminded')) || {}; } catch {}
@@ -917,6 +937,7 @@ function checkReminders(){
   for (const [kind, last] of Object.entries(d)){
     if (!last || seen[kind] === last.id) continue;
     if (kind==='sleep' && S.mode==='cloud' && last.by && last.by !== S.me) continue; /* only the phone that started it */
+    if (!wantsNow(kind)) continue; /* not marked as seen, so a still-due one fires after quiet hours */
     seen[kind] = last.id; changed = true;
     const body = kind==='sleep' ? `Started ${dur(now()-last.t)} ago. Did ${name} wake up?` : `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
     const title = kind==='sleep' ? 'Sleep timer still running' : kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
@@ -1222,6 +1243,7 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setSex').value = st.sex||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
+  renderNotifyPrefs();
   const th = theme.get();
   $('themeSeg').innerHTML = [['auto','Match phone'],['light','Light'],['dark','Dark']].map(([k,l]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${th===k}">${l}</button>`).join('');
   $('reportRange').innerHTML = [1,2,4].map(w => `<button type="button" data-rw="${w}" aria-pressed="${S.rw===w}">${w} week${w>1?'s':''}</button>`).join('');
@@ -1846,7 +1868,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-theme-pick],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-theme-pick],[data-npref],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1864,6 +1886,8 @@ document.addEventListener('click', e => {
   if (d.gm){ S.gm=d.gm; renderTrends(); return; }
   if (d.std){ write(()=>store.setSettings({...S.settings, chart:d.std})).then(ok => ok && renderTrends()); return; }
   if (d.rw){ S.rw=+d.rw; renderBaby(); return; }
+  if (d.npref){ const p = notifyPrefs.get(), on = p[d.npref] === false; p[d.npref] = on; notifyPrefs.set(p); renderNotifyPrefs();
+    toast(`${NOTIFY.find(n => n[0]===d.npref)[1]} ${on ? 'on' : 'off'} for this phone`); return; }
   if (d.themePick){ theme.set(d.themePick); renderBaby(); toast(d.themePick==='auto' ? 'Following this phone’s setting' : `${d.themePick==='dark'?'Dark':'Light'} on this phone`); return; }
   if (d.fill){ $(d.fill).value = d.v; return; }
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
@@ -1906,6 +1930,8 @@ document.addEventListener('change', e => {
       .catch(() => toast('That file couldn’t be opened as a photo. Choose a JPEG, PNG or HEIC picture.'));
     e.target.value='';
   }
+  if (e.target.id==='setQuiet'){ const p = notifyPrefs.get(); p.quiet = JSON.parse(e.target.value); notifyPrefs.set(p);
+    toast(p.quiet ? `Quiet ${e.target.selectedOptions[0].textContent} on this phone` : 'Quiet hours off'); e.target.blur(); }
   if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
 });
 document.addEventListener('submit', e => {
