@@ -115,7 +115,9 @@ create table public.push_subs (
   email text not null,
   p256dh text not null check (length(p256dh) < 200),
   auth text not null check (length(auth) < 100),
-  created timestamptz not null default now()
+  created timestamptz not null default now(),
+  -- the phone's own choice: {feed, diaper, sleepNews, sleepCheck: bool, quiet: [startMin, endMin], tz}
+  prefs jsonb not null default '{}'::jsonb check (jsonb_typeof(prefs) = 'object' and pg_column_size(prefs) < 1000)
 );
 alter table public.push_subs enable row level security;
 create policy "push: family manage their own phones" on public.push_subs for all to authenticated

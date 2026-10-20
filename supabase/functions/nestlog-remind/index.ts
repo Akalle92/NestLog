@@ -7,7 +7,7 @@
 // Keys are in Vault (see supabase/nestlog_init.sql): the cron secret is made by the database, and the VAPID
 // key pair is made on the first run and stored once. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are built in.
 import webpush from 'npm:web-push@3.6.7';
-import { dueFor, sleepCheckFor, sleepNews } from './due.js';
+import { dueFor, sleepCheckFor, sleepNews, wants } from './due.js';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!, KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -34,7 +34,7 @@ Deno.serve(async req => {
   const members = await db('family_members?select=email,name'), names: Record<string, string> = {};
   members.forEach((f: any) => names[f.email] = f.name || f.email.split('@')[0]);
   const family = new Set(Object.keys(names));
-  const subs = (await db('push_subs?select=endpoint,email,p256dh,auth')).filter((s: any) => family.has(s.email));
+  const subs = (await db('push_subs?select=endpoint,email,p256dh,auth,prefs')).filter((s: any) => family.has(s.email));
   const send = async (s: any, msg: object) => {
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(msg), { TTL: 3600, urgency: 'high' }); return true; }
     catch (e: any) {
@@ -50,12 +50,13 @@ Deno.serve(async req => {
   }
   const [settings] = (await db('settings?select=data&id=eq.baby')).map((r: any) => r.data);
   if (!settings || !subs.length) return Response.json({ sent: 0 });
-  /* push one message to some phones, once per (phone, kind, entry) */
+  /* push one message to some phones, once per (phone, kind, entry). A phone that turned this kind off or is in its
+     quiet hours is skipped without recording it, so a feed or diaper that's still overdue reaches it later. */
   let sent = 0;
   const deliver = async (to: any[], kind: string, entry: string, msg: { title: string, body: string }) => {
     const done = new Set((await db(`push_sent?select=endpoint&kind=eq.${kind}&entry_id=eq.${encodeURIComponent(entry)}`)).map((r: any) => r.endpoint));
     for (const s of to) {
-      if (done.has(s.endpoint)) continue;
+      if (done.has(s.endpoint) || !wants(s.prefs, kind, Date.now())) continue;
       if (await send(s, { ...msg, tag: 'nestlog-' + kind })) {
         sent++;
         await db('push_sent', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ endpoint: s.endpoint, kind, entry_id: entry }) });

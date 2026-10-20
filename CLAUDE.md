@@ -43,7 +43,7 @@ The same `index.html` runs in four places. The boot code at the bottom of the sc
 
    Cloud-only extras:
    - **Photos:** private Storage bucket `photos` (JPEG, 5 MB, family-only policies), one object `<entry id>.jpg` per entry of any type, read and written with `storage()`. `showPhotos()` fills every `img[data-photo]` from an in-memory cache of blob URLs.
-   - **Web Push:** `pushSetup()` subscribes the phone with the key from `rpc/push_public_key` and upserts `push_subs`; `pushForget()` removes it on sign-out; `localStorage['nestlog-push']` marks it on, and then `checkReminders()` stays quiet. pg_cron calls the `nestlog-remind` function every 5 minutes with the Vault cron secret; it sends one push per overdue entry per phone (de-duplicated in `push_sent`) to family members only. The VAPID keys and the cron secret live in Vault (`push_config`, service role only) and never leave the server. Sleep news: the `active_sleep_push` trigger on `active` (insert/delete of `sleep`) posts `{event, start, actor}` to the same function, which tells every family phone except the actor's; a stop only counts when a sleep entry was just saved. The cron run also sends the `sleepCheck` nudge to the timer's starter. If you change what's due, change `dueState()` and `due.js` together.
+   - **Web Push:** `pushSetup()` subscribes the phone with the key from `rpc/push_public_key` and upserts `push_subs`; `pushForget()` removes it on sign-out; the phone's own choices go with it as `push_subs.prefs` and the function filters every send through `wants()` in `due.js` (kinds turned off, quiet hours in the phone's `tz`), mirrored in the app by `wantsNow()`; `localStorage['nestlog-push']` marks it on, and then `checkReminders()` stays quiet. pg_cron calls the `nestlog-remind` function every 5 minutes with the Vault cron secret; it sends one push per overdue entry per phone (de-duplicated in `push_sent`) to family members only. The VAPID keys and the cron secret live in Vault (`push_config`, service role only) and never leave the server. Sleep news: the `active_sleep_push` trigger on `active` (insert/delete of `sleep`) posts `{event, start, actor}` to the same function, which tells every family phone except the actor's; a stop only counts when a sleep entry was just saved. The cron run also sends the `sleepCheck` nudge to the timer's starter. If you change what's due, change `dueState()` and `due.js` together.
 
 In home and cloud mode every write is one op `{op:'log'|'active'|'settings', ...}` (`sendOp`). When there's no connection (`offlineError`), `sendShared` puts it in `outbox` (`localStorage['nestlog-outbox']`), applies it locally, and `outbox.flush()` replays in order on `online`, socket rejoin and home reconnect. `cache` keeps the last synced log in `localStorage['nestlog-cache']` so the app opens offline; `applyHome` lays pending outbox ops over each snapshot. Sign out clears both.
 
@@ -53,11 +53,11 @@ All reads and writes go through the `store` object (`putLog`, `delLog`, `setActi
 
 icons `I` → `TYPES` (log kinds) → state `S` → `local` / `store` / `write()` (errors, haptics) → time helpers → units → `describe()` / `dayStats()` / `nurseTotals()` → `render()` and per-tab renderers (`renderHome`, `renderStatus`, `ribbon`, `renderLive`, `renderTimeline`, `renderTrends` + `barChart` / `lineChart` / `growthChart` (WHO percentiles: `WHO_LMS`, `percentile()`) / `pastAvg`, `renderBaby`) → photos (`storage`, `shrinkPhoto`, `showPhotos`) → doctor report (`reportHtml`, `openReport`) → sheets (`openSheet`, `saveSheet`, `act`, `tapSide`) → export / import (`buildCsv`, `buildJson`, `normalize`, `readImport`, `runImport`) → delegated event listeners → 1-second clock tick → boot.
 
-UI is rebuilt with template strings. Clicks are handled by one delegated listener keyed on `data-*` attributes: `data-open`, `data-tab`, `data-edit`, `data-act`, `data-chip`, `data-side`, `data-io`, `data-ago`, `data-step`, `data-filter`, `data-range`, `data-gm` (growth measure), `data-std` (growth chart), `data-rw` (report weeks). Live clocks are any element with `data-clock="<start ms>"`; the tick updates them.
+UI is rebuilt with template strings. Clicks are handled by one delegated listener keyed on `data-*` attributes: `data-open`, `data-tab`, `data-edit`, `data-act`, `data-chip`, `data-side`, `data-io`, `data-ago`, `data-step`, `data-filter`, `data-range`, `data-gm` (growth measure), `data-std` (growth chart), `data-rw` (report weeks), `data-theme-pick` (appearance), `data-npref` (this phone's notification kinds). The Timeline draws `S.tlDays` days (`data-act="older"` adds 14) unless `#tlSearch` has text, which searches all entries. Live clocks are any element with `data-clock="<start ms>"`; the tick updates them.
 
 ## Data model
 
-Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on claude.ai, email in cloud mode, `null` locally). Any entry may have `note` (≤ 200 chars), `photo` (`<id>.jpg` in the `photos` bucket, cloud only) and `byName` (caregiver name from an import, shown when `by` doesn't resolve to a family member). Stored units are fixed (**ml, kg, cm, ms**); `S.settings.vol` / `.wt` only change display, through `volOut`/`volIn` and `wtOut`/`wtIn`.
+Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on claude.ai, email in cloud mode, `null` locally). Entries show who logged them, yourself included (`entryHtml`). Any entry may have `note` (≤ 200 chars), `photo` (`<id>.jpg` in the `photos` bucket, cloud only) and `byName` (caregiver name from an import, shown when `by` doesn't resolve to a family member). Stored units are fixed (**ml, kg, cm, ms**); `S.settings.vol` / `.wt` only change display, through `volOut`/`volIn` and `wtOut`/`wtIn`.
 
 | type | fields |
 | --- | --- |
@@ -74,6 +74,8 @@ Every entry has `type`, `t` (start, epoch ms), `created`, and `by` (viewer id on
 | `milestone` | `title` |
 
 Settings: `name`, `birth`, `sex` (`'M'`/`'F'`/`''`), `chart` (`'who'`/`'cdc'`/`'iap'`: growth curves via `lms(std, key, sex, days)`; `WHO_LMS` 0–5 years, `CDC_LMS` 2000 infant tables, IAP = WHO under 5), `vol`, `wt`, `temp`, reminder gaps `feedGap` / `diaperGap` (minutes, 0 = off), `sleepCheck` (minutes a sleep timer may run before its starter is nudged, 0 = off) and `sleepNotify` (cloud sleep news, on unless `false`). `dueState()` decides what's due; `checkReminders()` runs on the tick and notifies once per last-entry id per phone (`localStorage['nestlog-reminded']`).
+
+Per-phone preferences, not shared and kept straight in `localStorage`: `nestlog-theme` (`auto`/`light`/`dark`, applied by an inline script in `<head>` and `theme.apply()`) and `nestlog-notify` (`{feed, diaper, sleepNews, sleepCheck, quiet: [startMin, endMin]}`), shown under Baby → This phone.
 
 Imports: `readImport` handles Nestlog JSON/CSV and Nara Baby CSV (`isNara` + `fromNara`, ids `nara-<_activityKey>`). Every path ends in `normalize()`.
 
@@ -106,5 +108,4 @@ Plain and short; it gets read at 3am. Buttons start with a verb ("Save bottle", 
 ## Ideas not built yet
 
 - Medicine schedules ("next dose due at 7:30")
-- Quiet hours for push reminders
 - A native iPhone app for a Live Activity sleep timer on the lock screen (web apps can't make one)

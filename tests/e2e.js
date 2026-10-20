@@ -325,6 +325,33 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* appearance: each phone picks Match phone / Light / Dark for itself */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'light', hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed); await p.reload(); await p.waitForTimeout(300);
+    const bg = () => p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
+    const light = await bg();
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-theme-pick="dark"]'); await p.waitForTimeout(150);
+    check('appearance: Dark turns this phone dark while the phone is in light mode', (await bg()) === '#121413' && (await p.getAttribute('meta[name="theme-color"]', 'content')) === '#121413', await bg());
+    await p.reload(); await p.waitForTimeout(300);
+    check('appearance: the choice stays after reopening', (await bg()) === '#121413' && await p.evaluate(() => localStorage.getItem('nestlog-theme')) === 'dark');
+    await p.click('.tabs [data-tab="baby"]'); await p.waitForTimeout(150);
+    await p.screenshot({ path: `${SHOTS}/15-this-phone-dark.png`, fullPage: true });
+    for (const tab of ['home', 'trends', 'baby']) {
+      await p.click(`.tabs [data-tab="${tab}"]`); await p.waitForTimeout(150);
+      const t = await p.evaluate(tasteAudit), pal = await p.evaluate(paletteAudit);
+      check(`appearance: forced dark ${tab} keeps the house rules`, !t.length && !pal.length, t.concat(pal).join(' | '));
+    }
+    await p.click('[data-theme-pick="auto"]'); await p.waitForTimeout(150);
+    check('appearance: Match phone follows the phone again', (await bg()) === light && !(await p.evaluate(() => localStorage.getItem('nestlog-theme'))));
+    await p.emulateMedia({ colorScheme: 'dark' }); await p.click('[data-theme-pick="light"]'); await p.waitForTimeout(150);
+    check('appearance: Light stays light when the phone is in dark mode', (await bg()) === light);
+    check('appearance: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* reminders: due state on Today, one notification per gap */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
@@ -373,6 +400,77 @@ function paletteAudit() {
     check('reminders: taste house rules', !taste.length, taste.join(' | '));
     check('reminders: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
+  }
+
+  /* timeline: recent days first, Show older, search across everything */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(200);
+    await p.evaluate(() => { const n = Date.now(), D = 864e5, logs = {};
+      for (let d = 0; d < 60; d++) logs['b' + d] = { type: 'bottle', t: n - d * D - 36e5, ml: 90, content: 'formula', brand: 'Kendamil' };
+      logs.m1 = { type: 'medicine', t: n - 40 * D, name: 'Vitamin D', dose: '1 drop' };
+      logs.d1 = { type: 'diaper', t: n - 2 * D, kind: 'dirty', note: 'rash on the left side' };
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir' }, active: {}, logs })); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="timeline"]'); await p.waitForTimeout(200);
+    check('timeline: shows the last 14 days first', (await p.locator('#timeline .day').count()) === 14);
+    await p.click('[data-act="older"]'); await p.waitForTimeout(150);
+    check('timeline: Show older adds 14 more days', (await p.locator('#timeline .day').count()) === 28);
+    await p.fill('#tlSearch', 'vitamin'); await p.waitForTimeout(150);
+    check('timeline: search finds an entry from weeks ago', (await p.locator('#timeline .entry').count()) === 1 && /Vitamin D/.test(await text(p, '#timeline')) && !(await p.locator('[data-act="older"]').count()));
+    check('timeline: typing keeps the search field focused', await p.evaluate(() => document.activeElement?.id === 'tlSearch'));
+    await p.fill('#tlSearch', 'RASH'); await p.waitForTimeout(150);
+    check('timeline: search reads notes, any case', (await p.locator('#timeline .entry').count()) === 1);
+    await p.screenshot({ path: `${SHOTS}/17-timeline-search.png` });
+    await p.fill('#tlSearch', 'zebra'); await p.waitForTimeout(150);
+    check('timeline: no match says so', /Nothing matches/.test(await text(p, '#timeline')));
+    await p.fill('#tlSearch', ''); await p.waitForTimeout(150);
+    check('timeline: clearing search goes back to the recent days', (await p.locator('#timeline .day').count()) === 28);
+    check('timeline: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('timeline: taste house rules', !taste.length, taste.join(' | '));
+    check('timeline: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* this phone's notification choices: kinds it hears and quiet hours */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.addInitScript(() => {
+      window.__notes = [];
+      window.Notification = class { constructor(t) { window.__notes.push(t); } static get permission() { return 'granted'; } static async requestPermission() { return 'granted'; } };
+    });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(200);
+    await p.evaluate(() => { const n = Date.now(), H = 36e5;
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Mira', birth: '', vol: 'ml', wt: 'kg', feedGap: 120 }, active: {},
+        logs: { b1: { type: 'bottle', t: n - 3 * H, ml: 90, content: 'formula' } } }));
+      localStorage.setItem('nestlog-notify', JSON.stringify({ feed: false })); });
+    await p.reload(); await p.waitForTimeout(1500);
+    check('notify: with Feeds off on this phone, an overdue feed stays quiet', !(await p.evaluate(() => window.__notes.length)));
+    await p.click('.tabs [data-tab="baby"]'); await p.waitForTimeout(150);
+    check('notify: the chip shows Feeds off', (await p.getAttribute('[data-npref="feed"]', 'aria-pressed')) === 'false');
+    await p.evaluate(() => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); localStorage.setItem('nestlog-notify', JSON.stringify({ quiet: [(m + 1430) % 1440, (m + 10) % 1440] })); });
+    await p.reload(); await p.waitForTimeout(1500);
+    check('notify: during quiet hours nothing fires', !(await p.evaluate(() => window.__notes.length)));
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setQuiet', 'null'); await p.waitForTimeout(100);
+    await p.click('.tabs [data-tab="home"]'); await p.evaluate(() => localStorage.removeItem('nestlog-reminded')); await p.reload(); await p.waitForTimeout(1500);
+    check('notify: once quiet hours are off, the overdue feed is announced', (await p.evaluate(() => window.__notes)).some(n => /Mira may be hungry/.test(n)));
+    await p.click('.tabs [data-tab="baby"]'); await p.click('[data-npref="diaper"]'); await p.waitForTimeout(100);
+    check('notify: tapping a chip saves it for this phone', await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-notify')).diaper === false));
+    await p.screenshot({ path: `${SHOTS}/16-notify-prefs.png`, fullPage: true });
+    const taste = await p.evaluate(tasteAudit);
+    check('notify: taste house rules', !taste.length, taste.join(' | '));
+    check('notify: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+    const { wants } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const at = (h, m) => Date.UTC(2026, 9, 20, h, m); // times in UTC
+    check('push: a phone can turn a kind off', !wants({ feed: false }, 'feed', at(12, 0)) && wants({ feed: false }, 'diaper', at(12, 0)) && !wants({ sleepNews: false }, 'sleep_end', at(12, 0)) && wants(null, 'sleep_check', at(12, 0)));
+    check('push: quiet hours wrap past midnight', !wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(23, 30)) && !wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(6, 59)) && wants({ quiet: [1320, 420], tz: 'UTC' }, 'feed', at(7, 0)));
+    check('push: quiet hours use the phone’s time zone', !wants({ quiet: [1320, 420], tz: 'Asia/Kolkata' }, 'feed', at(17, 0)) && wants({ quiet: [1320, 420], tz: 'Asia/Kolkata' }, 'feed', at(12, 0)));
   }
 
   /* service worker: after one visit the app opens with no connection */
@@ -572,6 +670,7 @@ function paletteAudit() {
     await a.click('#sheetForm button[type=submit]'); await a.waitForTimeout(500);
     check('cloud: bottle from phone A shows on phone B live', /120 ml/.test(await text(b, '#recent')));
     check('cloud: phone B shows who logged it', /Ankur/.test(await text(b, '#recent')));
+    check('cloud: your own entries show your name too', /Ankur/.test(await text(a, '#recent')));
     check('cloud: entry stored with the right shape', Object.values(fake.logs).some(l => l.type === 'bottle' && l.ml === 120 && l.by === 'a@x.com'));
     await b.screenshot({ path: `${SHOTS}/6-cloud-today-dark.png`, fullPage: true });
     check('cloud: today has no horizontal overflow', await noOverflow(b));
@@ -672,6 +771,7 @@ function paletteAudit() {
     await pushPhone.reload(); await pushPhone.waitForTimeout(600);
     await pushPhone.click('.tabs [data-tab="baby"]'); await pushPhone.click('[data-act="allowNotify"]'); await pushPhone.waitForTimeout(500);
     check('push: phone subscribes with the 65-byte server key and is saved for its owner', fake.pushSubs['https://push.example/phone-b']?.email === 'b@x.com' && (await pushPhone.evaluate(() => window.__key)) === 65, JSON.stringify(fake.pushSubs));
+    check('push: the phone’s notification choices go with its subscription', !!fake.pushSubs['https://push.example/phone-b']?.prefs?.tz);
     check('push: settings say reminders arrive with the app closed', /even when Nestlog is closed/.test(await text(pushPhone, '#remindNote')));
     check('push: the family cloud offers sleep news, on by default', await pushPhone.isVisible('#sleepNotifyField') && (await pushPhone.inputValue('#setSleepNotify')) === '1');
     await pushPhone.waitForTimeout(1200);

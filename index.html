@@ -7,6 +7,7 @@
 <meta name="description" content="Baby tracker for feeds, sleep, diapers, pumping and growth.">
 <meta name="theme-color" content="#f2f1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121413" media="(prefers-color-scheme: dark)">
+<script>/* this phone's Appearance choice, before first paint */try{var t=localStorage.getItem('nestlog-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nestlog">
@@ -19,7 +20,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Onest:wght@400;500;600&display=swap">
 <style>
 /* base reset: phone safe areas, [hidden] always wins */
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root,:root[data-theme="light"]{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
@@ -205,6 +207,7 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 /* forms */
 .field{display:grid;gap:6px;min-width:0}
 .label{font-size:var(--fs-s);font-weight:600;color:var(--ink-2)}
+input.search{background:var(--surface);margin-bottom:var(--s3)}
 input,select{font:inherit;font-size:var(--fs-m);color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:12px 14px;min-height:48px;width:100%;box-sizing:border-box;min-width:0}
 input:focus,select:focus{outline:2px solid var(--ink);outline-offset:0;background:var(--surface)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
@@ -356,6 +359,7 @@ body.reporting .app,body.reporting #tabbar{display:none}
 
   <main id="view-timeline" hidden>
     <h2 class="sec" style="margin-top:var(--s2)">Timeline</h2>
+    <input id="tlSearch" class="search" type="search" placeholder="e.g. Tylenol, Kendamil, rash" aria-label="Search entries" autocomplete="off" enterkeyhint="search">
     <div class="seg" id="filters" role="group" aria-label="Filter entries"></div>
     <div id="timeline"></div>
   </main>
@@ -383,6 +387,13 @@ body.reporting .app,body.reporting #tabbar{display:none}
         <button class="btn primary" type="submit">Save baby details</button>
       </div>
     </form>
+
+    <h2 class="sec">This phone</h2>
+    <div class="card group"><div class="item">
+      <div class="field"><span class="label" id="themeLabel">Appearance</span><div class="seg" id="themeSeg" role="group" aria-labelledby="themeLabel"></div></div>
+      <div id="notifyPrefs" class="stack"></div>
+      <p class="note">These are just for this phone, so everyone can pick their own.</p>
+    </div></div>
 
     <h2 class="sec">Reminders</h2>
     <div class="card group"><div class="item">
@@ -495,7 +506,24 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
+/* Appearance is per phone (localStorage['nestlog-theme']), not shared: 'auto' follows the phone */
+const theme = {
+  get(){ try { const t = localStorage.getItem('nestlog-theme'); return t==='light' || t==='dark' ? t : 'auto'; } catch { return 'auto'; } },
+  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {} this.apply(); },
+  apply(){
+    const t = this.get(), root = document.documentElement;
+    if (t==='auto') delete root.dataset.theme; else root.dataset.theme = t;
+    /* the status bar colour follows too */
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+      m.dataset.media ??= m.getAttribute('media') || '';
+      const dark = t==='auto' ? m.dataset.media.includes('dark') : t==='dark';
+      if (t==='auto') m.setAttribute('media', m.dataset.media); else m.removeAttribute('media');
+      m.content = dark ? '#121413' : '#f2f1ee';
+    });
+  }
+};
+theme.apply();
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -866,7 +894,7 @@ async function pushSetup(){
     if (!sub){ const key = await rest('POST', 'rpc/push_public_key', {}); if (!key) return;
       sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uBytes(key)}); }
     const j = sub.toJSON();
-    await rest('POST', 'push_subs', {endpoint:j.endpoint, email:S.me, p256dh:j.keys.p256dh, auth:j.keys.auth}, 'resolution=merge-duplicates');
+    await rest('POST', 'push_subs', {endpoint:j.endpoint, email:S.me, p256dh:j.keys.p256dh, auth:j.keys.auth, prefs:notifyPrefs.get()}, 'resolution=merge-duplicates');
     localStorage.setItem('nestlog-push', j.endpoint); renderReminders();
   } catch {} /* reminders still work while the app is open */
 }
@@ -884,6 +912,26 @@ function notify(title, opts){
   if (sw?.getRegistration) sw.getRegistration().then(r => r ? r.showNotification(title, opts) : plain()).catch(plain); else plain();
 }
 /* one notification per gap: remembered per phone by the id of the last entry it was about */
+/* What this phone wants to hear (localStorage['nestlog-notify'], also sent with its push subscription).
+   wantsNow() mirrors wants() in supabase/functions/nestlog-remind/due.js: keep the two in step. */
+const QUIET = [[null,'Off'],[[1260,360],'9 pm – 6 am'],[[1320,360],'10 pm – 6 am'],[[1320,420],'10 pm – 7 am'],[[1380,420],'11 pm – 7 am'],[[0,420],'Midnight – 7 am']];
+const NOTIFY = [['feed','Feeds'],['diaper','Diapers'],['sleepNews','Sleep news'],['sleepCheck','Sleep timer check']];
+const notifyPrefs = {
+  get(){ let p = {}; try { p = JSON.parse(localStorage.getItem('nestlog-notify')) || {}; } catch {} return {...p, tz: Intl.DateTimeFormat().resolvedOptions().timeZone}; },
+  set(p){ try { localStorage.setItem('nestlog-notify', JSON.stringify(p)); } catch {} if (pushOn()) pushSetup(); }
+};
+function wantsNow(kind){
+  const p = notifyPrefs.get(), key = {sleep:'sleepCheck', sleep_check:'sleepCheck'}[kind] || kind;
+  if (p[key] === false) return false;
+  const q = p.quiet; if (!Array.isArray(q) || q[0] === q[1]) return true;
+  const d = new Date(), m = d.getHours()*60 + d.getMinutes(), [a, b] = q;
+  return a < b ? !(m >= a && m < b) : !(m >= a || m < b);
+}
+function renderNotifyPrefs(){
+  const p = notifyPrefs.get(), q = JSON.stringify(p.quiet || null);
+  $('notifyPrefs').innerHTML = `<div class="field"><span class="label" id="npLabel">Notify me about</span><div class="chips" role="group" aria-labelledby="npLabel">${NOTIFY.map(([k,l]) => `<button type="button" class="chip" data-npref="${k}" aria-pressed="${p[k] !== false}">${l}</button>`).join('')}</div></div>
+    <div class="field"><label class="label" for="setQuiet">Quiet hours</label><select id="setQuiet">${QUIET.map(([v,l]) => `<option value='${JSON.stringify(v)}' ${JSON.stringify(v)===q?'selected':''}>${l}</option>`).join('')}</select></div>`;
+}
 function checkReminders(){
   if (!canNotify() || Notification.permission !== 'granted' || !S.loaded || pushOn()) return; /* with push, the server sends them */
   let seen = {}; try { seen = JSON.parse(localStorage.getItem('nestlog-reminded')) || {}; } catch {}
@@ -891,6 +939,7 @@ function checkReminders(){
   for (const [kind, last] of Object.entries(d)){
     if (!last || seen[kind] === last.id) continue;
     if (kind==='sleep' && S.mode==='cloud' && last.by && last.by !== S.me) continue; /* only the phone that started it */
+    if (!wantsNow(kind)) continue; /* not marked as seen, so a still-due one fires after quiet hours */
     seen[kind] = last.id; changed = true;
     const body = kind==='sleep' ? `Started ${dur(now()-last.t)} ago. Did ${name} wake up?` : `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
     const title = kind==='sleep' ? 'Sleep timer still running' : kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
@@ -1017,7 +1066,8 @@ function renderHome(){
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
-  const name = l.by && l.by !== S.me && S.names[l.by] ? S.names[l.by] : !l.by || l.by !== S.me ? l.byName : '';
+  /* who logged it, yourself included: a family member's name, else the caregiver name from an import */
+  const name = (l.by && S.names[l.by]) || l.byName || '';
   const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
   return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
 }
@@ -1037,14 +1087,20 @@ function renderTimeline(){
   const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth'],['health','Health'],['moment','Milestones']];
   $('filters').innerHTML = F.map(([k,l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
   if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:var(--s5)"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
-  const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
-  if (!logs.length){ $('timeline').innerHTML = `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
+  /* search runs over every entry; otherwise only the most recent S.tlDays days with entries are drawn */
+  const q = S.q.trim().toLowerCase(), who = l => (l.by && S.names[l.by]) || l.byName || '';
+  let logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
+  if (q) logs = logs.filter(l => `${TYPES[l.type]?.label} ${describe(l)} ${l.note||''} ${l.brand||''} ${who(l)}`.toLowerCase().includes(q));
+  if (!logs.length){ $('timeline').innerHTML = q ? `<div class="card empty" style="margin-top:var(--s5)"><b>Nothing matches “${esc(S.q.trim())}”</b>Try another word, or clear the search.</div>`
+    : `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
+  const cap = q && logs.length > 200; if (cap) logs = logs.slice(0, 200);
   const groups = []; let cur = null;
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
-  $('timeline').innerHTML = groups.map(g => {
+  const shown = q ? groups : groups.slice(0, S.tlDays), more = !q && groups.length > shown.length;
+  $('timeline').innerHTML = (cap ? `<p class="hint" style="margin-top:var(--s4)">Showing the latest 200 matches.</p>` : '') + shown.map(g => {
     const s = dayStats(startOfDay(g.t));
-    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
-  }).join('');
+    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feed${s.feeds===1?'':'s'} · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
+  }).join('') + (more ? `<button class="btn soft" type="button" data-act="older" style="width:100%;margin-top:var(--s4)">Show older entries</button>` : '');
   showPhotos();
 }
 
@@ -1195,6 +1251,9 @@ function renderBaby(){
   if (!document.activeElement?.closest?.('#settingsForm')){
     $('setName').value = st.name||''; $('setBirth').value = st.birth||''; $('setSex').value = st.sex||''; $('setVol').value = st.vol||'ml'; $('setWt').value = st.wt||'kg'; $('setTemp').value = st.temp||'C';
   }
+  renderNotifyPrefs();
+  const th = theme.get();
+  $('themeSeg').innerHTML = [['auto','Match phone'],['light','Light'],['dark','Dark']].map(([k,l]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${th===k}">${l}</button>`).join('');
   $('reportRange').innerHTML = [1,2,4].map(w => `<button type="button" data-rw="${w}" aria-pressed="${S.rw===w}">${w} week${w>1?'s':''}</button>`).join('');
   renderReminders();
   renderFamily();
@@ -1511,6 +1570,7 @@ async function act(a, el){
     return;
   }
   if (a==='photoRemove'){ sheetState.photo = ''; sheetState.photoBlob = null; renderPhotoBox(); return; }
+  if (a==='older'){ S.tlDays += 14; renderTimeline(); return; }
   if (a==='report'){ openReport(); return; }
   if (a==='reportClose'){ closeReport(); return; }
   if (a==='reportPrint'){ window.print(); return; }
@@ -1817,7 +1877,7 @@ async function runImport(){
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
+  const el = e.target.closest('[data-open],[data-tab],[data-edit],[data-filter],[data-range],[data-gm],[data-std],[data-rw],[data-theme-pick],[data-npref],[data-chip],[data-fill],[data-step],[data-ago],[data-act],[data-side],[data-io]');
   if (!el) return;
   const d = el.dataset;
   if (d.io){
@@ -1830,11 +1890,14 @@ document.addEventListener('click', e => {
   if (d.open){ openSheet(d.open); return; }
   if (d.tab){ S.tab=d.tab; render(); window.scrollTo(0,0); return; }
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
-  if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
+  if (d.filter){ S.filter=d.filter; S.tlDays=14; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
   if (d.gm){ S.gm=d.gm; renderTrends(); return; }
   if (d.std){ write(()=>store.setSettings({...S.settings, chart:d.std})).then(ok => ok && renderTrends()); return; }
   if (d.rw){ S.rw=+d.rw; renderBaby(); return; }
+  if (d.npref){ const p = notifyPrefs.get(), on = p[d.npref] === false; p[d.npref] = on; notifyPrefs.set(p); renderNotifyPrefs();
+    toast(`${NOTIFY.find(n => n[0]===d.npref)[1]} ${on ? 'on' : 'off'} for this phone`); return; }
+  if (d.themePick){ theme.set(d.themePick); renderBaby(); toast(d.themePick==='auto' ? 'Following this phone’s setting' : `${d.themePick==='dark'?'Dark':'Light'} on this phone`); return; }
   if (d.fill){ $(d.fill).value = d.v; return; }
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
@@ -1859,6 +1922,7 @@ document.addEventListener('click', e => {
   if (d.act){ act(d.act, el); }
 });
 document.addEventListener('input', e => {
+  if (e.target.id==='tlSearch'){ S.q = e.target.value; renderTimeline(); }
   if (e.target.id==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===e.target.value)));
   if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
 });
@@ -1876,6 +1940,8 @@ document.addEventListener('change', e => {
       .catch(() => toast('That file couldn’t be opened as a photo. Choose a JPEG, PNG or HEIC picture.'));
     e.target.value='';
   }
+  if (e.target.id==='setQuiet'){ const p = notifyPrefs.get(); p.quiet = JSON.parse(e.target.value); notifyPrefs.set(p);
+    toast(p.quiet ? `Quiet ${e.target.selectedOptions[0].textContent} on this phone` : 'Quiet hours off'); e.target.blur(); }
   if (e.target.id==='importFile' && e.target.files[0]){ readImport(e.target.files[0]); e.target.value=''; }
 });
 document.addEventListener('submit', e => {
