@@ -207,6 +207,7 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 /* forms */
 .field{display:grid;gap:6px;min-width:0}
 .label{font-size:var(--fs-s);font-weight:600;color:var(--ink-2)}
+input.search{background:var(--surface);margin-bottom:var(--s3)}
 input,select{font:inherit;font-size:var(--fs-m);color:var(--ink);background:var(--sunk);border:0;border-radius:var(--r-sm);padding:12px 14px;min-height:48px;width:100%;box-sizing:border-box;min-width:0}
 input:focus,select:focus{outline:2px solid var(--ink);outline-offset:0;background:var(--surface)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
@@ -358,6 +359,7 @@ body.reporting .app,body.reporting #tabbar{display:none}
 
   <main id="view-timeline" hidden>
     <h2 class="sec" style="margin-top:var(--s2)">Timeline</h2>
+    <input id="tlSearch" class="search" type="search" placeholder="e.g. Tylenol, Kendamil, rash" aria-label="Search entries" autocomplete="off" enterkeyhint="search">
     <div class="seg" id="filters" role="group" aria-label="Filter entries"></div>
     <div id="timeline"></div>
   </main>
@@ -521,7 +523,7 @@ const theme = {
   }
 };
 theme.apply();
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -1085,14 +1087,20 @@ function renderTimeline(){
   const F = [['all','All'],['feed','Feeding'],['sleep','Sleep'],['diaper','Diapers'],['pump','Pumping'],['growth','Growth'],['health','Health'],['moment','Milestones']];
   $('filters').innerHTML = F.map(([k,l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('');
   if (!S.loaded){ $('timeline').innerHTML = '<div style="margin-top:var(--s5)"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>'; return; }
-  const logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
-  if (!logs.length){ $('timeline').innerHTML = `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
+  /* search runs over every entry; otherwise only the most recent S.tlDays days with entries are drawn */
+  const q = S.q.trim().toLowerCase(), who = l => (l.by && S.names[l.by]) || l.byName || '';
+  let logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
+  if (q) logs = logs.filter(l => `${TYPES[l.type]?.label} ${describe(l)} ${l.note||''} ${l.brand||''} ${who(l)}`.toLowerCase().includes(q));
+  if (!logs.length){ $('timeline').innerHTML = q ? `<div class="card empty" style="margin-top:var(--s5)"><b>Nothing matches “${esc(S.q.trim())}”</b>Try another word, or clear the search.</div>`
+    : `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
+  const cap = q && logs.length > 200; if (cap) logs = logs.slice(0, 200);
   const groups = []; let cur = null;
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
-  $('timeline').innerHTML = groups.map(g => {
+  const shown = q ? groups : groups.slice(0, S.tlDays), more = !q && groups.length > shown.length;
+  $('timeline').innerHTML = (cap ? `<p class="hint" style="margin-top:var(--s4)">Showing the latest 200 matches.</p>` : '') + shown.map(g => {
     const s = dayStats(startOfDay(g.t));
-    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feeds · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
-  }).join('');
+    return `<section class="day"><div class="dayhead"><b>${dayLabel(g.t)}</b><span class="num">${s.feeds} feed${s.feeds===1?'':'s'} · ${dur(s.sleepMs)} sleep · ${s.diapers} diaper${s.diapers===1?'':'s'}</span></div><div class="card list">${g.items.map(entryHtml).join('')}</div></section>`;
+  }).join('') + (more ? `<button class="btn soft" type="button" data-act="older" style="width:100%;margin-top:var(--s4)">Show older entries</button>` : '');
   showPhotos();
 }
 
@@ -1562,6 +1570,7 @@ async function act(a, el){
     return;
   }
   if (a==='photoRemove'){ sheetState.photo = ''; sheetState.photoBlob = null; renderPhotoBox(); return; }
+  if (a==='older'){ S.tlDays += 14; renderTimeline(); return; }
   if (a==='report'){ openReport(); return; }
   if (a==='reportClose'){ closeReport(); return; }
   if (a==='reportPrint'){ window.print(); return; }
@@ -1881,7 +1890,7 @@ document.addEventListener('click', e => {
   if (d.open){ openSheet(d.open); return; }
   if (d.tab){ S.tab=d.tab; render(); window.scrollTo(0,0); return; }
   if (d.edit){ const l=S.logs.find(x=>x.id===d.edit); if(l) openSheet(l.type,l); return; }
-  if (d.filter){ S.filter=d.filter; renderTimeline(); return; }
+  if (d.filter){ S.filter=d.filter; S.tlDays=14; renderTimeline(); return; }
   if (d.range){ S.range=+d.range; renderTrends(); return; }
   if (d.gm){ S.gm=d.gm; renderTrends(); return; }
   if (d.std){ write(()=>store.setSettings({...S.settings, chart:d.std})).then(ok => ok && renderTrends()); return; }
@@ -1913,6 +1922,7 @@ document.addEventListener('click', e => {
   if (d.act){ act(d.act, el); }
 });
 document.addEventListener('input', e => {
+  if (e.target.id==='tlSearch'){ S.q = e.target.value; renderTimeline(); }
   if (e.target.id==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===e.target.value)));
   if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
 });

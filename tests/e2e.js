@@ -402,6 +402,39 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* timeline: recent days first, Show older, search across everything */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.waitForTimeout(200);
+    await p.evaluate(() => { const n = Date.now(), D = 864e5, logs = {};
+      for (let d = 0; d < 60; d++) logs['b' + d] = { type: 'bottle', t: n - d * D - 36e5, ml: 90, content: 'formula', brand: 'Kendamil' };
+      logs.m1 = { type: 'medicine', t: n - 40 * D, name: 'Vitamin D', dose: '1 drop' };
+      logs.d1 = { type: 'diaper', t: n - 2 * D, kind: 'dirty', note: 'rash on the left side' };
+      localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir' }, active: {}, logs })); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="timeline"]'); await p.waitForTimeout(200);
+    check('timeline: shows the last 14 days first', (await p.locator('#timeline .day').count()) === 14);
+    await p.click('[data-act="older"]'); await p.waitForTimeout(150);
+    check('timeline: Show older adds 14 more days', (await p.locator('#timeline .day').count()) === 28);
+    await p.fill('#tlSearch', 'vitamin'); await p.waitForTimeout(150);
+    check('timeline: search finds an entry from weeks ago', (await p.locator('#timeline .entry').count()) === 1 && /Vitamin D/.test(await text(p, '#timeline')) && !(await p.locator('[data-act="older"]').count()));
+    check('timeline: typing keeps the search field focused', await p.evaluate(() => document.activeElement?.id === 'tlSearch'));
+    await p.fill('#tlSearch', 'RASH'); await p.waitForTimeout(150);
+    check('timeline: search reads notes, any case', (await p.locator('#timeline .entry').count()) === 1);
+    await p.screenshot({ path: `${SHOTS}/17-timeline-search.png` });
+    await p.fill('#tlSearch', 'zebra'); await p.waitForTimeout(150);
+    check('timeline: no match says so', /Nothing matches/.test(await text(p, '#timeline')));
+    await p.fill('#tlSearch', ''); await p.waitForTimeout(150);
+    check('timeline: clearing search goes back to the recent days', (await p.locator('#timeline .day').count()) === 28);
+    check('timeline: no horizontal overflow', await noOverflow(p));
+    const taste = await p.evaluate(tasteAudit);
+    check('timeline: taste house rules', !taste.length, taste.join(' | '));
+    check('timeline: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* this phone's notification choices: kinds it hears and quiet hours */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
