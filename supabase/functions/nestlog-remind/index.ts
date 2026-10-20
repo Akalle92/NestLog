@@ -1,10 +1,13 @@
 // Nestlog reminders while the app is closed. pg_cron calls this every 5 minutes (see supabase/nestlog_init.sql).
 // For each overdue feed or diaper it sends one Web Push to every phone in push_subs, once per entry,
-// recording what was sent in push_sent. Phones that unsubscribed (404/410) are removed.
+// recording what was sent in push_sent. Phones that unsubscribed (404/410) are removed. It also reminds
+// whoever started a sleep timer that has run past settings.sleepCheck.
+// The active_sleep_push trigger calls it with {event:'sleep_start'|'sleep_end', start, actor} so the rest of
+// the family hears when the baby falls asleep or wakes up (settings.sleepNotify, on unless false).
 // Keys are in Vault (see supabase/nestlog_init.sql): the cron secret is made by the database, and the VAPID
 // key pair is made on the first run and stored once. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are built in.
 import webpush from 'npm:web-push@3.6.7';
-import { dueFor } from './due.js';
+import { dueFor, sleepCheckFor, sleepNews } from './due.js';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!, KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -28,7 +31,9 @@ Deno.serve(async req => {
   webpush.setVapidDetails('mailto:ankurkalle@gmail.com', c.nestlog_vapid_public, c.nestlog_vapid_private);
   const test = new URL(req.url).searchParams.get('test'); // ?test=<email>: send one test notification to that person's phones
   /* only phones of people still on the family list */
-  const family = new Set((await db('family_members?select=email')).map((f: any) => f.email));
+  const members = await db('family_members?select=email,name'), names: Record<string, string> = {};
+  members.forEach((f: any) => names[f.email] = f.name || f.email.split('@')[0]);
+  const family = new Set(Object.keys(names));
   const subs = (await db('push_subs?select=endpoint,email,p256dh,auth')).filter((s: any) => family.has(s.email));
   const send = async (s: any, msg: object) => {
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(msg), { TTL: 3600, urgency: 'high' }); return true; }
@@ -45,18 +50,37 @@ Deno.serve(async req => {
   }
   const [settings] = (await db('settings?select=data&id=eq.baby')).map((r: any) => r.data);
   if (!settings || !subs.length) return Response.json({ sent: 0 });
-  const [feed, diaper, nursing] = await Promise.all([latest('nurse,bottle'), latest('diaper'), db('active?select=kind&kind=eq.nurse')]);
-  const due = dueFor(settings, feed, diaper, nursing.length > 0, Date.now());
+  /* push one message to some phones, once per (phone, kind, entry) */
   let sent = 0;
-  for (const d of due) {
-    const done = new Set((await db(`push_sent?select=endpoint&kind=eq.${d.kind}&entry_id=eq.${encodeURIComponent(d.entry)}`)).map((r: any) => r.endpoint));
-    for (const s of subs) {
+  const deliver = async (to: any[], kind: string, entry: string, msg: { title: string, body: string }) => {
+    const done = new Set((await db(`push_sent?select=endpoint&kind=eq.${kind}&entry_id=eq.${encodeURIComponent(entry)}`)).map((r: any) => r.endpoint));
+    for (const s of to) {
       if (done.has(s.endpoint)) continue;
-      if (await send(s, { title: d.title, body: d.body, tag: 'nestlog-' + d.kind })) {
+      if (await send(s, { ...msg, tag: 'nestlog-' + kind })) {
         sent++;
-        await db('push_sent', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ endpoint: s.endpoint, kind: d.kind, entry_id: d.entry }) });
+        await db('push_sent', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ endpoint: s.endpoint, kind, entry_id: entry }) });
       }
     }
+  };
+
+  const ev = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+  if (ev.event === 'sleep_start' || ev.event === 'sleep_end') {
+    if (settings.sleepNotify === false || !(+ev.start > 0)) return Response.json({ sent: 0 });
+    const actor = String(ev.actor || '').toLowerCase(), others = subs.filter((s: any) => s.email !== actor);
+    if (ev.event === 'sleep_start') await deliver(others, 'sleep_start', `sleep-${ev.start}`, sleepNews(settings, 'sleep_start', names[actor] || ''));
+    else {
+      /* "Woke up" saves the sleep before clearing the timer; a discarded timer has no saved sleep, so nothing is sent */
+      const recent = (await db('logs?select=data&data->>type=eq.sleep&order=t.desc&limit=3')).map((r: any) => r.data).find((l: any) => +l.end >= Date.now() - 3 * 60e3);
+      if (recent) await deliver(others, 'sleep_end', `sleep-${ev.start}`, sleepNews(settings, 'sleep_end', names[actor] || '', recent.end - recent.t));
+    }
+    return Response.json({ sent, event: ev.event });
   }
-  return Response.json({ sent, due: due.map(d => d.kind) });
+
+  const [feed, diaper, active] = await Promise.all([latest('nurse,bottle'), latest('diaper'), db('active?select=kind,data')]);
+  const nursing = active.some((a: any) => a.kind === 'nurse'), sleep = active.find((a: any) => a.kind === 'sleep')?.data;
+  const due = dueFor(settings, feed, diaper, nursing, Date.now());
+  for (const d of due) await deliver(subs, d.kind, d.entry, d);
+  const check = sleepCheckFor(settings, sleep, Date.now());
+  if (check) await deliver(subs.filter((s: any) => !check.to || s.email === check.to), check.kind, check.entry, check);
+  return Response.json({ sent, due: due.map(d => d.kind).concat(check ? ['sleep_check'] : []) });
 });

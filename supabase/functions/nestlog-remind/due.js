@@ -20,3 +20,18 @@ export function dueFor(settings, lastFeed, lastDiaper, nursing, now) {
     out.push({ kind: 'diaper', entry: lastDiaper.id, title: `Time to check ${name}’s diaper`, body: `${dur(now - lastDiaper.t)} since the last diaper change.` });
   return out;
 }
+
+// A sleep timer left running past settings.sleepCheck minutes reminds the person who started it, once per timer.
+// Mirrors the 'sleep' part of dueState() in index.html.
+export function sleepCheckFor(settings, sleep, now) {
+  const gap = +settings.sleepCheck, name = settings.name || 'Baby';
+  if (!gap || !sleep || !sleep.start || now - sleep.start < gap * MIN) return null;
+  return { kind: 'sleep_check', entry: `sleep-${sleep.start}`, to: sleep.by || null, title: 'Sleep timer still running', body: `Started ${dur(now - sleep.start)} ago. Did ${name} wake up?` };
+}
+
+// What the rest of the family hears when a sleep timer starts or a sleep is saved.
+export function sleepNews(settings, event, who, slept) {
+  const name = settings.name || 'Baby';
+  if (event === 'sleep_start') return { title: `${name} fell asleep`, body: who ? `Sleep timer started by ${who}.` : 'Sleep timer started.' };
+  return { title: `${name} woke up`, body: `Slept ${dur(slept)}${who ? `. Logged by ${who}` : ''}.` };
+}

@@ -61,7 +61,7 @@ function cleanActive(kind, raw) {
 }
 function cleanSettings(raw) {
   raw = raw && typeof raw === 'object' ? raw : {};
-  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', sex: ['M', 'F'].includes(raw.sex) ? raw.sex : '', chart: ['who', 'cdc', 'iap'].includes(raw.chart) ? raw.chart : 'who', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg', temp: raw.temp === 'F' ? 'F' : 'C', feedGap: Math.min(720, num(raw.feedGap)), diaperGap: Math.min(720, num(raw.diaperGap)) };
+  return { name: str(raw.name, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(raw.birth || '') ? raw.birth : '', sex: ['M', 'F'].includes(raw.sex) ? raw.sex : '', chart: ['who', 'cdc', 'iap'].includes(raw.chart) ? raw.chart : 'who', vol: raw.vol === 'oz' ? 'oz' : 'ml', wt: raw.wt === 'lb' ? 'lb' : 'kg', temp: raw.temp === 'F' ? 'F' : 'C', feedGap: Math.min(720, num(raw.feedGap)), diaperGap: Math.min(720, num(raw.diaperGap)), sleepCheck: Math.min(720, num(raw.sleepCheck)), sleepNotify: raw.sleepNotify !== false };
 }
 
 /* ---------- storage: one JSON file, written atomically ---------- */

@@ -359,6 +359,16 @@ function paletteAudit() {
     check('reminders: not repeated for the same feed after reopening', notes.length === 0, JSON.stringify(notes));
     await p.click('[data-open="bottle"]'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(300);
     check('reminders: logging a feed clears the due state', !(await p.locator('.fact.k-feed.due').count()));
+    /* a sleep timer left running past "Check sleep timer after" gives one nudge */
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('nestlog-v1')); d.active = { sleep: { start: Date.now() - 2.5 * 36e5, by: null } }; localStorage.setItem('nestlog-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('.tabs [data-tab="baby"]'); await p.selectOption('#setSleepCheck', '120'); await p.waitForTimeout(1300);
+    notes = await p.evaluate(() => window.__notes);
+    check('reminders: a forgotten sleep timer gives one nudge', notes.filter(n => n === 'Sleep timer still running').length === 1, JSON.stringify(notes));
+    check('reminders: the sleep check setting is saved', await p.evaluate(() => JSON.parse(localStorage.getItem('nestlog-v1')).settings.sleepCheck) === 120);
+    check('reminders: sleep news is a family-cloud setting', !(await p.isVisible('#sleepNotifyField')));
+    await p.reload(); await p.waitForTimeout(1500);
+    check('reminders: the sleep nudge is not repeated', !(await p.evaluate(() => window.__notes.length)));
     const taste = await p.evaluate(tasteAudit);
     check('reminders: taste house rules', !taste.length, taste.join(' | '));
     check('reminders: no script errors', !errors.length, errors.join(' | '));
@@ -397,6 +407,11 @@ function paletteAudit() {
     const n = Date.now(), H = 36e5, set = { name: 'Mira', feedGap: 180, diaperGap: 0 };
     const d1 = dueFor(set, { id: 'f1', t: n - 3.1 * H }, { id: 'd1', t: n - 9 * H }, false, n);
     check('push: server reminds about an overdue feed, in the app’s words', d1.length === 1 && d1[0].kind === 'feed' && d1[0].entry === 'f1' && d1[0].title === 'Mira may be hungry' && d1[0].body === '3h 6m since the last feed.', JSON.stringify(d1));
+    const { sleepCheckFor, sleepNews } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'supabase', 'functions', 'nestlog-remind', 'due.js')).href);
+    const sc = sleepCheckFor({ name: 'Mira', sleepCheck: 180 }, { start: n - 3.25 * H, by: 'a@x.com' }, n);
+    check('push: a sleep timer past its check reminds whoever started it', sc && sc.to === 'a@x.com' && sc.entry === `sleep-${n - 3.25 * H}` && sc.body === 'Started 3h 15m ago. Did Mira wake up?', JSON.stringify(sc));
+    check('push: no sleep check before the gap or when off', !sleepCheckFor({ sleepCheck: 180 }, { start: n - 2 * H }, n) && !sleepCheckFor({ sleepCheck: 0 }, { start: 0 }, n));
+    check('push: family hears sleep start and end', sleepNews({ name: 'Mira' }, 'sleep_start', 'Bhuvana').title === 'Mira fell asleep' && sleepNews({ name: 'Mira' }, 'sleep_end', 'Ankur', 100 * 6e4).body === 'Slept 1h 40m. Logged by Ankur.');
     check('push: nothing due within the gap, while nursing, or with reminders off', !dueFor(set, { id: 'f1', t: n - 2 * H }, null, false, n).length && !dueFor(set, { id: 'f1', t: n - 4 * H }, null, true, n).length && !dueFor({ feedGap: 0, diaperGap: 0 }, { id: 'f', t: 0 }, { id: 'd', t: 0 }, false, n).length);
   }
 
@@ -658,6 +673,7 @@ function paletteAudit() {
     await pushPhone.click('.tabs [data-tab="baby"]'); await pushPhone.click('[data-act="allowNotify"]'); await pushPhone.waitForTimeout(500);
     check('push: phone subscribes with the 65-byte server key and is saved for its owner', fake.pushSubs['https://push.example/phone-b']?.email === 'b@x.com' && (await pushPhone.evaluate(() => window.__key)) === 65, JSON.stringify(fake.pushSubs));
     check('push: settings say reminders arrive with the app closed', /even when Nestlog is closed/.test(await text(pushPhone, '#remindNote')));
+    check('push: the family cloud offers sleep news, on by default', await pushPhone.isVisible('#sleepNotifyField') && (await pushPhone.inputValue('#setSleepNotify')) === '1');
     await pushPhone.waitForTimeout(1200);
     check('push: no second, local notification while push is on', !(await pushPhone.evaluate(() => window.__notes.length)));
     await pushPhone.screenshot({ path: `${SHOTS}/14-push-on.png`, fullPage: true });

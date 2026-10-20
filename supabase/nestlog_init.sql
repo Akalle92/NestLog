@@ -125,7 +125,7 @@ revoke all on public.push_subs from anon;
 -- server only: row-level security on and no policies, so only the service role (the function) uses it
 create table public.push_sent (
   endpoint text not null references public.push_subs (endpoint) on delete cascade,
-  kind text not null check (kind in ('feed', 'diaper')),
+  kind text not null check (kind in ('feed', 'diaper', 'sleep_start', 'sleep_end', 'sleep_check')),
   entry_id text not null,
   sent timestamptz not null default now(),
   primary key (endpoint, kind, entry_id)
@@ -173,3 +173,27 @@ select cron.schedule('nestlog-remind', '*/5 * * * *', $$
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'nestlog_cron_secret')),
     body := '{}'::jsonb, timeout_milliseconds := 20000)
 $$);
+
+-- Sleep news: when a sleep timer starts or stops, tell the reminder function so the rest of the family hears it.
+-- actor is whoever's request started or stopped the timer, so their own phone isn't told. Moving the start time
+-- is an update, so it doesn't fire.
+create function private.active_sleep_push() returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+declare r public.active;
+begin
+  if tg_op = 'INSERT' then r := new; else r := old; end if;
+  if r.kind <> 'sleep' then return null; end if;
+  perform net.http_post(
+    url := 'https://fcthxmkmkqthhkyeymjc.supabase.co/functions/v1/nestlog-remind',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'nestlog_cron_secret')),
+    body := jsonb_build_object('event', case when tg_op = 'INSERT' then 'sleep_start' else 'sleep_end' end,
+      'start', r.data -> 'start', 'by', r.data -> 'by', 'actor', lower(coalesce(auth.jwt() ->> 'email', ''))),
+    timeout_milliseconds := 20000);
+  return null;
+end;
+$$;
+revoke all on function private.active_sleep_push() from public, anon, authenticated;
+create trigger active_sleep_push after insert or delete on public.active
+  for each row execute function private.active_sleep_push();

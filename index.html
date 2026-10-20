@@ -389,6 +389,8 @@ body.reporting .app,body.reporting #tabbar{display:none}
       <div class="grid2">
         <div class="field"><label class="label" for="setFeedGap">Feed due after</label><select id="setFeedGap" data-gap="feedGap"></select></div>
         <div class="field"><label class="label" for="setDiaperGap">Diaper due after</label><select id="setDiaperGap" data-gap="diaperGap"></select></div>
+        <div class="field"><label class="label" for="setSleepCheck">Check sleep timer after</label><select id="setSleepCheck" data-gap="sleepCheck"></select></div>
+        <div class="field" id="sleepNotifyField"><label class="label" for="setSleepNotify">Sleep news to family</label><select id="setSleepNotify" data-gap="sleepNotify"><option value="1">On</option><option value="0">Off</option></select></div>
       </div>
       <p class="note" id="remindNote"></p>
       <div class="stack" id="remindActions"></div>
@@ -493,7 +495,7 @@ const MILESTONES = ['First smile','Rolled over','Sat up','First tooth','Crawled'
 const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 
 /* ---------- state ---------- */
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -842,11 +844,14 @@ function nurseTotals(){
 
 /* ---------- reminders: a feed or diaper is "due" once its gap has passed since the last one ---------- */
 const GAPS = [[0,'Off'],[120,'2 hours'],[150,'2½ hours'],[180,'3 hours'],[210,'3½ hours'],[240,'4 hours'],[300,'5 hours']];
+const SLEEP_GAPS = [[0,'Off'],[120,'2 hours'],[180,'3 hours'],[240,'4 hours'],[360,'6 hours']];
 const isFeed = l => l.type==='nurse' || l.type==='bottle';
 function dueState(){
   const st = S.settings, feed = lastOf(isFeed), diaper = lastOf(l => l.type==='diaper');
   const due = (gap, last) => !!(gap && last && now() - last.t >= gap*MIN);
-  return { feed: !S.active.nurse && due(+st.feedGap, feed) ? feed : null, diaper: due(+st.diaperGap, diaper) ? diaper : null };
+  /* a sleep timer left running past sleepCheck: keyed by its start, like an entry (mirrors sleepCheckFor in due.js) */
+  const sl = S.active.sleep, sleep = sl && +st.sleepCheck && now() - sl.start >= st.sleepCheck*MIN ? {id:'sleep-'+sl.start, t:sl.start, by:sl.by} : null;
+  return { feed: !S.active.nurse && due(+st.feedGap, feed) ? feed : null, diaper: due(+st.diaperGap, diaper) ? diaper : null, sleep };
 }
 const canNotify = () => 'Notification' in window;
 /* Web Push (cloud): the nestlog-remind function sends reminders even when the app is closed. This phone's
@@ -885,9 +890,10 @@ function checkReminders(){
   const d = dueState(), name = S.settings.name || 'Baby'; let changed = false;
   for (const [kind, last] of Object.entries(d)){
     if (!last || seen[kind] === last.id) continue;
+    if (kind==='sleep' && S.mode==='cloud' && last.by && last.by !== S.me) continue; /* only the phone that started it */
     seen[kind] = last.id; changed = true;
-    const body = `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
-    const title = kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
+    const body = kind==='sleep' ? `Started ${dur(now()-last.t)} ago. Did ${name} wake up?` : `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
+    const title = kind==='sleep' ? 'Sleep timer still running' : kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
     const opts = {body, tag:'nestlog-'+kind, icon:'icons/icon-192.png', badge:'icons/icon-192.png'};
     notify(title, opts);
   }
@@ -895,12 +901,16 @@ function checkReminders(){
 }
 function renderReminders(){
   const st = S.settings;
-  for (const [id, key] of [['setFeedGap','feedGap'],['setDiaperGap','diaperGap']]){
+  for (const [id, key, list] of [['setFeedGap','feedGap',GAPS],['setDiaperGap','diaperGap',GAPS],['setSleepCheck','sleepCheck',SLEEP_GAPS]]){
     const sel = $(id); if (document.activeElement === sel) continue;
-    sel.innerHTML = GAPS.map(([v,l]) => `<option value="${v}" ${(+st[key]||0)===v?'selected':''}>${l}</option>`).join('');
+    sel.innerHTML = list.map(([v,l]) => `<option value="${v}" ${(+st[key]||0)===v?'selected':''}>${l}</option>`).join('');
   }
-  const on = +st.feedGap || +st.diaperGap, perm = canNotify() ? Notification.permission : 'unsupported';
+  /* telling the others needs the server, so it's a family-cloud setting */
+  $('sleepNotifyField').hidden = S.mode!=='cloud';
+  if (document.activeElement !== $('setSleepNotify')) $('setSleepNotify').value = st.sleepNotify === false ? '0' : '1';
+  const on = +st.feedGap || +st.diaperGap || +st.sleepCheck || (S.mode==='cloud' && st.sleepNotify !== false), perm = canNotify() ? Notification.permission : 'unsupported';
   $('remindNote').textContent = !on ? 'Pick a gap and Today shows when a feed or diaper change is due. Shared with everyone who logs.'
+    : S.mode==='cloud' && st.sleepNotify !== false && !(+st.feedGap || +st.diaperGap) && perm==='granted' ? 'This phone hears when the baby falls asleep or wakes up, even when Nestlog is closed.'
     : perm==='granted' && pushOn() ? 'Today shows when one is due, and this phone gets a notification even when Nestlog is closed.'
     : perm==='granted' ? 'Today shows when one is due, and this phone gets a notification while Nestlog is open or running in the background.'
     : perm==='denied' ? 'Today shows when one is due. Notifications are blocked for this site; turn them on in the browser’s site settings.'
@@ -1741,7 +1751,7 @@ async function readImport(file){
   const fresh = []; let dupes = 0, bad = 0;
   const fromCsv = !isJson && !nara;
   for (const r of raws){ const n = normalize(r, fromCsv); if (!n){ bad++; continue; } if (have.has(n.id) || seen.has(n.id)){ dupes++; continue; } seen.add(n.id); fresh.push(n); }
-  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', sex:['M','F'].includes(settings.sex)?settings.sex:S.settings.sex||'', chart:['who','cdc','iap'].includes(settings.chart)?settings.chart:S.settings.chart||'who', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C'}; }
+  if (settings){ settings = {...S.settings, name:str(settings.name,40), birth:/^\d{4}-\d{2}-\d{2}$/.test(settings.birth||'')?settings.birth:'', sex:['M','F'].includes(settings.sex)?settings.sex:S.settings.sex||'', chart:['who','cdc','iap'].includes(settings.chart)?settings.chart:S.settings.chart||'who', vol:settings.vol==='oz'?'oz':'ml', wt:settings.wt==='lb'?'lb':'kg', temp:settings.temp==='F'?'F':'C', sleepCheck:Math.min(720, Math.max(0, +settings.sleepCheck||0)), sleepNotify:settings.sleepNotify!==false}; }
   pending = {fresh, settings};
   const counts = {}; fresh.forEach(f => counts[f.data.type] = (counts[f.data.type]||0)+1);
   const fdt = t => new Date(t).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
@@ -1853,8 +1863,10 @@ document.addEventListener('input', e => {
   if (e.target.type==='datetime-local') e.target.parentElement.querySelectorAll('[data-ago]').forEach(b=>b.setAttribute('aria-pressed','false'));
 });
 document.addEventListener('change', e => {
-  if (e.target.dataset?.gap){ const key = e.target.dataset.gap, v = +e.target.value;
-    write(()=>store.setSettings({...S.settings, [key]:v})).then(ok => { if (ok){ toast(v ? `${key==='feedGap'?'Feed':'Diaper'} reminder after ${GAPS.find(g=>g[0]===v)[1]}` : 'Reminder off'); e.target.blur(); renderReminders(); } }); }
+  if (e.target.dataset?.gap){ const key = e.target.dataset.gap, v = key==='sleepNotify' ? e.target.value==='1' : +e.target.value, label = e.target.selectedOptions[0]?.textContent || '';
+    const msg = key==='sleepNotify' ? (v ? 'The family will hear when sleep starts and ends' : 'Sleep news off')
+      : !v ? 'Reminder off' : key==='sleepCheck' ? `Sleep timer check after ${label}` : `${key==='feedGap'?'Feed':'Diaper'} reminder after ${label}`;
+    write(()=>store.setSettings({...S.settings, [key]:v})).then(ok => { if (ok){ toast(msg); e.target.blur(); renderReminders(); } }); }
   if (e.target.id==='fAdj' && S.active.sleep){
     const v = fromLocalInput(e.target.value);
     if (v < now()) write(()=>store.setActive('sleep',{...S.active.sleep,start:v})).then(ok=>ok&&toast('Sleep start updated'));
