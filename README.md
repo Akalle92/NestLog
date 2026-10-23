@@ -113,7 +113,7 @@ Open the "On your phones" address on each phone (same Wi-Fi), then add it to the
 2. Add it to your home screen: **Share → Add to Home Screen** on iPhone, **⋮ → Add to Home screen** on Android.
 3. Set the baby's name, birth date and units under the **Baby** tab.
 
-It opens full-screen like an app, with its own icon.
+It opens full-screen like an app, with its own icon and a launch screen that matches light or dark. On Android, press and hold the icon for shortcuts straight to Bottle, Diaper, Sleep or Nurse. Swipe a sheet down to close it, and hold + or − to change an amount quickly.
 
 ## Where the data lives
 
@@ -134,6 +134,7 @@ npm start                      # plain static server (per-device local mode)
 npm install                    # once, for the tests
 npx playwright install chromium
 npm test                       # phone-sized browser checks, light and dark
+node tests/make-assets.js      # redraw the badge, shortcut icons and iPhone launch screens
 ```
 
 `npm test` writes screenshots to `tests/screenshots/` so you can eyeball every screen.
