@@ -423,6 +423,26 @@ function paletteAudit() {
     await rm.close();
   }
 
+  /* assets: manifest shortcuts and ?open=, notification badge, iPhone launch screens, brand mark */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    const man = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+    const icons = man.shortcuts.flatMap(s => s.icons.map(i => i.src));
+    check('assets: the manifest has four shortcuts with icons on disk', man.shortcuts.length === 4 && icons.every(f => fs.existsSync(path.join(__dirname, '..', f))), icons.join(' '));
+    await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(300);
+    check('assets: the empty Today shows the brand mark', await p.locator('#view-home .empty .mark').count() === 1);
+    await p.goto(URL + '?open=bottle'); await p.waitForTimeout(400);
+    check('assets: ?open=bottle opens the Bottle sheet and leaves a clean address', await p.locator('.sheet #fAmt').count() === 1 && !(await p.evaluate(() => location.search)));
+    const badge = await p.evaluate(async () => { const i = new Image(); i.src = 'icons/badge-96.png'; await i.decode(); return [i.naturalWidth, i.naturalHeight]; });
+    check('assets: the notification badge is 96×96', badge[0] === 96 && badge[1] === 96, badge.join('×'));
+    const launch = await p.evaluate(() => Promise.all([...document.querySelectorAll('link[rel="apple-touch-startup-image"]')].map(l => fetch(l.href).then(r => r.status))));
+    check('assets: every iPhone launch screen loads', launch.length >= 10 && launch.every(s => s === 200), launch.join(' '));
+    check('assets: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
   /* reminders: due state on Today, one notification per gap */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
@@ -722,6 +742,7 @@ function paletteAudit() {
     check('cloud: sign-in has no horizontal overflow', await noOverflow(a));
     const tasteSignin = await a.evaluate(tasteAudit);
     check('cloud: sign-in follows taste house rules', !tasteSignin.length, tasteSignin.join(' | '));
+    check('cloud: sign-in shows the brand mark', await a.isVisible('.signin .mark'));
     await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
     await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
