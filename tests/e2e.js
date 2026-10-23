@@ -384,6 +384,45 @@ function paletteAudit() {
     await ctx.close();
   }
 
+  /* motion: saved entry highlight, tile check, toast exit, stepper hold, and none of it with reduced motion */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed); await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(250);
+    await p.evaluate(() => { window.__leaving = false; const t = document.getElementById('toast');
+      new MutationObserver(() => { if (t.classList.contains('leaving') && !t.hidden) window.__leaving = true; }).observe(t, { attributes: true }); });
+    await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(150);
+    check('motion: the saved entry is highlighted', (await p.locator('#recent .entry.just-saved').count()) === 1);
+    check('motion: its tile shows a check', (await p.locator('.tile[data-open="diaper"] .ic.done').count()) === 1);
+    await p.screenshot({ path: `${SHOTS}/19-just-saved.png` });
+    await p.waitForTimeout(1700);
+    check('motion: the highlight and check clear by themselves', !(await p.locator('.just-saved, .ic.done').count()));
+    await p.waitForTimeout(1200);
+    check('motion: the toast slides out before hiding', await p.evaluate(() => window.__leaving) && !(await p.isVisible('#toast')));
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const before = +(await p.inputValue('#fAmt'));
+    const plus = await p.locator('[data-step="fAmt"][data-d^="1"], [data-step="fAmt"]:not([data-d^="-"])').first().boundingBox();
+    await p.mouse.move(plus.x + plus.width / 2, plus.y + plus.height / 2); await p.mouse.down(); await p.waitForTimeout(1300); await p.mouse.up(); await p.waitForTimeout(100);
+    const after = +(await p.inputValue('#fAmt'));
+    check('motion: holding + keeps adding', after - before >= 60, `${before} → ${after}`);
+    await p.click('.sheet .x'); await p.waitForTimeout(400);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(30);
+    check('motion: a new tab rises in', await p.evaluate(() => document.getElementById('view-trends').classList.contains('enter')));
+    await p.waitForTimeout(400);
+    check('motion: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+    const rm = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', hasTouch: true, isMobile: true });
+    const q = await rm.newPage();
+    await q.goto(URL); await q.evaluate(seed); await q.reload(); await q.waitForTimeout(300);
+    await q.click('[data-open="diaper"]'); await q.waitForTimeout(50);
+    const opening = await q.evaluate(() => document.getAnimations().length);
+    await q.click('.sheet .x'); await q.waitForTimeout(30);
+    check('motion: with reduced motion nothing animates and sheets close at once', opening === 0 && !(await q.locator('.sheet').count()), `animations ${opening}`);
+    await rm.close();
+  }
+
   /* reminders: due state on Today, one notification per gap */
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });

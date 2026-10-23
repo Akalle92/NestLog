@@ -89,6 +89,21 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 @media (prefers-reduced-motion:no-preference){
   .press{transition:transform var(--t-fast) var(--ease), background var(--t-fast)}
   .press:active{transform:scale(.97)}
+  /* just saved: the entry washes with its family tint, the tile shows a check, changed numbers pop */
+  .entry.just-saved{animation:saved 1.4s var(--ease)}
+  @keyframes saved{0%,35%{background:color-mix(in srgb, var(--c) var(--tint), var(--surface))}}
+  .tile .ic.done svg{animation:tick var(--t-med) var(--ease)}
+  @keyframes tick{from{transform:scale(.4);opacity:0}}
+  .pop{display:inline-block;animation:pop var(--t-med) var(--ease)}
+  @keyframes pop{40%{transform:scale(1.08)}}
+  /* tab change: the new view rises in */
+  main.enter{animation:enter var(--t-med) var(--ease)}
+  @keyframes enter{from{opacity:0;transform:translateY(6px)}}
+  /* theme picker: crossfade instead of a snap */
+  .theme-fade,.theme-fade *{transition:background-color var(--t-med),color var(--t-med),fill var(--t-med),stroke var(--t-med)!important}
+  .toast{animation:toastin var(--t-med) var(--ease);transition:opacity var(--t-fast),translate var(--t-fast)}
+  .toast.leaving{opacity:0;translate:0 12px}
+  @keyframes toastin{from{opacity:0;translate:0 12px}}
 }
 
 /* header */
@@ -490,7 +505,8 @@ const I = {
   list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
   chart: sv('<path d="M4 19h16"/><path d="m5 15 4-5 4 3 6-7"/>'),
   baby: sv('<circle cx="12" cy="12.5" r="7.5"/><path d="M9.5 15c.7.6 1.5.9 2.5.9s1.8-.3 2.5-.9"/><path d="M9.5 11h.01M14.5 11h.01"/><path d="M12 5c-.8 1.2-.4 2.5 1 2.5"/>'),
-  x: sv('<path d="M6 6l12 12M18 6 6 18"/>')
+  x: sv('<path d="M6 6l12 12M18 6 6 18"/>'),
+  check: sv('<path d="m5 12.5 4.5 4.5L19 7"/>')
 };
 const TYPES = {
   nurse:{label:'Nursing',short:'Nurse',k:'feed',icon:I.nurse,group:'feed'},
@@ -517,7 +533,8 @@ const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 /* Appearance is per phone (localStorage['nestlog-theme']), not shared: 'auto' follows the phone */
 const theme = {
   get(){ try { const t = localStorage.getItem('nestlog-theme'); return t==='light' || t==='dark' ? t : 'auto'; } catch { return 'auto'; } },
-  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {} this.apply(); },
+  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {}
+    const r = document.documentElement; r.classList.add('theme-fade'); this.apply(); clearTimeout(this.ft); this.ft = setTimeout(() => r.classList.remove('theme-fade'), 320); },
   apply(){
     const t = this.get(), root = document.documentElement;
     if (t==='auto') delete root.dataset.theme; else root.dataset.theme = t;
@@ -531,7 +548,7 @@ const theme = {
   }
 };
 theme.apply();
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', lastSaved:null, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -978,6 +995,25 @@ function renderReminders(){
 
 /* ---------- render ---------- */
 const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
+/* press and hold +/− to keep stepping, faster after a moment */
+let stepHeld = false, stepTimer = null;
+const stepOnce = el => { const inp = $(el.dataset.step); if (!inp) return; inp.value = Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(el.dataset.d)).toFixed(2)); inp.dispatchEvent(new Event('input', {bubbles:true})); };
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest?.('[data-step]'); if (!el) return;
+  stepHeld = false; clearTimeout(stepTimer);
+  const run = (gap, first) => { stepTimer = setTimeout(() => { stepHeld = true; stepOnce(el); buzz(); run(first ? 110 : Math.max(45, gap*0.85)); }, gap); };
+  run(400, true);
+});
+['pointerup','pointercancel','pointerleave'].forEach(n => document.addEventListener(n, e => { if (e.target.closest?.('[data-step]') || n!=='pointerleave') clearTimeout(stepTimer); }, true));
+/* the entry just saved (and the tile it came from) shows a brief confirmation */
+const markSaved = (id, type) => { S.lastSaved = {id, type, at: now()}; clearTimeout(markSaved.t); markSaved.t = setTimeout(render, 1600); };
+const justSaved = () => S.lastSaved && now() - S.lastSaved.at < 1500 ? S.lastSaved : null;
+/* a number that changed since the last render gives a small pop */
+function popChanged(box){
+  const vals = [...box.querySelectorAll('b')].map(b => b.textContent), prev = box._vals;
+  if (prev) box.querySelectorAll('b').forEach((b, i) => { if (prev[i] !== undefined && prev[i] !== vals[i]) b.classList.add('pop'); });
+  box._vals = vals;
+}
 function render(){
   const signin = S.mode==='cloud' && !auth.s;
   $('top').hidden = signin; $('tabbar').hidden = signin; $('view-signin').hidden = !signin;
@@ -995,6 +1031,7 @@ function render(){
   if (waiting) $('syncText').textContent += ` · ${waiting} waiting`;
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
+  if (S.tab !== render.tab){ $('view-'+S.tab).classList.remove('enter'); void $('view-'+S.tab).offsetWidth; if (render.tab) $('view-'+S.tab).classList.add('enter'); render.tab = S.tab; }
   if (S.tab==='home') renderHome();
   if (S.tab==='timeline') renderTimeline();
   if (S.tab==='trends') renderTrends();
@@ -1050,7 +1087,7 @@ function renderLive(){
 }
 function renderHome(){
   renderStatus(); renderLive();
-  const tile = (k, sub) => { const t = TYPES[k]; return `<button type="button" class="tile tint k-${t.k} press" data-open="${k}"><span class="ic">${t.icon}</span><span class="tl"><b>${t.short}</b>${sub?`<small>${sub}</small>`:''}</span></button>`; };
+  const tile = (k, sub) => { const t = TYPES[k], ok = justSaved()?.type===k; return `<button type="button" class="tile tint k-${t.k} press" data-open="${k}"><span class="ic${ok?' done':''}">${ok ? I.check : t.icon}</span><span class="tl"><b>${t.short}</b>${sub?`<small>${sub}</small>`:''}</span></button>`; };
   const nurse = lastOf(l => l.type==='nurse' && l.last);
   const lastBottle = lastOf(l => l.type==='bottle');
   $('primary4').innerHTML =
@@ -1066,6 +1103,7 @@ function renderHome(){
     `<div><b class="num">${volOut(d.bottleMl)}<small> ${volU()}</small></b><span>bottle</span></div>`+
     `<div><b class="num">${dur(d.sleepMs)}</b><span>sleep</span></div>`+
     `<div><b class="num">${d.wet}·${d.dirty}</b><span>wet·dirty</span></div>`;
+  popChanged($('totals'));
 
   if (!S.loaded){ $('recent').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>'; return; }
   const recent = S.logs.slice(0,5);
@@ -1077,7 +1115,7 @@ function entryHtml(l){
   /* who logged it, yourself included: a family member's name, else the caregiver name from an import */
   const name = (l.by && S.names[l.by]) || l.byName || '';
   const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
-  return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
+  return `<button type="button" class="entry k-${t.k}${justSaved()?.id===l.id ? ' just-saved' : ''}" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
 }
 let namesPending = false;
 async function resolveNames(){
@@ -1591,7 +1629,7 @@ async function saveSheet(){
     } else if (photo) data.photo = photo;
     if (e.photo && !data.photo) storage('DELETE', e.photo).catch(()=>{});
   }
-  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast((existing ? 'Changes saved.' : `${TYPES[type].label} saved.`) + photoNote); }
+  if (await write(()=>store.putLog(id, data))){ markSaved(id, type); closeSheet(); render(); toast((existing ? 'Changes saved' : `${TYPES[type].label} saved`) + (photoNote ? '.' + photoNote : '')); }
 }
 
 async function act(a, el){
@@ -1637,7 +1675,8 @@ async function act(a, el){
     const s = S.active.sleep; if (!s) return closeSheet();
     const start = $('fAdj') ? fromLocalInput($('fAdj').value) : s.start;
     if (start >= now()){ toast('Sleep start must be in the past'); return; }
-    if (await write(async()=>{ await store.putLog(uid(),{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ closeSheet(); toast(`Sleep saved · ${dur(now()-start)}`); }
+    const sid = uid();
+    if (await write(async()=>{ await store.putLog(sid,{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ markSaved(sid, 'sleep'); closeSheet(); render(); toast(`Sleep saved · ${dur(now()-start)}`); }
     return;
   }
   if (a==='cancelSleep'){ if (await write(()=>store.setActive('sleep',null))){ closeSheet(); toast('Sleep timer discarded'); } return; }
@@ -1646,7 +1685,8 @@ async function act(a, el){
   if (a==='nurseSave'){
     const n=S.active.nurse; if(!n) return; const {L,R}=nurseTotals();
     const last = n.side || n.lastSide || (R>L?'R':'L');
-    if (await write(async()=>{ await store.putLog(uid(),{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); })){ closeSheet(); toast(`Feed saved · ${dur(L+R)}`); }
+    const nid = uid();
+    if (await write(async()=>{ await store.putLog(nid,{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); })){ markSaved(nid, 'nurse'); closeSheet(); render(); toast(`Feed saved · ${dur(L+R)}`); }
     return;
   }
   if (a==='nurseDiscard'){ if (await write(()=>store.setActive('nurse',null))){ closeSheet(); toast('Feed discarded'); } }
@@ -1945,6 +1985,7 @@ document.addEventListener('click', e => {
     if (d.chip==='preset') $('fAmt').value = d.v;
     return;
   }
+  if (d.step && stepHeld){ stepHeld = false; return; } /* a press-and-hold already stepped */
   if (d.step){
     const inp=$(d.step); inp.value=Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(d.d)).toFixed(2));
     if (d.step==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===inp.value)));
@@ -2011,7 +2052,8 @@ function toast(msg, actionLabel, onAction){
   const t=$('toast'); t.textContent=msg;
   if (actionLabel){ const b=document.createElement('button'); b.type='button'; b.textContent=actionLabel; b.onclick=()=>{ t.hidden=true; onAction(); }; t.append(b); }
   t.classList.toggle('top', !!sheetState); /* keep it clear of a sheet's buttons */
-  t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, actionLabel?6000:2600);
+  t.hidden=false; t.classList.remove('leaving'); clearTimeout(toastT); clearTimeout(t._gone);
+  toastT=setTimeout(()=>{ t.classList.add('leaving'); t._gone = setTimeout(()=>{ t.hidden=true; t.classList.remove('leaving'); }, 200); }, actionLabel?6000:2600);
 }
 
 /* clocks: running timers every second, everything else every 30s */
