@@ -1,8 +1,8 @@
 // Nestlog service worker: the app opens with no signal. Only the app's own files are cached; data requests
 // (Supabase, the home server's api/) always go to the network, and the page queues writes while offline.
 // The page is network-first so a new version shows up on the next open; icons and the manifest are cache-first.
-const CACHE = 'nestlog-v2';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'nestlog-v3';
+const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -29,7 +29,7 @@ self.addEventListener('fetch', e => {
 // A reminder from the nestlog-remind function, sent while the app may be closed.
 self.addEventListener('push', e => {
   let m = {}; try { m = e.data ? e.data.json() : {}; } catch {}
-  e.waitUntil(self.registration.showNotification(m.title || 'Nestlog', { body: m.body || '', tag: m.tag || 'nestlog', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' }));
+  e.waitUntil(self.registration.showNotification(m.title || 'Nestlog', { body: m.body || '', tag: m.tag || 'nestlog', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png' }));
 });
 
 // Tapping a reminder opens (or focuses) Nestlog.

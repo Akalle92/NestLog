@@ -138,7 +138,7 @@ function paletteAudit() {
       await p.click('#toast button'); await p.waitForTimeout(200);
       check('undo restores a deleted entry', (await p.locator('#recent .entry').count()) >= before);
 
-      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape');
+      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
       check('Escape closes a sheet', !(await p.locator('.sheet').count()));
     }
 
@@ -221,7 +221,7 @@ function paletteAudit() {
     await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
     await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
-    check('photos: on this device the milestone sheet explains photos need the family cloud', /family cloud/.test(await text(p, '#photoBox')));
+    check('photos: on this device sheets offer no photo (they live in the family cloud)', !(await p.locator('#photoBox').count()));
     await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
     await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
@@ -349,6 +349,97 @@ function paletteAudit() {
     await p.emulateMedia({ colorScheme: 'dark' }); await p.click('[data-theme-pick="light"]'); await p.waitForTimeout(150);
     check('appearance: Light stays light when the phone is in dark mode', (await bg()) === light);
     check('appearance: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* sheets: Save always on screen, animated close, swipe down to close */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(() => localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir' }, active: {},
+      logs: { b1: { type: 'bottle', t: Date.now() - 5e6, ml: 120, content: 'formula', brand: 'Kendamil' }, b2: { type: 'bottle', t: Date.now() - 3e6, ml: 60, content: 'breastmilk' } } })));
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const box = await p.locator('#sheetForm button[type=submit]').boundingBox();
+    check('sheets: Save is on screen without scrolling', box && box.y + box.height <= 844, JSON.stringify(box));
+    check('sheets: no brand field while breast milk is picked', !(await p.isVisible('#fBrand')));
+    await p.click('[data-chip="content"][data-v="formula"]');
+    check('sheets: formula brand starts as the last one used', (await p.inputValue('#fBrand')) === 'Kendamil');
+    await p.screenshot({ path: `${SHOTS}/18-bottle-sheet-sticky.png` });
+    await p.click('.sheet .x'); await p.waitForTimeout(60);
+    check('sheets: closing slides away before the sheet is removed', (await p.locator('#sheetRoot.closing .sheet').count()) === 1);
+    await p.waitForTimeout(400);
+    check('sheets: then it is gone', !(await p.locator('.sheet').count()));
+    const swipe = async dy => { const g = await p.locator('.sheet .grab').boundingBox(); await p.mouse.move(g.x + g.width / 2, g.y + 2); await p.mouse.down();
+      for (let i = 1; i <= 8; i++) { await p.mouse.move(g.x + g.width / 2, g.y + 2 + dy * i / 8); await p.waitForTimeout(25); } await p.mouse.up(); await p.waitForTimeout(450); };
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(300);
+    await swipe(40);
+    check('sheets: a short drag springs back', (await p.locator('.sheet').count()) === 1 && !(await p.locator('#sheetRoot.closing').count()));
+    await swipe(160);
+    check('sheets: dragging the handle down closes the sheet', !(await p.locator('.sheet').count()));
+    await p.click('[data-open="milestone"]'); await p.waitForTimeout(80); await p.click('.sheet .x'); await p.waitForTimeout(40); await p.click('[data-open="medicine"]'); await p.waitForTimeout(400);
+    check('sheets: opening a sheet while another closes keeps the new one', (await p.locator('.sheet').count()) === 1 && /Medicine/.test(await text(p, '#sheetTitle')));
+    check('sheets: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* motion: saved entry highlight, tile check, toast exit, stepper hold, and none of it with reduced motion */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed); await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(250);
+    await p.evaluate(() => { window.__leaving = false; const t = document.getElementById('toast');
+      new MutationObserver(() => { if (t.classList.contains('leaving') && !t.hidden) window.__leaving = true; }).observe(t, { attributes: true }); });
+    await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(150);
+    check('motion: the saved entry is highlighted', (await p.locator('#recent .entry.just-saved').count()) === 1);
+    check('motion: its tile shows a check', (await p.locator('.tile[data-open="diaper"] .ic.done').count()) === 1);
+    await p.screenshot({ path: `${SHOTS}/19-just-saved.png` });
+    await p.waitForTimeout(1700);
+    check('motion: the highlight and check clear by themselves', !(await p.locator('.just-saved, .ic.done').count()));
+    await p.waitForTimeout(1200);
+    check('motion: the toast slides out before hiding', await p.evaluate(() => window.__leaving) && !(await p.isVisible('#toast')));
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const before = +(await p.inputValue('#fAmt'));
+    const plus = await p.locator('[data-step="fAmt"][data-d^="1"], [data-step="fAmt"]:not([data-d^="-"])').first().boundingBox();
+    await p.mouse.move(plus.x + plus.width / 2, plus.y + plus.height / 2); await p.mouse.down(); await p.waitForTimeout(1300); await p.mouse.up(); await p.waitForTimeout(100);
+    const after = +(await p.inputValue('#fAmt'));
+    check('motion: holding + keeps adding', after - before >= 60, `${before} → ${after}`);
+    await p.click('.sheet .x'); await p.waitForTimeout(400);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(30);
+    check('motion: a new tab rises in', await p.evaluate(() => document.getElementById('view-trends').classList.contains('enter')));
+    await p.waitForTimeout(400);
+    check('motion: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+    const rm = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', hasTouch: true, isMobile: true });
+    const q = await rm.newPage();
+    await q.goto(URL); await q.evaluate(seed); await q.reload(); await q.waitForTimeout(300);
+    await q.click('[data-open="diaper"]'); await q.waitForTimeout(50);
+    const opening = await q.evaluate(() => document.getAnimations().length);
+    await q.click('.sheet .x'); await q.waitForTimeout(30);
+    check('motion: with reduced motion nothing animates and sheets close at once', opening === 0 && !(await q.locator('.sheet').count()), `animations ${opening}`);
+    await rm.close();
+  }
+
+  /* assets: manifest shortcuts and ?open=, notification badge, iPhone launch screens, brand mark */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    const man = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+    const icons = man.shortcuts.flatMap(s => s.icons.map(i => i.src));
+    check('assets: the manifest has four shortcuts with icons on disk', man.shortcuts.length === 4 && icons.every(f => fs.existsSync(path.join(__dirname, '..', f))), icons.join(' '));
+    await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(300);
+    check('assets: the empty Today shows the brand mark', await p.locator('#view-home .empty .mark').count() === 1);
+    await p.goto(URL + '?open=bottle'); await p.waitForTimeout(400);
+    check('assets: ?open=bottle opens the Bottle sheet and leaves a clean address', await p.locator('.sheet #fAmt').count() === 1 && !(await p.evaluate(() => location.search)));
+    const badge = await p.evaluate(async () => { const i = new Image(); i.src = 'icons/badge-96.png'; await i.decode(); return [i.naturalWidth, i.naturalHeight]; });
+    check('assets: the notification badge is 96×96', badge[0] === 96 && badge[1] === 96, badge.join('×'));
+    const launch = await p.evaluate(() => Promise.all([...document.querySelectorAll('link[rel="apple-touch-startup-image"]')].map(l => fetch(l.href).then(r => r.status))));
+    check('assets: every iPhone launch screen loads', launch.length >= 10 && launch.every(s => s === 200), launch.join(' '));
+    check('assets: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
   }
 
@@ -651,6 +742,7 @@ function paletteAudit() {
     check('cloud: sign-in has no horizontal overflow', await noOverflow(a));
     const tasteSignin = await a.evaluate(tasteAudit);
     check('cloud: sign-in follows taste house rules', !tasteSignin.length, tasteSignin.join(' | '));
+    check('cloud: sign-in shows the brand mark', await a.isVisible('.signin .mark'));
     await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
     await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
