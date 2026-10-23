@@ -260,8 +260,16 @@ details summary::-webkit-details-marker{display:none}
 .sheet .x{width:44px;height:44px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
 .sheet .x svg{width:16px;height:16px}
 .sheet form{display:grid;gap:var(--s5)}
+/* Save stays on screen however tall the sheet is */
+.sheet{padding-bottom:0}
+.sheet-actions{position:sticky;bottom:0;display:grid;gap:var(--s3);background:var(--raised);margin:0 calc(var(--s5) * -1);padding:var(--s3) var(--s5) calc(var(--s5) + env(safe-area-inset-bottom,0px))}
+.sheet-actions:empty{position:static;padding-top:0}
+.sheet .grab,.sheet .title{touch-action:none}
+.sheet .grab{cursor:grab}
+#sheetRoot.closing{pointer-events:none}
 @media (prefers-reduced-motion:no-preference){
-  .sheet{animation:up var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med)}
+  .sheet{animation:up var(--t-med) var(--ease);transition:transform var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med);transition:opacity var(--t-med)}
+  #sheetRoot.closing .sheet{transform:translateY(105%)} #sheetRoot.closing .scrim{opacity:0}
   @keyframes up{from{transform:translateY(40px);opacity:.5}} @keyframes fade{from{opacity:0}}
 }
 
@@ -1366,7 +1374,7 @@ function showPhotos(){
 }
 function renderPhotoBox(){
   const box = $('photoBox'); if (!box) return;
-  if (S.mode!=='cloud'){ box.innerHTML = `<p class="hint">Photos are kept in the family cloud. Sign in at akalle92.github.io/NestLog to add one to an entry.</p>`; return; }
+  if (S.mode!=='cloud'){ box.remove(); return; } /* photos live in the family cloud */
   const {photo, photoBlob} = sheetState, has = photoBlob || photo;
   const src = photoBlob ? (sheetState.previewUrl = URL.createObjectURL(photoBlob)) : '';
   box.innerHTML = `<span class="label">Photo</span>${has ? `<img ${photoBlob ? `src="${src}"` : `data-photo="${esc(photo)}"`} alt="Milestone photo">` : ''}
@@ -1436,7 +1444,34 @@ function closeReport(){ $('report').hidden = true; $('report').innerHTML = ''; d
 
 /* ---------- sheets ---------- */
 let sheetState = null, lastFocus = null;
-function closeSheet(){ $('sheetRoot').innerHTML=''; sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null; }
+/* closing slides the sheet down first; opening another sheet meanwhile cancels the pending clear */
+let closing = null;
+function closeSheet(){
+  const root = $('sheetRoot'), sheet = root.querySelector('.sheet');
+  sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null;
+  if (!sheet || closing) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches){ root.innerHTML=''; return; }
+  const done = () => { if (closing !== done) return; closing = null; root.classList.remove('closing'); root.innerHTML=''; };
+  closing = done; sheet.style.transform = ''; root.classList.add('closing');
+  sheet.addEventListener('transitionend', done, {once:true}); setTimeout(done, 320);
+}
+/* drag the handle or title down to close; a short drag springs back */
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const sheet = e.target.closest?.('.sheet'); if (!sheet || closing || e.target.closest('button') || !e.target.closest('.grab, .title') || sheet.scrollTop > 0) return;
+  drag = {sheet, y:e.clientY, t:performance.now(), dy:0, id:e.pointerId}; sheet.style.transition = 'none';
+});
+document.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.dy = Math.max(0, e.clientY - drag.y); drag.sheet.style.transform = `translateY(${drag.dy}px)`;
+});
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const {sheet, dy, t} = drag, fast = dy / Math.max(1, performance.now() - t) > .6; drag = null;
+  sheet.style.transition = '';
+  if (dy > 90 || (fast && dy > 30)) closeSheet(); else sheet.style.transform = '';
+};
+document.addEventListener('pointerup', endDrag); document.addEventListener('pointercancel', endDrag);
 const chips = (name, opts, cur) => `<div class="chips" role="group">${opts.map(([v,l])=>`<button type="button" class="chip press" data-chip="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
 function when(id, label, v, quick=true){
   const q = quick ? `<div class="chips">${[['0','Now'],['15','15m ago'],['30','30m ago'],['60','1h ago']].map(([m,l])=>`<button type="button" class="chip press" data-ago="${m}" data-for="${id}">${l}</button>`).join('')}</div>` : '';
@@ -1456,6 +1491,7 @@ function multiChips(name, vocab, cur){ const on = new Set(String(cur||'').split(
 function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
 function openSheet(type, existing){
+  closing = null; $('sheetRoot').classList.remove('closing');
   const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
   const e = existing || {}, time = e.t || now();
   let body = '';
@@ -1470,7 +1506,7 @@ function openSheet(type, existing){
     const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
     body = `${amount('fAmt','Amount', val, oz()?0.5:10)}<div class="presets">${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}</div>
       <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk'],['mixed','Both']],e.content||last?.content||'formula')}</div>
-      <div class="field">${textField('fBrand','Formula brand', existing ? e.brand : last?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
+      <div class="field" id="brandField" ${(e.content||last?.content)==='breastmilk'?'hidden':''}>${textField('fBrand','Formula brand', existing ? e.brand : lastOf(l=>l.type==='bottle' && l.brand)?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='solids'){
     body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='sleep' && !existing){
@@ -1506,7 +1542,7 @@ function openSheet(type, existing){
   if (!live){ sheetState.photo = e.photo || ''; sheetState.photoBlob = null; body += `<div class="photo" id="photoBox"></div>`; }
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
   const del = existing ? `<button class="btn danger" type="button" data-act="delete">Delete entry</button>` : '';
-  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}${save}${del}</form></div>`;
+  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}<div class="sheet-actions">${save}${del}</div></form></div>`;
   if ($('photoBox')) renderPhotoBox();
   document.body.style.overflow='hidden';
   if (type==='nurse' && !existing) renderNurse();
@@ -1531,7 +1567,7 @@ async function saveSheet(){
   const T = id => fromLocalInput($(id).value);
   let data;
   if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;} data={...base,t:T('fTime'),left:L,right:R,last:chipVal('last')||(R&&!L?'R':'L')}; data.end=data.t+L+R; }
-  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:$('fBrand').value.trim().slice(0,40)}; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:chipVal('content')==='breastmilk' ? '' : $('fBrand').value.trim().slice(0,40)}; }
   else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate'); $('fFood').focus(); return;} data={...base,t:T('fTime'),food:f.slice(0,120),reaction:chipVal('reaction')}; }
   else if (type==='sleep'){ const a=T('fStart'), b=T('fEnd'); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
   else if (type==='diaper'){ const k=chipVal('kind')||'wet', dirty=k==='dirty'||k==='both'; data={...base,t:T('fTime'),kind:k,color:dirty?multiVal('color'):'',texture:dirty?multiVal('texture'):'',flags:multiVal('flags')}; }
@@ -1902,6 +1938,7 @@ document.addEventListener('click', e => {
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
     if (d.chip==='kind') $('dirtyBits').hidden = !(d.v==='dirty' || d.v==='both');
+    if (d.chip==='content' && $('brandField')) $('brandField').hidden = d.v==='breastmilk'; /* no brand for breast milk */
     const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true';
     grp.forEach(b=>b.setAttribute('aria-pressed','false'));
     if (!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true');

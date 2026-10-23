@@ -138,7 +138,7 @@ function paletteAudit() {
       await p.click('#toast button'); await p.waitForTimeout(200);
       check('undo restores a deleted entry', (await p.locator('#recent .entry').count()) >= before);
 
-      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape');
+      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
       check('Escape closes a sheet', !(await p.locator('.sheet').count()));
     }
 
@@ -221,7 +221,7 @@ function paletteAudit() {
     await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
     await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
-    check('photos: on this device the milestone sheet explains photos need the family cloud', /family cloud/.test(await text(p, '#photoBox')));
+    check('photos: on this device sheets offer no photo (they live in the family cloud)', !(await p.locator('#photoBox').count()));
     await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
     await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
@@ -349,6 +349,38 @@ function paletteAudit() {
     await p.emulateMedia({ colorScheme: 'dark' }); await p.click('[data-theme-pick="light"]'); await p.waitForTimeout(150);
     check('appearance: Light stays light when the phone is in dark mode', (await bg()) === light);
     check('appearance: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* sheets: Save always on screen, animated close, swipe down to close */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(() => localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir' }, active: {},
+      logs: { b1: { type: 'bottle', t: Date.now() - 5e6, ml: 120, content: 'formula', brand: 'Kendamil' }, b2: { type: 'bottle', t: Date.now() - 3e6, ml: 60, content: 'breastmilk' } } })));
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const box = await p.locator('#sheetForm button[type=submit]').boundingBox();
+    check('sheets: Save is on screen without scrolling', box && box.y + box.height <= 844, JSON.stringify(box));
+    check('sheets: no brand field while breast milk is picked', !(await p.isVisible('#fBrand')));
+    await p.click('[data-chip="content"][data-v="formula"]');
+    check('sheets: formula brand starts as the last one used', (await p.inputValue('#fBrand')) === 'Kendamil');
+    await p.screenshot({ path: `${SHOTS}/18-bottle-sheet-sticky.png` });
+    await p.click('.sheet .x'); await p.waitForTimeout(60);
+    check('sheets: closing slides away before the sheet is removed', (await p.locator('#sheetRoot.closing .sheet').count()) === 1);
+    await p.waitForTimeout(400);
+    check('sheets: then it is gone', !(await p.locator('.sheet').count()));
+    const swipe = async dy => { const g = await p.locator('.sheet .grab').boundingBox(); await p.mouse.move(g.x + g.width / 2, g.y + 2); await p.mouse.down();
+      for (let i = 1; i <= 8; i++) { await p.mouse.move(g.x + g.width / 2, g.y + 2 + dy * i / 8); await p.waitForTimeout(25); } await p.mouse.up(); await p.waitForTimeout(450); };
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(300);
+    await swipe(40);
+    check('sheets: a short drag springs back', (await p.locator('.sheet').count()) === 1 && !(await p.locator('#sheetRoot.closing').count()));
+    await swipe(160);
+    check('sheets: dragging the handle down closes the sheet', !(await p.locator('.sheet').count()));
+    await p.click('[data-open="milestone"]'); await p.waitForTimeout(80); await p.click('.sheet .x'); await p.waitForTimeout(40); await p.click('[data-open="medicine"]'); await p.waitForTimeout(400);
+    check('sheets: opening a sheet while another closes keeps the new one', (await p.locator('.sheet').count()) === 1 && /Medicine/.test(await text(p, '#sheetTitle')));
+    check('sheets: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
   }
 
