@@ -166,11 +166,18 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 @media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.3;transform:scale(.8)}}}
 
 /* log actions */
-.primary4{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+.mainlog{display:grid;gap:var(--s2)}
 .tile{display:flex;align-items:center;gap:var(--s3);min-height:72px;padding:var(--s3) var(--s4);border-radius:var(--r-lg);text-align:left;min-width:0}
 .tile .ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--surface);color:var(--c)}
 .tile .ic svg{width:24px;height:24px}
 .tile .tl{display:grid;min-width:0}
+.tile.split{flex-wrap:wrap;row-gap:var(--s3)}
+.tile .main{display:flex;align-items:center;gap:var(--s3);flex:1;min-width:0;min-height:48px;text-align:left}
+.tile .aside{flex:none;height:44px;padding:0 var(--s4);border-radius:var(--r-pill);background:var(--surface);font-weight:600;font-size:var(--fs-m)}
+.quick{flex-basis:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.quick button{height:48px;border-radius:var(--r-pill);background:var(--surface);font-weight:600;font-size:var(--fs-m)}
+.more{width:100%;margin-top:var(--s2)}
+.sheet .pill{background:var(--sunk)}
 .tile b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);color:var(--ink);letter-spacing:-.01em}
 .tile small{font-size:var(--fs-s);font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-top:var(--s2)}
@@ -299,6 +306,7 @@ details summary::-webkit-details-marker{display:none}
 #sheetRoot.closing{pointer-events:none}
 @media (prefers-reduced-motion:no-preference){
   .sheet{animation:up var(--t-med) var(--ease);transition:transform var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med);transition:opacity var(--t-med)}
+  #sheetRoot.swap .sheet,#sheetRoot.swap .scrim{animation:none}
   #sheetRoot.closing .sheet{transform:translateY(105%)} #sheetRoot.closing .scrim{opacity:0}
   @keyframes up{from{transform:translateY(40px);opacity:.5}} @keyframes fade{from{opacity:0}}
 }
@@ -390,8 +398,7 @@ body.reporting .app,body.reporting #tabbar{display:none}
     <section class="card status" id="status" aria-live="polite"></section>
     <div class="live" id="live"></div>
     <h2 class="sec">Log</h2>
-    <div class="primary4" id="primary4"></div>
-    <div class="pills" id="pills"></div>
+    <div class="mainlog" id="mainlog"></div>
     <h2 class="sec">Today</h2>
     <div class="card today" id="totals"></div>
     <h2 class="sec">Recent <button type="button" data-tab="timeline">See all</button></h2>
@@ -526,7 +533,8 @@ const I = {
   x: sv('<path d="M6 6l12 12M18 6 6 18"/>'),
   /* the moon-and-nest from the home icon, in currentColor */
   mark: '<svg class="mark" viewBox="90 110 340 320" aria-hidden="true"><mask id="mk"><rect width="512" height="512" fill="#fff"/><circle cx="314" cy="214" r="118" fill="#000"/></mask><circle cx="240" cy="278" r="142" fill="currentColor" mask="url(#mk)"/><circle cx="356" cy="160" r="34" fill="currentColor"/></svg>',
-  check: sv('<path d="m5 12.5 4.5 4.5L19 7"/>')
+  check: sv('<path d="m5 12.5 4.5 4.5L19 7"/>'),
+  plus: sv('<path d="M12 5v14M5 12h14"/>')
 };
 const TYPES = {
   nurse:{label:'Nursing',short:'Nurse',k:'feed',icon:I.nurse,group:'feed'},
@@ -919,6 +927,7 @@ function nurseTotals(){
 const GAPS = [[0,'Off'],[120,'2 hours'],[150,'2½ hours'],[180,'3 hours'],[210,'3½ hours'],[240,'4 hours'],[300,'5 hours']];
 const SLEEP_GAPS = [[0,'Off'],[120,'2 hours'],[180,'3 hours'],[240,'4 hours'],[360,'6 hours']];
 const isFeed = l => l.type==='nurse' || l.type==='bottle';
+const FEEDS = ['bottle','solids','nurse'];
 function dueState(){
   const st = S.settings, feed = lastOf(isFeed), diaper = lastOf(l => l.type==='diaper');
   const due = (gap, last) => !!(gap && last && now() - last.t >= gap*MIN);
@@ -1108,15 +1117,16 @@ function renderLive(){
 }
 function renderHome(){
   renderStatus(); renderLive();
-  const tile = (k, sub) => { const t = TYPES[k], ok = justSaved()?.type===k; return `<button type="button" class="tile tint k-${t.k} press" data-open="${k}"><span class="ic${ok?' done':''}">${ok ? I.check : t.icon}</span><span class="tl"><b>${t.short}</b>${sub?`<small>${sub}</small>`:''}</span></button>`; };
-  const nurse = lastOf(l => l.type==='nurse' && l.last);
-  const lastBottle = lastOf(l => l.type==='bottle');
-  $('primary4').innerHTML =
-    tile('nurse', S.active.nurse ? 'Running' : nurse ? `Next ${nurse.last==='L'?'R':'L'}` : '') +
-    tile('bottle', lastBottle ? `${volOut(lastBottle.ml)} ${volU()}` : '') +
-    tile('sleep', S.active.sleep ? 'Wake up' : 'Start') +
-    tile('diaper', '');
-  $('pills').innerHTML = ['solids','pump','growth','medicine','temp','milestone'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
+  /* the three things logged all day get big rows; the rest sit behind More */
+  const saved = justSaved()?.type;
+  const head = (k, b, sub, done) => `<span class="ic${done?' done':''}">${done ? I.check : TYPES[k].icon}</span><span class="tl"><b>${b}</b>${sub?`<small>${sub}</small>`:''}</span>`;
+  const feed = lastOf(l => FEEDS.includes(l.type)), sl = S.active.sleep, dp = lastOf(l => l.type==='diaper');
+  const feedSub = !feed ? 'Bottle, solids or nursing' : `${feed.type==='bottle' ? (feed.ml ? `${volOut(feed.ml)} ${volU()}` : 'Bottle') : feed.type==='solids' ? esc(feed.food||'Solids') : 'Nursing'} · ${ago(feed.end||feed.t)}`;
+  $('mainlog').innerHTML =
+    `<button type="button" class="tile tint k-feed press" data-open="bottle">${head('bottle', 'Feed', S.active.nurse ? 'Nursing now' : feedSub, FEEDS.includes(saved))}</button>`+
+    `<div class="tile tint k-sleep"><button type="button" class="main press" data-act="sleepTap">${head('sleep', sl ? `Asleep <span class="num" data-clock="${sl.start}">${clock(now()-sl.start)}</span>` : 'Sleep', sl ? 'Tap when awake' : 'Tap to start the timer', saved==='sleep')}</button><button type="button" class="aside press" data-open="sleep">${sl ? 'Adjust' : 'Past sleep'}</button></div>`+
+    `<div class="tile tint k-diaper split"><button type="button" class="main press" data-open="diaper">${head('diaper', 'Diaper', dp ? `${DIAPER[dp.kind]||'Diaper'} · ${ago(dp.t)}` : 'Tap for colour and texture', saved==='diaper')}</button><div class="quick" role="group" aria-label="Save a diaper now">${['wet','dirty','both'].map(k => `<button type="button" class="press" data-act="diaperQuick" data-v="${k}">${DIAPER[k]}</button>`).join('')}</div></div>`+
+    `<button type="button" class="pill more press" data-open="more">Log growth, medicine and more</button>`;
 
   const d = dayStats(startOfDay(now()));
   $('totals').innerHTML =
@@ -1129,7 +1139,7 @@ function renderHome(){
   if (!S.loaded){ $('recent').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>'; return; }
   const recent = S.logs.slice(0,5);
   $('recent').innerHTML = recent.length ? `<div class="card list">${recent.map(entryHtml).join('')}</div>`
-    : `<div class="card empty">${I.mark}<b>Nothing logged yet</b>Tap Nurse, Bottle, Sleep or Diaper to add the first entry. Everything you both log appears here.</div>`;
+    : `<div class="card empty">${I.mark}<b>Nothing logged yet</b>Tap Feed, Sleep or Diaper to add the first entry. Everything you both log appears here.</div>`;
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
@@ -1550,11 +1560,16 @@ function multiChips(name, vocab, cur){ const on = new Set(String(cur||'').split(
 function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
 function openSheet(type, existing){
-  closing = null; $('sheetRoot').classList.remove('closing');
-  const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
+  /* switching from one open sheet to another (Feed kinds, More) swaps it in place instead of sliding up again */
+  const swap = !closing && !!$('sheetRoot').querySelector('.sheet');
+  closing = null; $('sheetRoot').classList.remove('closing'); $('sheetRoot').classList.toggle('swap', swap);
+  const t = TYPES[type] || {label:'Log something else', k:'moment', icon:I.plus};
+  if (!swap) lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
   const e = existing || {}, time = e.t || now();
   let body = '';
-  if (type==='nurse' && !existing){
+  if (type==='more'){
+    body = `<div class="pills">${['solids','pump','growth','medicine','vaccine','temp','milestone','nurse'].map(k => { const x=TYPES[k]; return `<button type="button" class="pill k-${x.k} press" data-open="${k}">${x.icon}${x.short}</button>`; }).join('')}</div>`;
+  } else if (type==='nurse' && !existing){
     body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint" style="text-align:center"></p><div class="row-actions" id="nurseActions"></div>
       <details><summary>Log a past feed instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fTime','Started',now())}<div class="grid2">${numField('fL','Left (min)',0,'numeric')}${numField('fR','Right (min)',0,'numeric')}</div><button class="btn soft" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
   } else if (type==='nurse'){
@@ -1596,7 +1611,8 @@ function openSheet(type, existing){
   } else if (type==='milestone'){
     body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
   }
-  const live = !existing && (type==='nurse' || type==='sleep');
+  if (!existing && FEEDS.includes(type)) body = `<div class="seg" role="group" aria-label="Kind of feed">${FEEDS.map(k => `<button type="button" data-open="${k}" aria-pressed="${k===type}">${k==='nurse' ? 'Nursing' : TYPES[k].short}</button>`).join('')}</div>` + body;
+  const live = type==='more' || (!existing && (type==='nurse' || type==='sleep'));
   /* any saved entry can carry one photo (cloud only; renderPhotoBox explains otherwise) */
   if (!live){ sheetState.photo = e.photo || ''; sheetState.photoBlob = null; body += `<div class="photo" id="photoBox"></div>`; }
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
@@ -1691,13 +1707,26 @@ async function act(a, el){
       if (rest.photo) setTimeout(() => { if (!S.logs.some(l => l.id===id)) storage('DELETE', rest.photo).catch(()=>{}); }, 7000); }
     return;
   }
+  if (a==='sleepTap'){ /* the Sleep row: one tap starts the timer, the next saves it */
+    if (S.active.sleep) return act('wake');
+    if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))) toast('Sleep timer started', 'Undo', () => write(()=>store.setActive('sleep',null)));
+    return;
+  }
+  if (a==='diaperQuick'){
+    const k = el.dataset.v, id = uid();
+    if (await write(()=>store.putLog(id,{type:'diaper',t:now(),kind:k,color:'',texture:'',flags:'',by:S.me||null,created:now()}))){
+      markSaved(id, 'diaper'); render(); toast(`${DIAPER[k]} diaper saved`, 'Undo', () => write(()=>store.delLog(id)));
+    }
+    return;
+  }
   if (a==='sleepStart'){ if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))){ closeSheet(); toast('Sleep timer started'); } return; }
   if (a==='wake'){
     const s = S.active.sleep; if (!s) return closeSheet();
     const start = $('fAdj') ? fromLocalInput($('fAdj').value) : s.start;
     if (start >= now()){ toast('Sleep start must be in the past'); return; }
     const sid = uid();
-    if (await write(async()=>{ await store.putLog(sid,{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ markSaved(sid, 'sleep'); closeSheet(); render(); toast(`Sleep saved · ${dur(now()-start)}`); }
+    if (await write(async()=>{ await store.putLog(sid,{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ markSaved(sid, 'sleep'); closeSheet(); render();
+      toast(`Sleep saved · ${dur(now()-start)}`, 'Undo', () => write(async()=>{ await store.delLog(sid); await store.setActive('sleep', s); })); }
     return;
   }
   if (a==='cancelSleep'){ if (await write(()=>store.setActive('sleep',null))){ closeSheet(); toast('Sleep timer discarded'); } return; }

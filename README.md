@@ -113,6 +113,8 @@ Open the "On your phones" address on each phone (same Wi-Fi), then add it to the
 2. Add it to your home screen: **Share → Add to Home Screen** on iPhone, **⋮ → Add to Home screen** on Android.
 3. Set the baby's name, birth date and units under the **Baby** tab.
 
+Today puts the three everyday logs first. **Feed** opens the bottle form (switch to Solids or Nursing at the top). **Sleep** starts the timer with one tap and saves it with the next. **Diaper** has Wet, Dirty and Both buttons that save straight away; tap the row itself to add colour and texture. Every quick save can be undone from the message at the bottom. Growth, medicine, temperature, milestones and pumping are under **Log growth, medicine and more**.
+
 It opens full-screen like an app, with its own icon and a launch screen that matches light or dark. On Android, press and hold the icon for shortcuts straight to Bottle, Diaper, Sleep or Nurse. Swipe a sheet down to close it, and hold + or − to change an amount quickly.
 
 ## Where the data lives
