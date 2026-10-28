@@ -15,6 +15,21 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- iPhone launch screens, made by tests/make-assets.js -->
+<link rel="apple-touch-startup-image" href="icons/launch/750x1334-light.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/750x1334-dark.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1170x2532-light.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1170x2532-dark.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1179x2556-light.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1179x2556-dark.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1206x2622-light.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1206x2622-dark.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1284x2778-light.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1284x2778-dark.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1290x2796-light.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1290x2796-dark.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch/1320x2868-light.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)">
+<link rel="apple-touch-startup-image" href="icons/launch/1320x2868-dark.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Onest:wght@400;500;600&display=swap">
@@ -89,6 +104,21 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 @media (prefers-reduced-motion:no-preference){
   .press{transition:transform var(--t-fast) var(--ease), background var(--t-fast)}
   .press:active{transform:scale(.97)}
+  /* just saved: the entry washes with its family tint, the tile shows a check, changed numbers pop */
+  .entry.just-saved{animation:saved 1.4s var(--ease)}
+  @keyframes saved{0%,35%{background:color-mix(in srgb, var(--c) var(--tint), var(--surface))}}
+  .tile .ic.done svg{animation:tick var(--t-med) var(--ease)}
+  @keyframes tick{from{transform:scale(.4);opacity:0}}
+  .pop{display:inline-block;animation:pop var(--t-med) var(--ease)}
+  @keyframes pop{40%{transform:scale(1.08)}}
+  /* tab change: the new view rises in */
+  main.enter{animation:enter var(--t-med) var(--ease)}
+  @keyframes enter{from{opacity:0;transform:translateY(6px)}}
+  /* theme picker: crossfade instead of a snap */
+  .theme-fade,.theme-fade *{transition:background-color var(--t-med),color var(--t-med),fill var(--t-med),stroke var(--t-med)!important}
+  .toast{animation:toastin var(--t-med) var(--ease);transition:opacity var(--t-fast),translate var(--t-fast)}
+  .toast.leaving{opacity:0;translate:0 12px}
+  @keyframes toastin{from{opacity:0;translate:0 12px}}
 }
 
 /* header */
@@ -136,11 +166,18 @@ h2.sec a,h2.sec button{font-family:var(--f-ui);font-size:var(--fs-s);font-weight
 @media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.3;transform:scale(.8)}}}
 
 /* log actions */
-.primary4{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+.mainlog{display:grid;gap:var(--s2)}
 .tile{display:flex;align-items:center;gap:var(--s3);min-height:72px;padding:var(--s3) var(--s4);border-radius:var(--r-lg);text-align:left;min-width:0}
 .tile .ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--surface);color:var(--c)}
 .tile .ic svg{width:24px;height:24px}
 .tile .tl{display:grid;min-width:0}
+.tile.split{flex-wrap:wrap;row-gap:var(--s3)}
+.tile .main{display:flex;align-items:center;gap:var(--s3);flex:1;min-width:0;min-height:48px;text-align:left}
+.tile .aside{flex:none;height:44px;padding:0 var(--s4);border-radius:var(--r-pill);background:var(--surface);font-weight:600;font-size:var(--fs-m)}
+.quick{flex-basis:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.quick button{height:48px;border-radius:var(--r-pill);background:var(--surface);font-weight:600;font-size:var(--fs-m)}
+.more{width:100%;margin-top:var(--s2)}
+.sheet .pill{background:var(--sunk)}
 .tile b{font-family:var(--f-display);font-weight:600;font-size:var(--fs-l);color:var(--ink);letter-spacing:-.01em}
 .tile small{font-size:var(--fs-s);font-weight:500;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-top:var(--s2)}
@@ -260,8 +297,17 @@ details summary::-webkit-details-marker{display:none}
 .sheet .x{width:44px;height:44px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--muted)}
 .sheet .x svg{width:16px;height:16px}
 .sheet form{display:grid;gap:var(--s5)}
+/* Save stays on screen however tall the sheet is */
+.sheet{padding-bottom:0}
+.sheet-actions{position:sticky;bottom:0;display:grid;gap:var(--s3);background:var(--raised);margin:0 calc(var(--s5) * -1);padding:var(--s3) var(--s5) calc(var(--s5) + env(safe-area-inset-bottom,0px))}
+.sheet-actions:empty{position:static;padding-top:0}
+.sheet .grab,.sheet .title{touch-action:none}
+.sheet .grab{cursor:grab}
+#sheetRoot.closing{pointer-events:none}
 @media (prefers-reduced-motion:no-preference){
-  .sheet{animation:up var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med)}
+  .sheet{animation:up var(--t-med) var(--ease);transition:transform var(--t-med) var(--ease)} .scrim{animation:fade var(--t-med);transition:opacity var(--t-med)}
+  #sheetRoot.swap .sheet,#sheetRoot.swap .scrim{animation:none}
+  #sheetRoot.closing .sheet{transform:translateY(105%)} #sheetRoot.closing .scrim{opacity:0}
   @keyframes up{from{transform:translateY(40px);opacity:.5}} @keyframes fade{from{opacity:0}}
 }
 
@@ -300,6 +346,9 @@ textarea.dump{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--in
 .err{color:var(--danger);font-size:var(--fs-s);margin:0}
 /* sign-in (cloud mode) */
 .signin{display:grid;gap:var(--s6);padding-top:calc(var(--s8) * 2)}
+.mark{display:block;width:56px;height:auto;color:var(--muted)}
+.empty .mark{margin:0 auto var(--s3);width:44px}
+.signin .mark{margin-bottom:var(--s5)}
 .signin h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:var(--fs-2xl);line-height:.95;letter-spacing:-.04em}
 .signin .lead{margin:var(--s3) 0 0;font-size:var(--fs-l);color:var(--ink-2);max-width:30ch}
 .signin form{display:grid;gap:var(--s4);padding:var(--s5)}
@@ -349,8 +398,7 @@ body.reporting .app,body.reporting #tabbar{display:none}
     <section class="card status" id="status" aria-live="polite"></section>
     <div class="live" id="live"></div>
     <h2 class="sec">Log</h2>
-    <div class="primary4" id="primary4"></div>
-    <div class="pills" id="pills"></div>
+    <div class="mainlog" id="mainlog"></div>
     <h2 class="sec">Today</h2>
     <div class="card today" id="totals"></div>
     <h2 class="sec">Recent <button type="button" data-tab="timeline">See all</button></h2>
@@ -482,7 +530,11 @@ const I = {
   list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
   chart: sv('<path d="M4 19h16"/><path d="m5 15 4-5 4 3 6-7"/>'),
   baby: sv('<circle cx="12" cy="12.5" r="7.5"/><path d="M9.5 15c.7.6 1.5.9 2.5.9s1.8-.3 2.5-.9"/><path d="M9.5 11h.01M14.5 11h.01"/><path d="M12 5c-.8 1.2-.4 2.5 1 2.5"/>'),
-  x: sv('<path d="M6 6l12 12M18 6 6 18"/>')
+  x: sv('<path d="M6 6l12 12M18 6 6 18"/>'),
+  /* the moon-and-nest from the home icon, in currentColor */
+  mark: '<svg class="mark" viewBox="90 110 340 320" aria-hidden="true"><mask id="mk"><rect width="512" height="512" fill="#fff"/><circle cx="314" cy="214" r="118" fill="#000"/></mask><circle cx="240" cy="278" r="142" fill="currentColor" mask="url(#mk)"/><circle cx="356" cy="160" r="34" fill="currentColor"/></svg>',
+  check: sv('<path d="m5 12.5 4.5 4.5L19 7"/>'),
+  plus: sv('<path d="M12 5v14M5 12h14"/>')
 };
 const TYPES = {
   nurse:{label:'Nursing',short:'Nurse',k:'feed',icon:I.nurse,group:'feed'},
@@ -509,7 +561,8 @@ const DIAPER = {wet:'Wet',dirty:'Dirty',both:'Wet + dirty',dry:'Dry'};
 /* Appearance is per phone (localStorage['nestlog-theme']), not shared: 'auto' follows the phone */
 const theme = {
   get(){ try { const t = localStorage.getItem('nestlog-theme'); return t==='light' || t==='dark' ? t : 'auto'; } catch { return 'auto'; } },
-  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {} this.apply(); },
+  set(t){ try { t==='auto' ? localStorage.removeItem('nestlog-theme') : localStorage.setItem('nestlog-theme', t); } catch {}
+    const r = document.documentElement; r.classList.add('theme-fade'); this.apply(); clearTimeout(this.ft); this.ft = setTimeout(() => r.classList.remove('theme-fade'), 320); },
   apply(){
     const t = this.get(), root = document.documentElement;
     if (t==='auto') delete root.dataset.theme; else root.dataset.theme = t;
@@ -523,7 +576,7 @@ const theme = {
   }
 };
 theme.apply();
-const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', loaded:true, names:{} };
+const S = { logs:[], active:{}, settings:{name:'',birth:'',sex:'',chart:'who',vol:'ml',wt:'kg',temp:'C',feedGap:0,diaperGap:0,sleepCheck:0,sleepNotify:true}, mode:'local', online:true, canWrite:true, me:null, tab:'home', filter:'all', range:7, gm:'kg', rw:2, tlDays:14, q:'', lastSaved:null, loaded:true, names:{} };
 let db = null, userApi = null, downloads = null;
 /* cloud mode (GitHub Pages): Supabase project for the family log. The publishable key is public by design;
    row-level security and the family_members allowlist decide who can read or write. */
@@ -874,6 +927,7 @@ function nurseTotals(){
 const GAPS = [[0,'Off'],[120,'2 hours'],[150,'2½ hours'],[180,'3 hours'],[210,'3½ hours'],[240,'4 hours'],[300,'5 hours']];
 const SLEEP_GAPS = [[0,'Off'],[120,'2 hours'],[180,'3 hours'],[240,'4 hours'],[360,'6 hours']];
 const isFeed = l => l.type==='nurse' || l.type==='bottle';
+const FEEDS = ['bottle','solids','nurse'];
 function dueState(){
   const st = S.settings, feed = lastOf(isFeed), diaper = lastOf(l => l.type==='diaper');
   const due = (gap, last) => !!(gap && last && now() - last.t >= gap*MIN);
@@ -943,7 +997,7 @@ function checkReminders(){
     seen[kind] = last.id; changed = true;
     const body = kind==='sleep' ? `Started ${dur(now()-last.t)} ago. Did ${name} wake up?` : `${dur(now()-last.t)} since the last ${kind==='feed'?'feed':'diaper change'}.`;
     const title = kind==='sleep' ? 'Sleep timer still running' : kind==='feed' ? `${name} may be hungry` : `Time to check ${name}’s diaper`;
-    const opts = {body, tag:'nestlog-'+kind, icon:'icons/icon-192.png', badge:'icons/icon-192.png'};
+    const opts = {body, tag:'nestlog-'+kind, icon:'icons/icon-192.png', badge:'icons/badge-96.png'};
     notify(title, opts);
   }
   if (changed) try { localStorage.setItem('nestlog-reminded', JSON.stringify(seen)); } catch {}
@@ -970,10 +1024,30 @@ function renderReminders(){
 
 /* ---------- render ---------- */
 const TABS = [['home','Today',I.home],['timeline','Timeline',I.list],['trends','Trends',I.chart],['baby','Baby',I.baby]];
+/* press and hold +/− to keep stepping, faster after a moment */
+let stepHeld = false, stepTimer = null;
+const stepOnce = el => { const inp = $(el.dataset.step); if (!inp) return; inp.value = Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(el.dataset.d)).toFixed(2)); inp.dispatchEvent(new Event('input', {bubbles:true})); };
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest?.('[data-step]'); if (!el) return;
+  stepHeld = false; clearTimeout(stepTimer);
+  const run = (gap, first) => { stepTimer = setTimeout(() => { stepHeld = true; stepOnce(el); buzz(); run(first ? 110 : Math.max(45, gap*0.85)); }, gap); };
+  run(400, true);
+});
+['pointerup','pointercancel','pointerleave'].forEach(n => document.addEventListener(n, e => { if (e.target.closest?.('[data-step]') || n!=='pointerleave') clearTimeout(stepTimer); }, true));
+/* the entry just saved (and the tile it came from) shows a brief confirmation */
+const markSaved = (id, type) => { S.lastSaved = {id, type, at: now()}; clearTimeout(markSaved.t); markSaved.t = setTimeout(render, 1600); };
+const justSaved = () => S.lastSaved && now() - S.lastSaved.at < 1500 ? S.lastSaved : null;
+/* a number that changed since the last render gives a small pop */
+function popChanged(box){
+  const vals = [...box.querySelectorAll('b')].map(b => b.textContent), prev = box._vals;
+  if (prev) box.querySelectorAll('b').forEach((b, i) => { if (prev[i] !== undefined && prev[i] !== vals[i]) b.classList.add('pop'); });
+  box._vals = vals;
+}
 function render(){
   const signin = S.mode==='cloud' && !auth.s;
   $('top').hidden = signin; $('tabbar').hidden = signin; $('view-signin').hidden = !signin;
   if (signin){ for (const [k] of TABS) $('view-'+k).hidden = true; renderSignin(); return; }
+  if (render.open){ const k = render.open; render.open = null; setTimeout(() => openSheet(k)); } /* home-icon shortcut, once signed in */
   SI.key = '';
   const st = S.settings;
   $('babyName').textContent = st.name || 'Your baby';
@@ -987,6 +1061,7 @@ function render(){
   if (waiting) $('syncText').textContent += ` · ${waiting} waiting`;
   $('tabs').innerHTML = TABS.map(([k,l,ic]) => `<button type="button" data-tab="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('');
   for (const [k] of TABS) $('view-'+k).hidden = S.tab !== k;
+  if (S.tab !== render.tab){ $('view-'+S.tab).classList.remove('enter'); void $('view-'+S.tab).offsetWidth; if (render.tab) $('view-'+S.tab).classList.add('enter'); render.tab = S.tab; }
   if (S.tab==='home') renderHome();
   if (S.tab==='timeline') renderTimeline();
   if (S.tab==='trends') renderTrends();
@@ -1042,15 +1117,16 @@ function renderLive(){
 }
 function renderHome(){
   renderStatus(); renderLive();
-  const tile = (k, sub) => { const t = TYPES[k]; return `<button type="button" class="tile tint k-${t.k} press" data-open="${k}"><span class="ic">${t.icon}</span><span class="tl"><b>${t.short}</b>${sub?`<small>${sub}</small>`:''}</span></button>`; };
-  const nurse = lastOf(l => l.type==='nurse' && l.last);
-  const lastBottle = lastOf(l => l.type==='bottle');
-  $('primary4').innerHTML =
-    tile('nurse', S.active.nurse ? 'Running' : nurse ? `Next ${nurse.last==='L'?'R':'L'}` : '') +
-    tile('bottle', lastBottle ? `${volOut(lastBottle.ml)} ${volU()}` : '') +
-    tile('sleep', S.active.sleep ? 'Wake up' : 'Start') +
-    tile('diaper', '');
-  $('pills').innerHTML = ['solids','pump','growth','medicine','temp','milestone'].map(k => { const t=TYPES[k]; return `<button type="button" class="pill k-${t.k} press" data-open="${k}">${t.icon}${t.short}</button>`; }).join('');
+  /* the three things logged all day get big rows; the rest sit behind More */
+  const saved = justSaved()?.type;
+  const head = (k, b, sub, done) => `<span class="ic${done?' done':''}">${done ? I.check : TYPES[k].icon}</span><span class="tl"><b>${b}</b>${sub?`<small>${sub}</small>`:''}</span>`;
+  const feed = lastOf(l => FEEDS.includes(l.type)), sl = S.active.sleep, dp = lastOf(l => l.type==='diaper');
+  const feedSub = !feed ? 'Bottle, solids or nursing' : `${feed.type==='bottle' ? (feed.ml ? `${volOut(feed.ml)} ${volU()}` : 'Bottle') : feed.type==='solids' ? esc(feed.food||'Solids') : 'Nursing'} · ${ago(feed.end||feed.t)}`;
+  $('mainlog').innerHTML =
+    `<button type="button" class="tile tint k-feed press" data-open="bottle">${head('bottle', 'Feed', S.active.nurse ? 'Nursing now' : feedSub, FEEDS.includes(saved))}</button>`+
+    `<div class="tile tint k-sleep"><button type="button" class="main press" data-act="sleepTap">${head('sleep', sl ? `Asleep <span class="num" data-clock="${sl.start}">${clock(now()-sl.start)}</span>` : 'Sleep', sl ? 'Tap when awake' : 'Tap to start the timer', saved==='sleep')}</button><button type="button" class="aside press" data-open="sleep">${sl ? 'Adjust' : 'Past sleep'}</button></div>`+
+    `<div class="tile tint k-diaper split"><button type="button" class="main press" data-open="diaper">${head('diaper', 'Diaper', dp ? `${DIAPER[dp.kind]||'Diaper'} · ${ago(dp.t)}` : 'Tap for colour and texture', saved==='diaper')}</button><div class="quick" role="group" aria-label="Save a diaper now">${['wet','dirty','both'].map(k => `<button type="button" class="press" data-act="diaperQuick" data-v="${k}">${DIAPER[k]}</button>`).join('')}</div></div>`+
+    `<button type="button" class="pill more press" data-open="more">Log growth, medicine and more</button>`;
 
   const d = dayStats(startOfDay(now()));
   $('totals').innerHTML =
@@ -1058,18 +1134,19 @@ function renderHome(){
     `<div><b class="num">${volOut(d.bottleMl)}<small> ${volU()}</small></b><span>bottle</span></div>`+
     `<div><b class="num">${dur(d.sleepMs)}</b><span>sleep</span></div>`+
     `<div><b class="num">${d.wet}·${d.dirty}</b><span>wet·dirty</span></div>`;
+  popChanged($('totals'));
 
   if (!S.loaded){ $('recent').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>'; return; }
   const recent = S.logs.slice(0,5);
   $('recent').innerHTML = recent.length ? `<div class="card list">${recent.map(entryHtml).join('')}</div>`
-    : `<div class="card empty"><b>Nothing logged yet</b>Tap Nurse, Bottle, Sleep or Diaper to add the first entry. Everything you both log appears here.</div>`;
+    : `<div class="card empty">${I.mark}<b>Nothing logged yet</b>Tap Feed, Sleep or Diaper to add the first entry. Everything you both log appears here.</div>`;
 }
 function entryHtml(l){
   const t = TYPES[l.type]; if (!t) return '';
   /* who logged it, yourself included: a family member's name, else the caregiver name from an import */
   const name = (l.by && S.names[l.by]) || l.byName || '';
   const who = name ? ` <span class="by">· ${esc(name.split(' ')[0])}</span>` : '';
-  return `<button type="button" class="entry" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
+  return `<button type="button" class="entry k-${t.k}${justSaved()?.id===l.id ? ' just-saved' : ''}" data-edit="${esc(l.id)}"><time class="num">${tfmt(l.t)}</time><span class="body"><span class="ic tint k-${t.k}">${t.icon}</span><span class="txt"><b>${t.label}${who}</b><span>${esc(describe(l))}</span></span>${l.photo && S.mode==='cloud' ? `<img class="thumb" data-photo="${esc(l.photo)}" alt="Photo">` : ''}</span></button>`;
 }
 let namesPending = false;
 async function resolveNames(){
@@ -1092,7 +1169,7 @@ function renderTimeline(){
   let logs = S.logs.filter(l => S.filter==='all' || TYPES[l.type]?.group === S.filter);
   if (q) logs = logs.filter(l => `${TYPES[l.type]?.label} ${describe(l)} ${l.note||''} ${l.brand||''} ${who(l)}`.toLowerCase().includes(q));
   if (!logs.length){ $('timeline').innerHTML = q ? `<div class="card empty" style="margin-top:var(--s5)"><b>Nothing matches “${esc(S.q.trim())}”</b>Try another word, or clear the search.</div>`
-    : `<div class="card empty" style="margin-top:var(--s5)"><b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
+    : `<div class="card empty" style="margin-top:var(--s5)">${I.mark}<b>No entries yet</b>Entries show up here as soon as either of you logs one.</div>`; return; }
   const cap = q && logs.length > 200; if (cap) logs = logs.slice(0, 200);
   const groups = []; let cur = null;
   for (const l of logs){ const k = dayKey(l.t); if (!cur || cur.k!==k){ cur={k,t:l.t,items:[]}; groups.push(cur);} cur.items.push(l); }
@@ -1310,7 +1387,7 @@ function renderSignin(force){
        <div class="field"><label class="label" for="siCode">Code from the email</label><input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></div>
        <button class="btn primary" type="submit" ${SI.busy?'disabled':''}>${SI.busy?'Signing in…':'Sign in'}</button>
        <button class="linkbtn" type="button" data-act="siBack">Use a different email</button>`;
-  $('view-signin').innerHTML = `<div class="signin"><div><h1>Nestlog</h1><p class="lead">One shared log for the family. Sign in with your email to start.</p></div>
+  $('view-signin').innerHTML = `<div class="signin"><div>${I.mark}<h1>Nestlog</h1><p class="lead">One shared log for the family. Sign in with your email to start.</p></div>
     <form class="card" id="signinForm" novalidate>${body}${SI.err?`<p class="err" role="alert">${esc(SI.err)}</p>`:''}</form></div>`;
   if (SI.step==='code' && !SI.busy) $('siCode')?.focus();
 }
@@ -1366,7 +1443,7 @@ function showPhotos(){
 }
 function renderPhotoBox(){
   const box = $('photoBox'); if (!box) return;
-  if (S.mode!=='cloud'){ box.innerHTML = `<p class="hint">Photos are kept in the family cloud. Sign in at akalle92.github.io/NestLog to add one to an entry.</p>`; return; }
+  if (S.mode!=='cloud'){ box.remove(); return; } /* photos live in the family cloud */
   const {photo, photoBlob} = sheetState, has = photoBlob || photo;
   const src = photoBlob ? (sheetState.previewUrl = URL.createObjectURL(photoBlob)) : '';
   box.innerHTML = `<span class="label">Photo</span>${has ? `<img ${photoBlob ? `src="${src}"` : `data-photo="${esc(photo)}"`} alt="Milestone photo">` : ''}
@@ -1436,7 +1513,34 @@ function closeReport(){ $('report').hidden = true; $('report').innerHTML = ''; d
 
 /* ---------- sheets ---------- */
 let sheetState = null, lastFocus = null;
-function closeSheet(){ $('sheetRoot').innerHTML=''; sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null; }
+/* closing slides the sheet down first; opening another sheet meanwhile cancels the pending clear */
+let closing = null;
+function closeSheet(){
+  const root = $('sheetRoot'), sheet = root.querySelector('.sheet');
+  sheetState=null; document.body.style.overflow=''; if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true}); lastFocus=null;
+  if (!sheet || closing) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches){ root.innerHTML=''; return; }
+  const done = () => { if (closing !== done) return; closing = null; root.classList.remove('closing'); root.innerHTML=''; };
+  closing = done; sheet.style.transform = ''; root.classList.add('closing');
+  sheet.addEventListener('transitionend', done, {once:true}); setTimeout(done, 320);
+}
+/* drag the handle or title down to close; a short drag springs back */
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const sheet = e.target.closest?.('.sheet'); if (!sheet || closing || e.target.closest('button') || !e.target.closest('.grab, .title') || sheet.scrollTop > 0) return;
+  drag = {sheet, y:e.clientY, t:performance.now(), dy:0, id:e.pointerId}; sheet.style.transition = 'none';
+});
+document.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.dy = Math.max(0, e.clientY - drag.y); drag.sheet.style.transform = `translateY(${drag.dy}px)`;
+});
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const {sheet, dy, t} = drag, fast = dy / Math.max(1, performance.now() - t) > .6; drag = null;
+  sheet.style.transition = '';
+  if (dy > 90 || (fast && dy > 30)) closeSheet(); else sheet.style.transform = '';
+};
+document.addEventListener('pointerup', endDrag); document.addEventListener('pointercancel', endDrag);
 const chips = (name, opts, cur) => `<div class="chips" role="group">${opts.map(([v,l])=>`<button type="button" class="chip press" data-chip="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
 function when(id, label, v, quick=true){
   const q = quick ? `<div class="chips">${[['0','Now'],['15','15m ago'],['30','30m ago'],['60','1h ago']].map(([m,l])=>`<button type="button" class="chip press" data-ago="${m}" data-for="${id}">${l}</button>`).join('')}</div>` : '';
@@ -1456,10 +1560,16 @@ function multiChips(name, vocab, cur){ const on = new Set(String(cur||'').split(
 function numField(id, label, val, mode='decimal'){ return `<div class="field"><label class="label" for="${id}">${label}</label><input id="${id}" type="number" inputmode="${mode}" step="any" min="0" value="${val}"></div>`; }
 
 function openSheet(type, existing){
-  const t = TYPES[type]; lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
+  /* switching from one open sheet to another (Feed kinds, More) swaps it in place instead of sliding up again */
+  const swap = !closing && !!$('sheetRoot').querySelector('.sheet');
+  closing = null; $('sheetRoot').classList.remove('closing'); $('sheetRoot').classList.toggle('swap', swap);
+  const t = TYPES[type] || {label:'Log something else', k:'moment', icon:I.plus};
+  if (!swap) lastFocus = document.activeElement; sheetState = {type, existing, confirmDel:false};
   const e = existing || {}, time = e.t || now();
   let body = '';
-  if (type==='nurse' && !existing){
+  if (type==='more'){
+    body = `<div class="pills">${['solids','pump','growth','medicine','vaccine','temp','milestone','nurse'].map(k => { const x=TYPES[k]; return `<button type="button" class="pill k-${x.k} press" data-open="${k}">${x.icon}${x.short}</button>`; }).join('')}</div>`;
+  } else if (type==='nurse' && !existing){
     body = `<div class="sides" id="sides"></div><p class="hint" id="nurseHint" style="text-align:center"></p><div class="row-actions" id="nurseActions"></div>
       <details><summary>Log a past feed instead</summary><div style="display:grid;gap:var(--s4);margin-top:var(--s4)">${when('fTime','Started',now())}<div class="grid2">${numField('fL','Left (min)',0,'numeric')}${numField('fR','Right (min)',0,'numeric')}</div><button class="btn soft" type="button" data-act="nurseManual">Save past feed</button></div></details>`;
   } else if (type==='nurse'){
@@ -1470,7 +1580,7 @@ function openSheet(type, existing){
     const val = e.ml ? volOut(e.ml) : last ? volOut(last.ml) : presets[1];
     body = `${amount('fAmt','Amount', val, oz()?0.5:10)}<div class="presets">${chips('preset', presets.map(p=>[String(p), `${p} ${volU()}`]), String(val))}</div>
       <div class="field"><span class="label">Contents</span>${chips('content',[['formula','Formula'],['breastmilk','Breast milk'],['mixed','Both']],e.content||last?.content||'formula')}</div>
-      <div class="field">${textField('fBrand','Formula brand', existing ? e.brand : last?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
+      <div class="field" id="brandField" ${(e.content||last?.content)==='breastmilk'?'hidden':''}>${textField('fBrand','Formula brand', existing ? e.brand : lastOf(l=>l.type==='bottle' && l.brand)?.brand, 'Optional', 40)}${recentChips('brand','fBrand',recent('bottle','brand'))}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='solids'){
     body = `<div class="field"><label class="label" for="fFood">Food</label><input id="fFood" value="${esc(e.food||'')}" placeholder="e.g. mashed banana, dal khichdi" autocomplete="off"></div><div class="field"><span class="label">How it went</span>${chips('reaction',[['Loved it','Loved it'],['Ate some','Ate some'],['Refused','Refused'],['Reaction noted','Reaction noted']],e.reaction||'')}</div>${when('fTime','When',time,!existing)}${noteField(e)}`;
   } else if (type==='sleep' && !existing){
@@ -1501,12 +1611,13 @@ function openSheet(type, existing){
   } else if (type==='milestone'){
     body = `<div class="field">${textField('fTitle','What happened', e.title, 'e.g. First smile', 80)}${recentChips('ms','fTitle',MILESTONES.filter(m=>!S.logs.some(l=>l.type==='milestone' && l.title===m)).slice(0,4))}</div>${when('fTime','When',time,false)}${noteField(e)}`;
   }
-  const live = !existing && (type==='nurse' || type==='sleep');
+  if (!existing && FEEDS.includes(type)) body = `<div class="seg" role="group" aria-label="Kind of feed">${FEEDS.map(k => `<button type="button" data-open="${k}" aria-pressed="${k===type}">${k==='nurse' ? 'Nursing' : TYPES[k].short}</button>`).join('')}</div>` + body;
+  const live = type==='more' || (!existing && (type==='nurse' || type==='sleep'));
   /* any saved entry can carry one photo (cloud only; renderPhotoBox explains otherwise) */
   if (!live){ sheetState.photo = e.photo || ''; sheetState.photoBlob = null; body += `<div class="photo" id="photoBox"></div>`; }
   const save = live ? '' : `<button class="btn primary" type="submit">${existing?'Save changes':'Save '+t.label.toLowerCase()}</button>`;
   const del = existing ? `<button class="btn danger" type="button" data-act="delete">Delete entry</button>` : '';
-  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}${save}${del}</form></div>`;
+  $('sheetRoot').innerHTML = `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grab"></div><div class="title"><span class="ic tint k-${t.k}">${t.icon}</span><h2 id="sheetTitle">${existing?'Edit '+t.label.toLowerCase():t.label}</h2><button type="button" class="x" data-act="close" aria-label="Close">${I.x}</button></div><form id="sheetForm" novalidate>${body}<div class="sheet-actions">${save}${del}</div></form></div>`;
   if ($('photoBox')) renderPhotoBox();
   document.body.style.overflow='hidden';
   if (type==='nurse' && !existing) renderNurse();
@@ -1531,7 +1642,7 @@ async function saveSheet(){
   const T = id => fromLocalInput($(id).value);
   let data;
   if (type==='nurse'){ const L=num('fL')*MIN, R=num('fR')*MIN; if(!L&&!R){toast('Enter minutes for at least one side');return;} data={...base,t:T('fTime'),left:L,right:R,last:chipVal('last')||(R&&!L?'R':'L')}; data.end=data.t+L+R; }
-  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:$('fBrand').value.trim().slice(0,40)}; }
+  else if (type==='bottle'){ const v=num('fAmt'); if(!v){toast('Enter an amount');return;} data={...base,t:T('fTime'),ml:Math.round(volIn(v)),content:chipVal('content')||'formula',brand:chipVal('content')==='breastmilk' ? '' : $('fBrand').value.trim().slice(0,40)}; }
   else if (type==='solids'){ const f=$('fFood').value.trim(); if(!f){toast('Add what they ate'); $('fFood').focus(); return;} data={...base,t:T('fTime'),food:f.slice(0,120),reaction:chipVal('reaction')}; }
   else if (type==='sleep'){ const a=T('fStart'), b=T('fEnd'); if(b<=a){toast('Wake time must be after sleep time');return;} data={...base,t:a,end:b}; }
   else if (type==='diaper'){ const k=chipVal('kind')||'wet', dirty=k==='dirty'||k==='both'; data={...base,t:T('fTime'),kind:k,color:dirty?multiVal('color'):'',texture:dirty?multiVal('texture'):'',flags:multiVal('flags')}; }
@@ -1555,7 +1666,7 @@ async function saveSheet(){
     } else if (photo) data.photo = photo;
     if (e.photo && !data.photo) storage('DELETE', e.photo).catch(()=>{});
   }
-  if (await write(()=>store.putLog(id, data))){ closeSheet(); toast((existing ? 'Changes saved.' : `${TYPES[type].label} saved.`) + photoNote); }
+  if (await write(()=>store.putLog(id, data))){ markSaved(id, type); closeSheet(); render(); toast((existing ? 'Changes saved' : `${TYPES[type].label} saved`) + (photoNote ? '.' + photoNote : '')); }
 }
 
 async function act(a, el){
@@ -1596,12 +1707,26 @@ async function act(a, el){
       if (rest.photo) setTimeout(() => { if (!S.logs.some(l => l.id===id)) storage('DELETE', rest.photo).catch(()=>{}); }, 7000); }
     return;
   }
+  if (a==='sleepTap'){ /* the Sleep row: one tap starts the timer, the next saves it */
+    if (S.active.sleep) return act('wake');
+    if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))) toast('Sleep timer started', 'Undo', () => write(()=>store.setActive('sleep',null)));
+    return;
+  }
+  if (a==='diaperQuick'){
+    const k = el.dataset.v, id = uid();
+    if (await write(()=>store.putLog(id,{type:'diaper',t:now(),kind:k,color:'',texture:'',flags:'',by:S.me||null,created:now()}))){
+      markSaved(id, 'diaper'); render(); toast(`${DIAPER[k]} diaper saved`, 'Undo', () => write(()=>store.delLog(id)));
+    }
+    return;
+  }
   if (a==='sleepStart'){ if (await write(()=>store.setActive('sleep',{start:now(),by:S.me}))){ closeSheet(); toast('Sleep timer started'); } return; }
   if (a==='wake'){
     const s = S.active.sleep; if (!s) return closeSheet();
     const start = $('fAdj') ? fromLocalInput($('fAdj').value) : s.start;
     if (start >= now()){ toast('Sleep start must be in the past'); return; }
-    if (await write(async()=>{ await store.putLog(uid(),{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ closeSheet(); toast(`Sleep saved · ${dur(now()-start)}`); }
+    const sid = uid();
+    if (await write(async()=>{ await store.putLog(sid,{type:'sleep',t:start,end:now(),by:s.by||S.me,created:now()}); await store.setActive('sleep',null); })){ markSaved(sid, 'sleep'); closeSheet(); render();
+      toast(`Sleep saved · ${dur(now()-start)}`, 'Undo', () => write(async()=>{ await store.delLog(sid); await store.setActive('sleep', s); })); }
     return;
   }
   if (a==='cancelSleep'){ if (await write(()=>store.setActive('sleep',null))){ closeSheet(); toast('Sleep timer discarded'); } return; }
@@ -1610,7 +1735,8 @@ async function act(a, el){
   if (a==='nurseSave'){
     const n=S.active.nurse; if(!n) return; const {L,R}=nurseTotals();
     const last = n.side || n.lastSide || (R>L?'R':'L');
-    if (await write(async()=>{ await store.putLog(uid(),{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); })){ closeSheet(); toast(`Feed saved · ${dur(L+R)}`); }
+    const nid = uid();
+    if (await write(async()=>{ await store.putLog(nid,{type:'nurse',t:n.start,end:now(),left:L,right:R,last,by:n.by||S.me,created:now()}); await store.setActive('nurse',null); })){ markSaved(nid, 'nurse'); closeSheet(); render(); toast(`Feed saved · ${dur(L+R)}`); }
     return;
   }
   if (a==='nurseDiscard'){ if (await write(()=>store.setActive('nurse',null))){ closeSheet(); toast('Feed discarded'); } }
@@ -1902,12 +2028,14 @@ document.addEventListener('click', e => {
   if (d.chip && d.multi){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed')!=='true')); return; }
   if (d.chip){
     if (d.chip==='kind') $('dirtyBits').hidden = !(d.v==='dirty' || d.v==='both');
+    if (d.chip==='content' && $('brandField')) $('brandField').hidden = d.v==='breastmilk'; /* no brand for breast milk */
     const grp=$('sheetRoot').querySelectorAll(`[data-chip="${d.chip}"]`); const was=el.getAttribute('aria-pressed')==='true';
     grp.forEach(b=>b.setAttribute('aria-pressed','false'));
     if (!(d.chip==='reaction'&&was)) el.setAttribute('aria-pressed','true');
     if (d.chip==='preset') $('fAmt').value = d.v;
     return;
   }
+  if (d.step && stepHeld){ stepHeld = false; return; } /* a press-and-hold already stepped */
   if (d.step){
     const inp=$(d.step); inp.value=Math.max(0, +((parseFloat(inp.value)||0)+parseFloat(d.d)).toFixed(2));
     if (d.step==='fAmt') $('sheetRoot').querySelectorAll('[data-chip="preset"]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===inp.value)));
@@ -1974,7 +2102,8 @@ function toast(msg, actionLabel, onAction){
   const t=$('toast'); t.textContent=msg;
   if (actionLabel){ const b=document.createElement('button'); b.type='button'; b.textContent=actionLabel; b.onclick=()=>{ t.hidden=true; onAction(); }; t.append(b); }
   t.classList.toggle('top', !!sheetState); /* keep it clear of a sheet's buttons */
-  t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, actionLabel?6000:2600);
+  t.hidden=false; t.classList.remove('leaving'); clearTimeout(toastT); clearTimeout(t._gone);
+  toastT=setTimeout(()=>{ t.classList.add('leaving'); t._gone = setTimeout(()=>{ t.hidden=true; t.classList.remove('leaving'); }, 200); }, actionLabel?6000:2600);
 }
 
 /* clocks: running timers every second, everything else every 30s */
@@ -2022,6 +2151,10 @@ if ('serviceWorker' in navigator && isSecureContext && !window.claude
     && (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || new URLSearchParams(location.search).has('sw'))){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+/* home-icon shortcuts open a log sheet: ?open=bottle */
+{ const q = new URLSearchParams(location.search), k = q.get('open');
+  if (k){ if (['nurse','bottle','sleep','diaper'].includes(k)) render.open = k; q.delete('open');
+    history.replaceState(null, '', location.pathname + (q.size ? '?'+q : '') + location.hash); } }
 const wantCloud = !window.claude && CLOUD.url && location.protocol !== 'file:'
   && (new URLSearchParams(location.search).has('cloud') || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
 if (document.querySelector('meta[name="nestlog-server"][content="home"]')) bootHome();

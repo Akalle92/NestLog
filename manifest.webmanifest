@@ -1,10 +1,14 @@
 {
   "name": "Nestlog",
   "short_name": "Nestlog",
+  "id": "./",
   "description": "Baby tracker for feeds, sleep, diapers, pumping and growth.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": [
+    "standalone"
+  ],
   "orientation": "portrait",
   "background_color": "#f2f1ee",
   "theme_color": "#f2f1ee",
@@ -13,5 +17,43 @@
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bottle",
+      "short_name": "Bottle",
+      "description": "Log a bottle",
+      "url": "./?open=bottle",
+      "icons": [
+        { "src": "icons/shortcut-bottle.png", "sizes": "96x96", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Diaper",
+      "short_name": "Diaper",
+      "description": "Log a diaper",
+      "url": "./?open=diaper",
+      "icons": [
+        { "src": "icons/shortcut-diaper.png", "sizes": "96x96", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Sleep",
+      "short_name": "Sleep",
+      "description": "Start or log a sleep",
+      "url": "./?open=sleep",
+      "icons": [
+        { "src": "icons/shortcut-sleep.png", "sizes": "96x96", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Nurse",
+      "short_name": "Nurse",
+      "description": "Start a nursing timer",
+      "url": "./?open=nurse",
+      "icons": [
+        { "src": "icons/shortcut-nurse.png", "sizes": "96x96", "type": "image/png" }
+      ]
+    }
   ]
 }

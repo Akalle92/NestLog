@@ -123,7 +123,7 @@ function paletteAudit() {
       await p.click('#status [data-act="wake"]'); await p.waitForTimeout(200);
       check('Woke up saves the sleep', /Awake since/.test(await text(p, '#status')));
 
-      await p.click('[data-open="nurse"]'); await p.waitForTimeout(200);
+      await p.click('[data-open="bottle"]'); await p.click('.sheet [data-open="nurse"]'); await p.waitForTimeout(200);
       await p.click('.side[data-side="L"]'); await p.waitForTimeout(1100);
       await p.click('.side[data-side="R"]'); await p.waitForTimeout(200);
       await p.screenshot({ path: `${SHOTS}/3-nurse-sheet.png` });
@@ -138,7 +138,7 @@ function paletteAudit() {
       await p.click('#toast button'); await p.waitForTimeout(200);
       check('undo restores a deleted entry', (await p.locator('#recent .entry').count()) >= before);
 
-      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape');
+      await p.click('[data-open="diaper"]'); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
       check('Escape closes a sheet', !(await p.locator('.sheet').count()));
     }
 
@@ -215,15 +215,15 @@ function paletteAudit() {
     const p = await ctx.newPage(); const errors = [];
     p.on('pageerror', e => errors.push(e.message));
     await p.goto(URL); await p.waitForTimeout(300);
-    await p.click('[data-open="medicine"]'); await p.waitForTimeout(200);
+    await p.click('[data-open="more"]'); await p.click('.sheet [data-open="medicine"]'); await p.waitForTimeout(200);
     await p.screenshot({ path: `${SHOTS}/8-medicine-sheet.png` });
     await p.fill('#fName', 'Vitamin D'); await p.fill('#fDose', '1 drop'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
-    await p.click('[data-open="temp"]'); await p.waitForTimeout(200);
+    await p.click('[data-open="more"]'); await p.click('.sheet [data-open="temp"]'); await p.waitForTimeout(200);
     await p.fill('#fTemp', '37.8'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
-    await p.click('[data-open="milestone"]'); await p.waitForTimeout(200);
-    check('photos: on this device the milestone sheet explains photos need the family cloud', /family cloud/.test(await text(p, '#photoBox')));
+    await p.click('[data-open="more"]'); await p.click('.sheet [data-open="milestone"]'); await p.waitForTimeout(200);
+    check('photos: on this device sheets offer no photo (they live in the family cloud)', !(await p.locator('#photoBox').count()));
     await p.click('[data-fill="fTitle"] >> nth=0'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
-    await p.click('[data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
+    await p.click('[data-open="more"]'); await p.click('.sheet [data-open="medicine"]'); await p.click('[data-act="asVaccine"]'); await p.waitForTimeout(200);
     await p.fill('#fName', 'MMR'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(200);
     await p.click('[data-open="diaper"]'); await p.click('[data-chip="kind"][data-v="dirty"]');
     check('diaper: colour and texture appear for a dirty diaper', await p.isVisible('#dirtyBits'));
@@ -349,6 +349,138 @@ function paletteAudit() {
     await p.emulateMedia({ colorScheme: 'dark' }); await p.click('[data-theme-pick="light"]'); await p.waitForTimeout(150);
     check('appearance: Light stays light when the phone is in dark mode', (await bg()) === light);
     check('appearance: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* sheets: Save always on screen, animated close, swipe down to close */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(() => localStorage.setItem('nestlog-v1', JSON.stringify({ settings: { name: 'Kabir' }, active: {},
+      logs: { b1: { type: 'bottle', t: Date.now() - 5e6, ml: 120, content: 'formula', brand: 'Kendamil' }, b2: { type: 'bottle', t: Date.now() - 3e6, ml: 60, content: 'breastmilk' } } })));
+    await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const box = await p.locator('#sheetForm button[type=submit]').boundingBox();
+    check('sheets: Save is on screen without scrolling', box && box.y + box.height <= 844, JSON.stringify(box));
+    check('sheets: no brand field while breast milk is picked', !(await p.isVisible('#fBrand')));
+    await p.click('[data-chip="content"][data-v="formula"]');
+    check('sheets: formula brand starts as the last one used', (await p.inputValue('#fBrand')) === 'Kendamil');
+    await p.screenshot({ path: `${SHOTS}/18-bottle-sheet-sticky.png` });
+    await p.click('.sheet .x'); await p.waitForTimeout(60);
+    check('sheets: closing slides away before the sheet is removed', (await p.locator('#sheetRoot.closing .sheet').count()) === 1);
+    await p.waitForTimeout(400);
+    check('sheets: then it is gone', !(await p.locator('.sheet').count()));
+    const swipe = async dy => { const g = await p.locator('.sheet .grab').boundingBox(); await p.mouse.move(g.x + g.width / 2, g.y + 2); await p.mouse.down();
+      for (let i = 1; i <= 8; i++) { await p.mouse.move(g.x + g.width / 2, g.y + 2 + dy * i / 8); await p.waitForTimeout(25); } await p.mouse.up(); await p.waitForTimeout(450); };
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(300);
+    await swipe(40);
+    check('sheets: a short drag springs back', (await p.locator('.sheet').count()) === 1 && !(await p.locator('#sheetRoot.closing').count()));
+    await swipe(160);
+    check('sheets: dragging the handle down closes the sheet', !(await p.locator('.sheet').count()));
+    await p.click('[data-open="more"]'); await p.click('.sheet [data-open="milestone"]'); await p.waitForTimeout(80); await p.click('.sheet .x'); await p.waitForTimeout(40); await p.click('[data-open="more"]'); await p.click('.sheet [data-open="medicine"]'); await p.waitForTimeout(400);
+    check('sheets: opening a sheet while another closes keeps the new one', (await p.locator('.sheet').count()) === 1 && /Medicine/.test(await text(p, '#sheetTitle')));
+    check('sheets: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* motion: saved entry highlight, tile check, toast exit, stepper hold, and none of it with reduced motion */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(seed); await p.reload(); await p.waitForTimeout(300);
+    await p.click('[data-open="diaper"]'); await p.waitForTimeout(250);
+    await p.evaluate(() => { window.__leaving = false; const t = document.getElementById('toast');
+      new MutationObserver(() => { if (t.classList.contains('leaving') && !t.hidden) window.__leaving = true; }).observe(t, { attributes: true }); });
+    await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(150);
+    check('motion: the saved entry is highlighted', (await p.locator('#recent .entry.just-saved').count()) === 1);
+    check('motion: its tile shows a check', (await p.locator('.tile.k-diaper .ic.done').count()) === 1);
+    await p.screenshot({ path: `${SHOTS}/19-just-saved.png` });
+    await p.waitForTimeout(1700);
+    check('motion: the highlight and check clear by themselves', !(await p.locator('.just-saved, .ic.done').count()));
+    await p.waitForTimeout(1200);
+    check('motion: the toast slides out before hiding', await p.evaluate(() => window.__leaving) && !(await p.isVisible('#toast')));
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    const before = +(await p.inputValue('#fAmt'));
+    const plus = await p.locator('[data-step="fAmt"][data-d^="1"], [data-step="fAmt"]:not([data-d^="-"])').first().boundingBox();
+    await p.mouse.move(plus.x + plus.width / 2, plus.y + plus.height / 2); await p.mouse.down(); await p.waitForTimeout(1300); await p.mouse.up(); await p.waitForTimeout(100);
+    const after = +(await p.inputValue('#fAmt'));
+    check('motion: holding + keeps adding', after - before >= 60, `${before} → ${after}`);
+    await p.click('.sheet .x'); await p.waitForTimeout(400);
+    await p.click('.tabs [data-tab="trends"]'); await p.waitForTimeout(30);
+    check('motion: a new tab rises in', await p.evaluate(() => document.getElementById('view-trends').classList.contains('enter')));
+    await p.waitForTimeout(400);
+    check('motion: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+    const rm = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', hasTouch: true, isMobile: true });
+    const q = await rm.newPage();
+    await q.goto(URL); await q.evaluate(seed); await q.reload(); await q.waitForTimeout(300);
+    await q.click('[data-open="diaper"]'); await q.waitForTimeout(50);
+    const opening = await q.evaluate(() => document.getAnimations().length);
+    await q.click('.sheet .x'); await q.waitForTimeout(30);
+    check('motion: with reduced motion nothing animates and sheets close at once', opening === 0 && !(await q.locator('.sheet').count()), `animations ${opening}`);
+    await rm.close();
+  }
+
+  /* Today: Feed, Sleep and Diaper up front, one-tap diaper and sleep, everything else behind More */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(300);
+    const rows = await p.$$eval('#mainlog > .tile b', bs => bs.map(b => b.textContent.trim()));
+    check('today: Feed, Sleep and Diaper are the main buttons', rows.join(',') === 'Feed,Sleep,Diaper', rows.join(','));
+    check('today: occasional kinds are not on Today', !(await p.locator('#view-home [data-open="growth"], #view-home [data-open="milestone"]').count()));
+    const top = await p.$eval('[data-act="diaperQuick"]', b => b.getBoundingClientRect().bottom);
+    check('today: the diaper buttons are on the first screen', top < 844, `${Math.round(top)}px`);
+    await p.click('[data-act="diaperQuick"][data-v="dirty"]'); await p.waitForTimeout(250);
+    check('today: one tap saves a dirty diaper', /Dirty diaper saved/.test(await text(p, '#toast')) && /Dirty/.test(await text(p, '#recent')) && !(await p.locator('.sheet').count()));
+    check('today: the Diaper row says when the last one was', /Dirty · just now/.test(await text(p, '.tile.k-diaper')));
+    await p.click('#toast button'); await p.waitForTimeout(250);
+    check('today: Undo takes the diaper back', !(await p.locator('#recent .entry').count()));
+    await p.click('[data-act="sleepTap"]'); await p.waitForTimeout(250);
+    check('today: one tap starts the sleep timer', /Asleep/.test(await text(p, '.tile.k-sleep')) && !(await p.locator('.sheet').count()));
+    await p.screenshot({ path: `${SHOTS}/20-today-main.png` });
+    check('today: taste house rules', !(await p.evaluate(tasteAudit)).length, (await p.evaluate(tasteAudit)).join(' | '));
+    check('today: no horizontal overflow', await noOverflow(p));
+    await p.click('[data-act="sleepTap"]'); await p.waitForTimeout(250);
+    check('today: the next tap saves the sleep', /Sleep saved/.test(await text(p, '#toast')) && /Sleep/.test(await text(p, '#recent')) && /Tap to start/.test(await text(p, '.tile.k-sleep')));
+    await p.click('#toast button'); await p.waitForTimeout(250);
+    check('today: Undo puts the timer back', /Asleep/.test(await text(p, '.tile.k-sleep')) && !(await p.locator('#recent .entry').count()));
+    await p.click('[data-act="sleepTap"]'); await p.waitForTimeout(250);
+    await p.click('[data-open="bottle"]'); await p.waitForTimeout(300);
+    check('feed: the Feed sheet opens on Bottle with a kind switch', /Bottle/.test(await text(p, '#sheetTitle')) && (await p.locator('.sheet .seg [data-open]').count()) === 3);
+    await p.click('.sheet .seg [data-open="solids"]'); await p.waitForTimeout(30);
+    check('feed: switching to Solids swaps the sheet in place', /Solids/.test(await text(p, '#sheetTitle')) && await p.evaluate(() => document.getElementById('sheetRoot').classList.contains('swap')));
+    await p.fill('#fFood', 'Ragi malt'); await p.click('#sheetForm button[type=submit]'); await p.waitForTimeout(300);
+    check('feed: the Feed row shows the last feed', /Ragi malt · just now/.test(await text(p, '.tile.k-feed')));
+    await p.click('[data-open="more"]'); await p.waitForTimeout(300);
+    check('more: lists the occasional kinds', (await p.locator('.sheet [data-open]').count()) === 8);
+    await p.screenshot({ path: `${SHOTS}/20-more-sheet.png` });
+    await p.click('.sheet [data-open="growth"]'); await p.waitForTimeout(100);
+    check('more: picking one opens its sheet', /Growth/.test(await text(p, '#sheetTitle')));
+    check('today: no script errors', !errors.length, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* assets: manifest shortcuts and ?open=, notification badge, iPhone launch screens, brand mark */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage(); const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    const man = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+    const icons = man.shortcuts.flatMap(s => s.icons.map(i => i.src));
+    check('assets: the manifest has four shortcuts with icons on disk', man.shortcuts.length === 4 && icons.every(f => fs.existsSync(path.join(__dirname, '..', f))), icons.join(' '));
+    await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(300);
+    check('assets: the empty Today shows the brand mark', await p.locator('#view-home .empty .mark').count() === 1);
+    await p.goto(URL + '?open=bottle'); await p.waitForTimeout(400);
+    check('assets: ?open=bottle opens the Bottle sheet and leaves a clean address', await p.locator('.sheet #fAmt').count() === 1 && !(await p.evaluate(() => location.search)));
+    const badge = await p.evaluate(async () => { const i = new Image(); i.src = 'icons/badge-96.png'; await i.decode(); return [i.naturalWidth, i.naturalHeight]; });
+    check('assets: the notification badge is 96×96', badge[0] === 96 && badge[1] === 96, badge.join('×'));
+    const launch = await p.evaluate(() => Promise.all([...document.querySelectorAll('link[rel="apple-touch-startup-image"]')].map(l => fetch(l.href).then(r => r.status))));
+    check('assets: every iPhone launch screen loads', launch.length >= 10 && launch.every(s => s === 200), launch.join(' '));
+    check('assets: no script errors', !errors.length, errors.join(' | '));
     await ctx.close();
   }
 
@@ -651,6 +783,7 @@ function paletteAudit() {
     check('cloud: sign-in has no horizontal overflow', await noOverflow(a));
     const tasteSignin = await a.evaluate(tasteAudit);
     check('cloud: sign-in follows taste house rules', !tasteSignin.length, tasteSignin.join(' | '));
+    check('cloud: sign-in shows the brand mark', await a.isVisible('.signin .mark'));
     await a.screenshot({ path: `${SHOTS}/6-cloud-signin.png` });
     await a.fill('#siEmail', 'stranger@x.com'); await a.click('#signinForm button[type=submit]'); await a.waitForTimeout(300);
     check('cloud: unknown email is turned away', /family list/.test(await text(a, '#signinForm')));
@@ -709,7 +842,7 @@ function paletteAudit() {
 
     /* milestone photos: shrunk, uploaded to private storage, shown on the other phone, removed with the entry's photo */
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAG0lEQVR4nGP4z8DwnwEZMDEwMDCiCzAwMDAAAG0QAwVfNk2nAAAAAElFTkSuQmCC', 'base64');
-    await a.click('.tabs [data-tab="home"]'); await a.click('[data-open="milestone"]'); await a.waitForTimeout(200);
+    await a.click('.tabs [data-tab="home"]'); await a.click('[data-open="more"]'); await a.click('.sheet [data-open="milestone"]'); await a.waitForTimeout(200);
     await a.fill('#fTitle', 'First bath');
     await a.setInputFiles('#fPhoto', { name: 'bath.png', mimeType: 'image/png', buffer: png }); await a.waitForTimeout(400);
     check('photos: preview shows in the milestone sheet', await a.locator('#photoBox img').count() === 1);
